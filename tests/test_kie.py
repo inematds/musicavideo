@@ -46,3 +46,45 @@ def test_falha_da_api_vira_provider_error(tmp_path, monkeypatch):
     with pytest.raises(ProviderError):
         kie_mod.criar(DECL).gerar("suno-v4.5", {"titulo": "t", "letra": "l",
                                                 "estilo": "s", "instrumental": False}, tmp_path)
+
+
+def test_generate_manda_callbackurl(tmp_path, monkeypatch):
+    """A API responde 422 sem callBackUrl, mesmo o doc marcando como opcional."""
+    vistos = {}
+
+    def fake_http(url, metodo="GET", corpo=None, headers=None, **kw):
+        if url.endswith("/generate"):
+            vistos.update(corpo)
+            return {"data": {"taskId": "T9"}}
+        return {"data": {"status": "SUCCESS", "response": {"sunoData": [
+                {"audioUrl": "http://x/f.mp3", "duration": 10}]}}}
+
+    monkeypatch.setattr(kie_mod, "http_json", fake_http)
+    monkeypatch.setattr(kie_mod, "baixar",
+                        lambda url, destino, **kw: (destino.write_bytes(b"m"), destino)[-1])
+    monkeypatch.setattr(kie_mod, "ler_env_chave", lambda n: "k")
+    kie_mod.criar(DECL).gerar("suno-v4.5", {"titulo": "t", "letra": "l", "estilo": "s",
+                                            "instrumental": False}, tmp_path)
+    assert vistos["callBackUrl"].startswith("http")
+
+
+def test_first_success_ignora_faixa_sem_audiourl(tmp_path, monkeypatch):
+    """FIRST_SUCCESS traz faixa ainda sem audioUrl — usar só a que tem áudio."""
+    baixados = []
+
+    def fake_http(url, metodo="GET", corpo=None, headers=None, **kw):
+        if url.endswith("/generate"):
+            return {"data": {"taskId": "T2"}}
+        return {"data": {"status": "FIRST_SUCCESS", "response": {"sunoData": [
+            {"audioUrl": "", "streamAudioUrl": "http://s/1", "duration": None},
+            {"audioUrl": "http://x/pronta.mp3", "duration": 175}]}}}
+
+    monkeypatch.setattr(kie_mod, "http_json", fake_http)
+    monkeypatch.setattr(kie_mod, "baixar",
+                        lambda url, destino, **kw: (baixados.append(url),
+                                                    destino.write_bytes(b"m"), destino)[-1])
+    monkeypatch.setattr(kie_mod, "ler_env_chave", lambda n: "k")
+    r = kie_mod.criar(DECL).gerar("suno-v4.5", {"titulo": "t", "letra": "l", "estilo": "s",
+                                                "instrumental": False}, tmp_path)
+    assert baixados == ["http://x/pronta.mp3"]
+    assert r.meta["duracao_s"] == 175

@@ -1,4 +1,5 @@
 """Música: Suno via api.kie.ai. O POST /generate já gasta — taskId vai pro raw/ antes do poll."""
+import os
 import time
 from pathlib import Path
 
@@ -7,6 +8,10 @@ from providers.base import (Provider, Resultado, ProviderError, ler_env_chave,
 
 KIE_BASE = "https://api.kie.ai/api/v1"
 TIMEOUT_POLL_S = 15 * 60
+# A API devolve 422 "Please enter callBackUrl" sem este campo, embora o doc o
+# marque como opcional. Não temos endpoint público: mandamos um placeholder e
+# lemos o resultado por polling (mesmo caminho que o musicaclone usa).
+CALLBACK_PLACEHOLDER = "https://example.com/kie-callback"
 
 
 class Kie(Provider):
@@ -36,7 +41,8 @@ class Kie(Provider):
                  "style": params["estilo"][:m["params"]["estilo_prompt_max_chars"]],
                  "title": params["titulo"], "customMode": True,
                  "instrumental": bool(params.get("instrumental", False)),
-                 "model": m["api_model"], "negativeTags": params.get("negative_tags", "")}
+                 "model": m["api_model"], "negativeTags": params.get("negative_tags", ""),
+                 "callBackUrl": os.environ.get("MUSICA_CALLBACK", CALLBACK_PLACEHOLDER)}
         resp = http_json(f"{KIE_BASE}/generate", "POST", corpo, self._headers())
         task = (resp.get("data") or {}).get("taskId")
         if not task:
@@ -52,7 +58,10 @@ class Kie(Provider):
                           headers=self._headers())
             d = r.get("data") or {}
             st = d.get("status", "")
-            faixas = (d.get("response") or {}).get("sunoData") or []
+            todas = (d.get("response") or {}).get("sunoData") or []
+            # FIRST_SUCCESS = só uma faixa ficou pronta; as outras ainda vêm com
+            # audioUrl vazio. Só serve a que já tem áudio de verdade.
+            faixas = [f for f in todas if (f.get("audioUrl") or "").startswith("http")]
             if faixas and st in ("SUCCESS", "FIRST_SUCCESS"):
                 gravar_raw(workdir, "kie-record-info", r)
                 break
@@ -62,7 +71,7 @@ class Kie(Provider):
         alvo = baixar(faixas[0]["audioUrl"], workdir / "faixa.mp3")   # URL do Suno EXPIRA
         return Resultado(alvo, m["custo"]["base_usd"],
                          {"kie_task_id": task, "duracao_s": faixas[0].get("duration"),
-                          "faixas_geradas": len(faixas)})
+                          "faixas_geradas": len(faixas), "status_final": st})
 
 
 def criar(decl):
