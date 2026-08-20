@@ -27,6 +27,29 @@ def _params_de(plano: dict, parte: str) -> dict:
     return p
 
 
+def _montar_com_a_faixa(w: Path, r, plano: dict):
+    """Um clipe sem a música é só um vídeo. Se a faixa já existe, ela entra."""
+    from src.montagem import montar, MontagemError
+    faixa = w / "faixa.mp3"
+    if not faixa.exists():
+        print("clipe: faixa.mp3 ainda não existe — clipe fica com o áudio dos shots. "
+              "Depois de `faz <slug> musica`, rode `musicavideo monta <slug>`.")
+        return r
+    bruto = w / "raw" / "clipe-sem-musica.mp4"
+    r.arquivo.replace(bruto)
+    try:
+        meta = montar(bruto, faixa, w / "clipe.mp4",
+                      cobrir_musica=bool(plano["clipe"].get("params", {}).get("cobrir_musica")))
+    except MontagemError as e:
+        bruto.replace(r.arquivo)
+        raise
+    print(f"clipe: música casada ({meta['duracao_final_s']}s"
+          f"{', vídeo em loop' if meta['video_em_loop'] else ''})")
+    r.arquivo = w / "clipe.mp4"
+    r.meta.update(meta)
+    return r
+
+
 def faz(outdir, slug, partes=None, sim=False, telegram=False,
         motor_override=None, reg=None) -> int:
     outdir = Path(outdir)
@@ -97,6 +120,8 @@ def faz(outdir, slug, partes=None, sim=False, telegram=False,
             if era_erro:
                 pars["retry"] = True   # provider pode reaproveitar geração já paga
             r = prov.gerar(modelo["id"], pars, w)
+            if p == "clipe":
+                r = _montar_com_a_faixa(w, r, plano)
             transicao(estado, p, "pronto", artefato=r.arquivo.name,
                       custo_real=r.custo_real, meta=r.meta)
             print(f"{p}: pronto → {r.arquivo.name} (US$ {r.custo_real:.4f})")
@@ -151,4 +176,34 @@ def cmd_custo(args) -> int:
         print(f"erro: slug '{args[0]}' não encontrado em {out_dir()}", file=sys.stderr)
         return 1
     print(relatorio(carregar_estado(w)))
+    return 0
+
+
+def cmd_monta(args) -> int:
+    """Casa um clipe já gerado com a faixa já gerada (sem gastar nada)."""
+    import sys
+    from src.main import out_dir
+    from src.planner import _parse_opts
+    from src.montagem import montar, MontagemError
+    livres, opts = _parse_opts(args)
+    if not livres:
+        print("uso: monta <slug> [--completo]   (--completo repete o vídeo até a música acabar)",
+              file=sys.stderr)
+        return 1
+    w = out_dir() / livres[0]
+    faixa, clipe = w / "faixa.mp3", w / "clipe.mp4"
+    if not (faixa.exists() and clipe.exists()):
+        faltam = [n for n, f in (("faixa.mp3", faixa), ("clipe.mp4", clipe)) if not f.exists()]
+        print(f"erro: falta {', '.join(faltam)} em {w}", file=sys.stderr)
+        return 1
+    bruto = w / "raw" / "clipe-sem-musica.mp4"
+    if not bruto.exists():
+        clipe.replace(bruto)
+    try:
+        meta = montar(bruto, faixa, clipe, cobrir_musica=bool(opts.get("completo")))
+    except MontagemError as err:
+        print(f"erro: {err}", file=sys.stderr)
+        return 1
+    print(f"clipe montado com a música: {clipe} "
+          f"({meta['duracao_final_s']}s{', vídeo em loop' if meta['video_em_loop'] else ''})")
     return 0

@@ -19,6 +19,7 @@ USO = """uso: musicavideo <comando> ...
   ok <slug> <parte>
   faz <slug> [parte] [--sim] [--telegram] [--motor parte=prov:modelo]
   tudo "<solicitação>" [--teto N] [demais flags de plano] [--sim] [--telegram]
+  monta <slug> [--completo]      # casa o clipe com a faixa (não gasta)
   custo <slug> | lista [N] | busca "<termo>" | reindex"""
 
 COMANDOS = {}   # nome -> callable(argv) -> int; preenchido pelas próximas tasks
@@ -72,6 +73,11 @@ def _cmd_faz(args):
     return cmd_faz(args)
 
 
+def _cmd_monta(args):
+    from src.executor import cmd_monta
+    return cmd_monta(args)
+
+
 def _cmd_custo(args):
     from src.executor import cmd_custo
     return cmd_custo(args)
@@ -114,7 +120,8 @@ def _cmd_tudo(args):
 
 COMANDOS.update({"lista": _cmd_lista, "busca": _cmd_busca, "reindex": _cmd_reindex,
                  "plano": _cmd_plano, "ver": _cmd_ver, "ok": _cmd_ok, "ajusta": _cmd_ajusta,
-                 "faz": _cmd_faz, "custo": _cmd_custo, "tudo": _cmd_tudo})
+                 "faz": _cmd_faz, "custo": _cmd_custo, "tudo": _cmd_tudo,
+                 "monta": _cmd_monta})
 
 
 def main(argv: list[str]) -> int:
