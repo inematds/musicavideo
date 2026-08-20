@@ -4,6 +4,12 @@
 
 Guia completo (landing + passo a passo): **https://inematds.github.io/musicavideo/guia/**
 
+## 🔎 Como funciona por dentro
+
+Fases e onde atuar, como refazer uma música, como a busca funciona, como o
+planejamento decide e em cima de quê música e clipe são montados:
+**[docs/COMO-FUNCIONA.md](docs/COMO-FUNCIONA.md)**
+
 Você manda **uma solicitação em texto livre**. Sai **música + capa + clipe** —
 em fases, com portão de aprovação em cada parte, ou sem portão nenhum.
 
