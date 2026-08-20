@@ -24,7 +24,7 @@ def plano_ok():
         "estilo_ref": None, "titulo": "Agora Eu Cobro",
         "musica": {
             "motor": "kie:suno-v4.5",
-            "params": {"duracao_s": 180, "instrumental": False},
+            "params": {"duracao_s": 10, "instrumental": False},   # 2 shots de 5s cobrem
             "estilo": {"genero": "Female Anthem Rock", "bpm": 120, "tom": "E menor",
                        "mood": ["determinada", "vitoriosa"],
                        "instrumentacao": ["electric guitar", "bass", "drums"],

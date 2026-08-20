@@ -13,6 +13,8 @@ from src.registry import carregar_registry, disponibilidade, resolver_motor, val
 
 RAIZ = Path(__file__).resolve().parents[1]
 PARTES = ("musica", "capa", "clipe")
+DUR_SHOT_PADRAO = 5          # segundos por shot (limite prático do Agnes)
+COBERTURA_MINIMA = 0.9       # o clipe tem que cobrir ao menos 90% da faixa
 MOTORES_DEFAULT = {"musica": "kie:suno-v4.5",
                    "capa": "agnes:agnes-image-2.1-flash",
                    "clipe": "agnes:agnes-video-v2.0"}
@@ -63,6 +65,11 @@ def montar_contexto(solicitacao: str, opts: dict, outdir: Path) -> str:
         "clipe.decupagem[].prompt DEVEM ser em INGLÊS (a API Agnes bloqueia português). "
         "conceito/descricao/letra/mood podem ser em português.",
         "Motores default: " + json.dumps(MOTORES_DEFAULT),
+        f"DURAÇÃO: o clipe DEVE cobrir a música INTEIRA. A faixa terá ~{_dur_alvo(opts)}s, "
+        f"então a decupagem precisa de ~{_n_shots_alvo(opts)} shots de {DUR_SHOT_PADRAO}s "
+        f"(soma de duracao_s ≈ duração da faixa). Um clipe mais curto que a música é "
+        f"REJEITADO na validação. Distribua os shots pelas seções da estrutura: mais shots "
+        f"nos refrões, e variação real entre eles (nada de repetir o mesmo plano).",
         f"SOLICITAÇÃO: {solicitacao}",
         "ESTILOS: " + _arquivo_estilos().read_text(encoding="utf-8"),
         "TEMPLATES CAPA: " + (RAIZ / "data/templates-capa.json").read_text(encoding="utf-8"),
@@ -83,8 +90,27 @@ def montar_contexto(solicitacao: str, opts: dict, outdir: Path) -> str:
     return "\n\n".join(partes)
 
 
+def _dur_alvo(opts: dict) -> int:
+    return int(opts.get("duracao_s") or 180)
+
+
+def _n_shots_alvo(opts: dict) -> int:
+    return max(1, round(_dur_alvo(opts) / DUR_SHOT_PADRAO))
+
+
+def cobertura_do_clipe(plano: dict) -> list[str]:
+    """Clipe mais curto que a música vira vídeo em loop — que não é um clipe."""
+    dur_musica = int(plano.get("musica", {}).get("params", {}).get("duracao_s") or 180)
+    dur_clipe = sum(s.get("duracao_s", 0) for s in plano.get("clipe", {}).get("decupagem", []) or [])
+    if dur_clipe < dur_musica * COBERTURA_MINIMA:
+        return [f"clipe.decupagem cobre {dur_clipe}s de uma música de ~{dur_musica}s — "
+                f"decupe a música inteira (~{round(dur_musica / DUR_SHOT_PADRAO)} shots "
+                f"de {DUR_SHOT_PADRAO}s)"]
+    return []
+
+
 def _validar_tudo(plano: dict, reg: dict) -> list[str]:
-    erros = validar_plano(plano) + campos_prompt_en(plano)
+    erros = validar_plano(plano) + campos_prompt_en(plano) + cobertura_do_clipe(plano)
     for parte in PARTES:
         motor = plano.get(parte, {}).get("motor", "")
         try:

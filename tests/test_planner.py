@@ -57,3 +57,24 @@ def test_slug_existente_sem_forca_erra(outdir, plano_ok):
 def test_render_md_mostra_indisponivel(plano_ok):
     md = render_plano_md(plano_ok, {"kie": (False, "kie: indisponível — KIE_API_KEY não encontrada")})
     assert "indisponível" in md and "KIE_API_KEY" in md
+
+
+def test_clipe_mais_curto_que_a_musica_e_rejeitado(outdir, plano_ok):
+    """Clipe que não cobre a faixa vira vídeo em loop — não é um clipe."""
+    from src.planner import cobertura_do_clipe
+    plano_ok["musica"]["params"]["duracao_s"] = 180      # 3 min de música...
+    assert cobertura_do_clipe(plano_ok)                   # ...com 10s de decupagem
+    with pytest.raises(ValueError, match="decupe a música inteira"):
+        gerar_plano("x", "s-curto", {}, outdir, chamar_llm=lambda p: json.dumps(plano_ok))
+
+
+def test_decupagem_que_cobre_a_musica_passa(plano_ok):
+    from src.planner import cobertura_do_clipe
+    plano_ok["musica"]["params"]["duracao_s"] = 10
+    assert cobertura_do_clipe(plano_ok) == []
+
+
+def test_contexto_pede_a_musica_inteira(outdir):
+    from src.planner import montar_contexto
+    ctx = montar_contexto("rock", {"duracao_s": 180}, outdir)
+    assert "36 shots" in ctx and "cobrir a música INTEIRA" in ctx
