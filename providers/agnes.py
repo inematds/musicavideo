@@ -81,8 +81,8 @@ class Agnes(Provider):
     def _gerar_video(self, params, workdir: Path) -> Resultado:
         w, h = (params.get("resolucao") or "1312x736").split("x")
         shots_arq, video_ids = [], []
-        inicio_geral = time.time()
         for i, shot in enumerate(params["decupagem"]):
+            inicio_shot = time.time()   # timeout é POR shot, não do clipe inteiro
             if i > 0:
                 time.sleep(12)                       # rate limit real: 5 req/min
             corpo = {"model": "agnes-video-v2.0", "prompt": shot["prompt"],
@@ -96,7 +96,7 @@ class Agnes(Provider):
             gravar_raw(workdir, f"agnes-shot-{shot['n']:02d}",
                        {"request": corpo, "response": resp})
             while True:
-                if time.time() - inicio_geral > TIMEOUT_POLL_S:
+                if time.time() - inicio_shot > TIMEOUT_POLL_S:
                     raise ProviderError(f"agnes: timeout de polling (15 min) no shot {shot['n']}")
                 st = http_json(f"{AGNES_BASE}/agnesapi?video_id={vid}", headers=self._headers())
                 if st.get("status") == "completed":

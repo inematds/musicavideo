@@ -50,7 +50,14 @@ def faz(outdir, slug, partes=None, sim=False, telegram=False,
             print(f"{p}: estado '{estado['partes'][p]['estado']}' não permite faz "
                   f"(precisa aprovado ou erro)")
             return 1
-    est = estimar_partes(plano, reg, partes)
+    if motor_override:   # o override vale de verdade: persiste no contrato
+        (w / "plano.json").write_text(json.dumps(plano, ensure_ascii=False, indent=2),
+                                      encoding="utf-8")
+    try:
+        est = estimar_partes(plano, reg, partes)
+    except KeyError as e:
+        print(f"erro: {e}")
+        return 1
     print("custo estimado:")
     for p in partes:
         print(f"  {p:8s} US$ {est[p]:.4f}  ({plano[p]['motor']})")
@@ -90,6 +97,11 @@ def faz(outdir, slug, partes=None, sim=False, telegram=False,
         except ProviderError as e:
             transicao(estado, p, "erro", motor=plano[p]["motor"], msg=str(e))
             print(f"{p}: erro — {e}")
+            houve_erro = True
+        except Exception as e:   # adapter mal-comportado não derruba a corrida (spec §10)
+            msg = f"{type(e).__name__}: {e}"
+            transicao(estado, p, "erro", motor=plano[p]["motor"], msg=msg)
+            print(f"{p}: erro — {msg}")
             houve_erro = True
         salvar_estado(w, estado)
         gravar_linha(outdir, linha_de(plano, estado))

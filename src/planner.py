@@ -102,12 +102,18 @@ def _impor_deterministicos(plano: dict, slug: str, solicitacao: str, opts: dict)
         plano.setdefault(parte, {}).setdefault("motor", motor)
     for parte, motor in (opts.get("motor") or {}).items():
         plano[parte]["motor"] = motor
-    if opts.get("letra") and opts.get("letra_final"):
-        plano["musica"]["letra"] = {
-            "origem": "final_usuario",
-            "texto": Path(opts["letra"]).read_text(encoding="utf-8"),
-            "texto_original": None,
-            "idioma": plano["musica"].get("letra", {}).get("idioma", "pt-BR")}
+    if opts.get("letra"):
+        original = Path(opts["letra"]).read_text(encoding="utf-8")
+        le = plano.setdefault("musica", {}).setdefault("letra", {})
+        if opts.get("letra_final"):        # a letra é lei
+            plano["musica"]["letra"] = {"origem": "final_usuario", "texto": original,
+                                        "texto_original": None,
+                                        "idioma": le.get("idioma", "pt-BR")}
+        else:                              # rascunho: origem e diff não dependem do LLM
+            le["origem"] = "rascunho_usuario"
+            le["texto_original"] = original
+            le.setdefault("texto", original)
+            le.setdefault("idioma", "pt-BR")
     return plano
 
 
@@ -117,8 +123,17 @@ def gerar_plano(solicitacao, slug, opts, outdir, chamar_llm=None) -> dict:
     outdir.mkdir(parents=True, exist_ok=True)
     slug = slug or derivar_slug(solicitacao, outdir)
     w = outdir / slug
-    if w.exists() and not opts.get("forca"):
-        raise ValueError(f"slug '{slug}' já existe — use --forca para replanejar")
+    if w.exists():
+        if not opts.get("forca"):
+            raise ValueError(f"slug '{slug}' já existe — use --forca para replanejar")
+        if (w / "estado.json").exists():   # --forca não destrói o que já foi gerado e pago
+            atual = carregar_estado(w)
+            prontas = [p for p in PARTES if atual["partes"][p]["estado"] == "pronto"]
+            if prontas:
+                raise ValueError(
+                    f"slug '{slug}' tem parte(s) pronta(s): {', '.join(prontas)}. "
+                    f"--forca apagaria o estado e o custo já gasto. "
+                    f"Use `ajusta {slug} <parte> \"...\" --refaz` para refazer só uma parte.")
     reg = carregar_registry()
     prompt = montar_contexto(solicitacao, opts, outdir)
     plano = _impor_deterministicos(_extrair_json(chamar_llm(prompt)), slug, solicitacao, opts)

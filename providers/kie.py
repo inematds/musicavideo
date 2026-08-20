@@ -53,7 +53,7 @@ class Kie(Provider):
             d = r.get("data") or {}
             st = d.get("status", "")
             faixas = (d.get("response") or {}).get("sunoData") or []
-            if faixas and (st in ("SUCCESS", "FIRST_SUCCESS") or st == ""):
+            if faixas and st in ("SUCCESS", "FIRST_SUCCESS"):
                 gravar_raw(workdir, "kie-record-info", r)
                 break
             if "FAIL" in st or "ERROR" in st:
