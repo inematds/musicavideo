@@ -38,6 +38,30 @@ def concat_ffmpeg(shots: list, alvo: Path) -> Path:
     return alvo
 
 
+def _barrou(e: Exception) -> bool:
+    """Filtro de conteúdo (ou 400 equivalente) — não é falha de infraestrutura."""
+    t = str(e)
+    return "content_policy" in t or "HTTP 400" in t or "failed" in t
+
+
+def _vizinho_da_secao(decupagem: list, shot: dict, feitos: dict):
+    """Um shot JÁ pronto da mesma seção — o mais próximo em número."""
+    candidatos = [s["n"] for s in decupagem
+                  if s.get("secao") == shot.get("secao") and s["n"] in feitos]
+    if not candidatos:
+        return None
+    return feitos[min(candidatos, key=lambda n: abs(n - shot["n"]))]
+
+
+def variacao_de(origem: Path, alvo: Path) -> Path:
+    """Espelha o vizinho pra não parecer repetição pura. Preserva a duração."""
+    r = subprocess.run(["ffmpeg", "-y", "-i", str(origem), "-vf", "hflip",
+                        "-c:a", "copy", str(alvo)], capture_output=True, text=True)
+    if r.returncode != 0 or not alvo.exists():
+        raise ProviderError(f"ffmpeg falhou ao preencher shot: {r.stderr[-200:]}")
+    return alvo
+
+
 class Agnes(Provider):
     nome = "agnes"
 
@@ -78,50 +102,101 @@ class Agnes(Provider):
         alvo = baixar(dados[0]["url"], workdir / "capa.png")    # URL temporária: baixar já
         return Resultado(alvo, 0.0, {"size": corpo["size"]})
 
+    def _um_shot(self, prompt: str, shot: dict, w: str, h: str, workdir: Path,
+                 sufixo: str = "") -> Path:
+        """Gera UM shot. Levanta ProviderError se barrar ou falhar."""
+        corpo = {"model": "agnes-video-v2.0", "prompt": prompt,
+                 "num_frames": num_frames_para(shot["duracao_s"]),
+                 "frame_rate": FPS, "width": int(w), "height": int(h)}
+        resp = http_json(f"{AGNES_BASE}/v1/videos", "POST", corpo, self._headers())
+        vid = resp.get("video_id") or resp.get("task_id") or resp.get("id")
+        if not vid:
+            raise ProviderError(f"agnes: POST /videos sem id: {str(resp)[:300]}")
+        gravar_raw(workdir, f"agnes-shot-{shot['n']:02d}{sufixo}",
+                   {"request": corpo, "response": resp})
+        inicio = time.time()
+        while True:
+            if time.time() - inicio > TIMEOUT_POLL_S:
+                raise ProviderError(f"agnes: timeout de polling (15 min) no shot {shot['n']}")
+            st = http_json(f"{AGNES_BASE}/agnesapi?video_id={vid}", headers=self._headers())
+            if st.get("status") == "completed":
+                url = st.get("video_url") or st.get("url")
+                return baixar(url, workdir / "raw" / f"shot-{shot['n']:02d}.mp4")
+            if st.get("status") == "failed":
+                raise ProviderError(f"agnes: shot {shot['n']} failed: {st.get('error', '')}")
+            time.sleep(10)
+
     def _gerar_video(self, params, workdir: Path) -> Resultado:
+        """Cascata por shot: prompt → prompt_alt → reescrita → vizinho da seção.
+
+        A duração total é sagrada: é ela que mantém imagem e música alinhadas.
+        Perder variedade num shot é aceitável; encurtar o clipe desloca TUDO
+        que vem depois."""
         w, h = (params.get("resolucao") or "1312x736").split("x")
-        shots_arq, video_ids, barrados = [], [], []
-        for i, shot in enumerate(params["decupagem"]):
-            pronto = workdir / "raw" / f"shot-{shot['n']:02d}.mp4"
+        reescrever = params.get("reescrever")      # injetado pelo executor (Fable)
+        decupagem = params["decupagem"]
+        feitos: dict[int, Path] = {}
+        barrados, com_alt, reescritos, preenchidos = [], [], [], []
+
+        for i, shot in enumerate(decupagem):
+            n = shot["n"]
+            pronto = workdir / "raw" / f"shot-{n:02d}.mp4"
             if pronto.exists() and pronto.stat().st_size > 10_000:
-                shots_arq.append(pronto)   # já gerado numa corrida anterior: não refaz
+                feitos[n] = pronto            # de corrida anterior: não refaz
                 continue
-            inicio_shot = time.time()   # timeout é POR shot, não do clipe inteiro
             if i > 0:
-                time.sleep(12)                       # rate limit real: 5 req/min
-            corpo = {"model": "agnes-video-v2.0", "prompt": shot["prompt"],
-                     "num_frames": num_frames_para(shot["duracao_s"]),
-                     "frame_rate": FPS, "width": int(w), "height": int(h)}
-            try:
-                resp = http_json(f"{AGNES_BASE}/v1/videos", "POST", corpo, self._headers())
-            except ProviderError as e:
-                # filtro de conteúdo barra UM shot — não é motivo pra perder o clipe
-                if "content_policy" in str(e) or "HTTP 400" in str(e):
-                    barrados.append(shot["n"])
-                    print(f"agnes: shot {shot['n']} barrado pelo filtro de conteúdo — pulando")
-                    continue
-                raise
-            vid = resp.get("video_id") or resp.get("task_id") or resp.get("id")
-            if not vid:
-                raise ProviderError(f"agnes: POST /videos sem id: {str(resp)[:300]}")
-            video_ids.append(vid)
-            gravar_raw(workdir, f"agnes-shot-{shot['n']:02d}",
-                       {"request": corpo, "response": resp})
-            while True:
-                if time.time() - inicio_shot > TIMEOUT_POLL_S:
-                    raise ProviderError(f"agnes: timeout de polling (15 min) no shot {shot['n']}")
-                st = http_json(f"{AGNES_BASE}/agnesapi?video_id={vid}", headers=self._headers())
-                if st.get("status") == "completed":
-                    url = st.get("video_url") or st.get("url")
-                    arq = baixar(url, workdir / "raw" / f"shot-{shot['n']:02d}.mp4")
-                    shots_arq.append(arq)
+                time.sleep(12)                # rate limit real: 5 req/min
+
+            tentativas = [("prompt", shot["prompt"])]
+            if shot.get("prompt_alt"):
+                tentativas.append(("alt", shot["prompt_alt"]))
+
+            erro_final = None
+            for origem, prompt in tentativas:
+                try:
+                    feitos[n] = self._um_shot(prompt, shot, w, h, workdir,
+                                              "" if origem == "prompt" else f"-{origem}")
+                    if origem == "alt":
+                        com_alt.append(n)
+                        print(f"agnes: shot {n} barrado — entrou pelo prompt_alt")
                     break
-                if st.get("status") == "failed":
-                    barrados.append(shot["n"])
-                    print(f"agnes: shot {shot['n']} falhou ({st.get('error', '')}) — pulando")
-                    break
-                time.sleep(10)
-        total = len(params["decupagem"])
+                except ProviderError as e:
+                    if not _barrou(e):
+                        raise
+                    erro_final = e
+            if n in feitos:
+                continue
+
+            if reescrever:                    # rede de segurança: Fable reescreve na hora
+                try:
+                    novo_prompt = reescrever(shot, str(erro_final))
+                    if novo_prompt:
+                        time.sleep(12)
+                        feitos[n] = self._um_shot(novo_prompt, shot, w, h, workdir, "-reescrito")
+                        reescritos.append(n)
+                        print(f"agnes: shot {n} entrou com prompt reescrito na hora")
+                        continue
+                except ProviderError as e:
+                    if not _barrou(e):
+                        raise
+                    erro_final = e
+                except Exception as e:        # reescritor quebrado não derruba o clipe
+                    print(f"agnes: reescrita do shot {n} falhou ({e})")
+
+            vizinho = _vizinho_da_secao(decupagem, shot, feitos)
+            if vizinho is not None:           # preserva a DURAÇÃO, que é o que importa
+                variacao_de(vizinho, workdir / "raw" / f"shot-{n:02d}.mp4")
+                feitos[n] = workdir / "raw" / f"shot-{n:02d}.mp4"
+                preenchidos.append(n)
+                print(f"agnes: shot {n} preenchido com variação de um vizinho da mesma seção")
+                continue
+
+            barrados.append(n)
+            print(f"agnes: shot {n} BARRADO e sem substituto — o clipe encurta "
+                  f"{shot['duracao_s']}s e a sincronia desloca daqui pra frente")
+
+        shots_arq = [feitos[s["n"]] for s in decupagem if s["n"] in feitos]
+        total = len(decupagem)
         if len(shots_arq) < total * 0.8:
             raise ProviderError(
                 f"agnes: só {len(shots_arq)} de {total} shots saíram "
@@ -129,7 +204,6 @@ class Agnes(Provider):
         if barrados:
             print(f"agnes: clipe montado sem os shots {barrados} "
                   f"({len(shots_arq)}/{total} entraram)")
-        shots_arq.sort(key=lambda p: p.name)
         alvo = concat_ffmpeg(shots_arq, workdir / "clipe.mp4")
         try:   # a resposta MENTE o size — medir o arquivo real
             probe = subprocess.run(["ffprobe", "-v", "quiet", "-show_entries",
@@ -137,8 +211,9 @@ class Agnes(Provider):
                                    capture_output=True, text=True).stdout.strip()
         except FileNotFoundError:
             probe = "ffprobe ausente"
-        return Resultado(alvo, 0.0, {"shots": len(shots_arq), "video_ids": video_ids,
-                                     "shots_barrados": barrados, "size_real": probe})
+        return Resultado(alvo, 0.0, {"shots": len(shots_arq), "shots_barrados": barrados,
+                                     "shots_com_alt": com_alt, "shots_reescritos": reescritos,
+                                     "shots_preenchidos": preenchidos, "size_real": probe})
 
 
 def criar(decl):

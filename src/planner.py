@@ -61,7 +61,12 @@ def montar_contexto(solicitacao: str, opts: dict, outdir: Path) -> str:
         "Estrutura exata: musica{motor,params,estilo{genero,bpm,tom,mood,instrumentacao,voz,prompt_estilo},"
         "estrutura,letra{origem,texto,texto_original,idioma}}; capa{motor,params,template,conceito,"
         "prompt_imagem,prompt_negativo,paleta}; clipe{motor,params,template,sincronia,"
-        "decupagem[{n,secao,duracao_s,camera,descricao,prompt}]}. NENHUM campo a mais.",
+        "decupagem[{n,secao,duracao_s,camera,descricao,prompt,prompt_alt}]}. NENHUM campo a mais.",
+        "PLANO B: cada shot leva também `prompt_alt` — a MESMA cena e a mesma duração "
+        "contada pelo lado seguro, para quando o filtro de conteúdo barrar o prompt "
+        "principal. No alt: sem rostos em close, sem violência, sem marcas, sem texto "
+        "legível; prefira objeto, ambiente, silhueta, luz e sombra. O alt tem que "
+        "cumprir o MESMO papel narrativo no mesmo instante da música.",
         "REGRA: os campos musica.estilo.prompt_estilo, capa.prompt_imagem, capa.prompt_negativo e "
         "clipe.decupagem[].prompt DEVEM ser em INGLÊS (a API Agnes bloqueia português). "
         "conceito/descricao/letra/mood podem ser em português.",
@@ -258,6 +263,70 @@ def render_plano_md(plano: dict, disp: dict) -> str:
     for nome, (ok, motivo) in sorted(disp.items()):
         prov.append(f"- **{nome}:** {'ok' if ok else motivo}")
     return "\n\n".join(cab + corpo + ["\n".join(prov)]) + "\n"
+
+
+def precisa_reajuste(plano: dict, duracao_real: float) -> bool:
+    """Vale mexer só se a diferença passar de um shot — abaixo disso o fade resolve."""
+    dur_clipe = sum(x.get("duracao_s", 0) for x in plano["clipe"].get("decupagem", []) or [])
+    return abs(duracao_real - dur_clipe) > DUR_SHOT_PADRAO
+
+
+def reajustar_decupagem(workdir: Path, duracao_real: float, chamar_llm=None) -> dict:
+    """Refaz a decupagem para a duração REAL da faixa aprovada.
+
+    O plano é escrito antes de a música existir, então chuta a duração. Se a
+    faixa vier bem diferente, as marcações param de bater: o refrão final da
+    decupagem cai fora do refrão final da música."""
+    chamar_llm = chamar_llm or chamar_fable
+    workdir = Path(workdir)
+    plano = json.loads((workdir / "plano.json").read_text(encoding="utf-8"))
+    atual = sum(x.get("duracao_s", 0) for x in plano["clipe"]["decupagem"])
+    alvo_shots = max(1, round(duracao_real / DUR_SHOT_PADRAO))
+    prompt = ("Plano atual:\n" + json.dumps(plano, ensure_ascii=False)
+              + f"\n\nA MÚSICA FICOU PRONTA e tem {duracao_real:.0f}s — a decupagem atual "
+                f"cobre {atual}s. Reescreva APENAS a seção 'clipe' para cobrir "
+                f"{duracao_real:.0f}s: {alvo_shots} shots de {DUR_SHOT_PADRAO}s, "
+                f"redistribuídos pelas seções (mais nos refrões), mantendo o arco "
+                f"narrativo e o estilo visual que já estavam lá. Aproveite os shots "
+                f"existentes que continuarem fazendo sentido, com os mesmos prompts. "
+                f"Prompts de provedor em INGLÊS, com prompt_alt em cada shot. "
+                f"Responda só o JSON da seção clipe.")
+    nova = _extrair_json(chamar_llm(prompt))
+    candidato = dict(plano)
+    candidato["clipe"] = nova
+    coberto = sum(x.get("duracao_s", 0) for x in nova.get("decupagem", []) or [])
+    if coberto < duracao_real * COBERTURA_MINIMA:
+        raise ValueError(f"reajuste rejeitado: a nova decupagem cobre {coberto}s "
+                         f"de {duracao_real:.0f}s de música")
+    erros = _validar_tudo(candidato, carregar_registry())
+    if erros:
+        raise ValueError("reajuste inválido:\n- " + "\n- ".join(erros))
+    plano["clipe"] = nova
+    gravar_plano(workdir, plano)
+    print(f"decupagem reajustada: {atual}s → {coberto}s "
+          f"({len(nova['decupagem'])} shots) pela duração real da faixa")
+    return plano
+
+
+def reescritor_de_prompt(chamar_llm=None):
+    """Devolve a função que o adapter usa quando o filtro barra um shot."""
+    chamar_llm = chamar_llm or chamar_fable
+
+    def reescrever(shot: dict, motivo: str) -> str:
+        prompt = (f"Este prompt de vídeo foi BARRADO pelo filtro de conteúdo do "
+                  f"provedor:\n{shot['prompt']}\n\nMotivo: {motivo[:200]}\n\n"
+                  f"Reescreva para a MESMA cena, mesmo instante da música "
+                  f"(seção '{shot.get('secao')}', câmera '{shot.get('camera')}'), "
+                  f"pelo lado seguro: sem rostos em close, sem violência, sem marcas, "
+                  f"sem texto legível — prefira objeto, ambiente, silhueta, luz e sombra. "
+                  f"Responda SÓ o prompt novo, em inglês, numa linha.")
+        try:
+            texto = (chamar_llm(prompt) or "").strip().strip('"')
+            return texto.splitlines()[-1].strip() if texto else ""
+        except Exception:
+            return ""
+
+    return reescrever
 
 
 # ---------------------------------------------------------------- portão

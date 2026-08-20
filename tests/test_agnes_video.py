@@ -41,7 +41,10 @@ def test_gerar_video_shots_poll_concat(tmp_path, monkeypatch):
                                      "decupagem": decup}, tmp_path)
     assert len(posts) == 2
     assert r.arquivo == tmp_path / "clipe.mp4"
-    assert r.meta["shots"] == 2 and r.meta["video_ids"] == ["V1", "V2"]
+    assert r.meta["shots"] == 2
+    assert r.meta["shots_barrados"] == [] and r.meta["shots_preenchidos"] == []
+    # os ids das chamadas ficam no raw/, um json por shot
+    assert len(list((tmp_path / "raw").glob("agnes-shot-*.json"))) == 2
 
 
 def test_todos_os_shots_falhando_vira_provider_error(tmp_path, monkeypatch):
@@ -66,8 +69,8 @@ def _decup(n):
              "prompt": f"shot {i}"} for i in range(1, n + 1)]
 
 
-def test_shot_barrado_pelo_filtro_nao_derruba_o_clipe(tmp_path, monkeypatch):
-    """Um shot barrado por content policy custa aquele shot, não o clipe inteiro."""
+def test_shot_barrado_pelo_filtro_e_preenchido_pra_manter_a_duracao(tmp_path, monkeypatch):
+    """Barrado sem alt e sem reescritor: preenche com vizinho da seção — a duração fica."""
     from providers.base import ProviderError
     montados = {}
 
@@ -87,10 +90,13 @@ def test_shot_barrado_pelo_filtro_nao_derruba_o_clipe(tmp_path, monkeypatch):
     monkeypatch.setattr(agnes_mod, "concat_ffmpeg",
                         lambda shots, alvo: (montados.update(n=len(shots)),
                                              alvo.write_bytes(b"f"), alvo)[-1])
+    monkeypatch.setattr(agnes_mod, "variacao_de",
+                        lambda origem, alvo: (alvo.write_bytes(b"v" * 20000), alvo)[-1])
     r = agnes_mod.criar(DECL).gerar("agnes-video-v2.0",
                                     {"resolucao": "1312x736", "decupagem": _decup(10)}, tmp_path)
-    assert r.meta["shots_barrados"] == [3]
-    assert montados["n"] == 9            # os outros 9 viraram clipe
+    assert r.meta["shots_barrados"] == []       # ninguém ficou de fora
+    assert r.meta["shots_preenchidos"] == [3]   # o 3 entrou por substituição
+    assert montados["n"] == 10                  # duração preservada
 
 
 def test_muitos_shots_barrados_e_erro(tmp_path, monkeypatch):

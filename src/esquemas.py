@@ -61,7 +61,7 @@ def validar_plano(plano: dict) -> list[str]:
     _listas(v, ("decupagem",), "clipe", erros)
     for i, shot in enumerate(v.get("decupagem", []) or []):
         _chaves(shot, {"n", "secao", "duracao_s", "camera", "descricao", "prompt"},
-                set(), f"clipe.decupagem[{i}]", erros)
+                {"prompt_alt"}, f"clipe.decupagem[{i}]", erros)
     return erros
 
 
@@ -73,6 +73,8 @@ def campos_prompt_en(plano: dict) -> list[str]:
              ("capa.prompt_negativo", plano["capa"].get("prompt_negativo", ""))]
     for i, s in enumerate(plano["clipe"].get("decupagem", []) or []):
         alvos.append((f"clipe.decupagem[{i}].prompt", s.get("prompt", "")))
+        if s.get("prompt_alt"):
+            alvos.append((f"clipe.decupagem[{i}].prompt_alt", s["prompt_alt"]))
     for nome, txt in alvos:
         if _ACENTOS.search(txt or ""):
             erros.append(f"{nome}: prompt de provedor deve ser em INGLÊS (achei acento)")

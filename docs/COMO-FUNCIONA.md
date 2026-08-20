@@ -207,9 +207,33 @@ tem seção, câmera, descrição em português e **prompt próprio em inglês**
 clipe de 3 minutos isso dá ~37 shots — com mais peso nos refrões.
 
 **2. Geração (Agnes).** Um POST por shot, throttle de 12 s (limite real de 5
-req/min). `num_frames` segue a regra 8n+1, teto 441 (5 s = 121 frames). Shot
-barrado pelo filtro de conteúdo é **pulado e listado**; shot já baixado é
-**reaproveitado** numa retomada.
+req/min). `num_frames` segue a regra 8n+1, teto 441 (5 s = 121 frames). Shot já
+baixado é **reaproveitado** numa retomada.
+
+Quando o filtro de conteúdo barra um shot, a **cascata** entra — porque suprimir
+encurta o clipe e desloca tudo o que vem depois:
+
+| # | tentativa | de onde vem |
+|---|-----------|-------------|
+| 1 | `prompt` | o que você aprovou |
+| 2 | `prompt_alt` | o plano B, também aprovado por você na fase 1 |
+| 3 | reescrita na hora | o Fable reescreve aquele shot pelo lado seguro |
+| 4 | vizinho da mesma seção | espelhado por ffmpeg — perde variedade, **mantém a duração** |
+| 5 | buraco registrado | só se tudo falhar; aparece no estado, no PACOTE.md e na tela |
+
+O `prompt_alt` conta **a mesma cena pelo lado seguro**: sem rostos em close, sem
+violência, sem marcas, sem texto legível — objeto, ambiente, silhueta, luz. Ele
+cumpre o mesmo papel narrativo, no mesmo instante da música. Você lê e ajusta
+esse plano B na fase 1, junto com o resto.
+
+**A duração total é sagrada:** é ela que ancora imagem e música. Variedade é
+negociável; sincronia não.
+
+**2.5 Reajuste pela faixa real.** O plano é escrito antes de a música existir, e
+chuta a duração. Quando a faixa aprovada difere em mais de um shot (5 s), o
+planejador **refaz a decupagem para a duração real** — antes de gerar vídeo, que
+é o passo caro. Sem isso, uma faixa 30 s mais longa faria o refrão final da
+decupagem cair fora do refrão final da música.
 
 **3. Concatenação.** `ffmpeg concat -c copy`, sem reencode — todos os shots saem
 1280×704.

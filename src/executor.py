@@ -24,7 +24,33 @@ def _params_de(plano: dict, parte: str) -> dict:
                   "prompt_negativo": plano["capa"]["prompt_negativo"]})
     elif parte == "clipe":
         p["decupagem"] = plano["clipe"]["decupagem"]
+        from src.planner import reescritor_de_prompt
+        p["reescrever"] = reescritor_de_prompt()   # rede de segurança da cascata
     return p
+
+
+def _reajustar_pela_faixa(w: Path, plano: dict, estado: dict) -> dict:
+    """Se a faixa pronta tem duração bem diferente do que o plano chutou, o
+    planejador refaz a decupagem ANTES de gerar vídeo — que é o passo caro."""
+    from src.planner import precisa_reajuste, reajustar_decupagem
+    art = estado["partes"]["musica"].get("artefato")
+    if estado["partes"]["musica"]["estado"] != "pronto" or not art:
+        return plano
+    faixa = w / art
+    if not faixa.exists():
+        return plano
+    from src.montagem import _ffprobe_duracao, MontagemError
+    try:
+        dur = _ffprobe_duracao(faixa)
+    except MontagemError:
+        return plano
+    if not precisa_reajuste(plano, dur):
+        return plano
+    try:
+        return reajustar_decupagem(w, dur)
+    except (ValueError, RuntimeError) as e:
+        print(f"clipe: não deu pra reajustar a decupagem ({e}) — seguindo com a atual")
+        return plano
 
 
 def _montar_com_a_faixa(w: Path, r, plano: dict):
@@ -127,6 +153,8 @@ def faz(outdir, slug, partes=None, sim=False, telegram=False,
                   f"Retomar: musicavideo faz {slug} {p}")
             houve_teto = True
             continue
+        if p == "clipe":     # a faixa aprovada manda na duração do clipe
+            plano = _reajustar_pela_faixa(w, plano, estado)
         era_erro = estado["partes"][p]["estado"] == "erro"
         estado["partes"][p]["custo_estimado_usd"] = est[p]
         estado["custo_total_usd"]["estimado"] = round(sum(

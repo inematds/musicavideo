@@ -55,3 +55,11 @@ def test_campo_de_lista_como_string_e_erro(plano_ok):
     plano_ok["musica"]["estilo"]["mood"] = ["determinada"]
     plano_ok["capa"]["paleta"] = "#E8A13C"
     assert any("paleta" in e for e in validar_plano(plano_ok))
+
+
+def test_prompt_alt_e_opcional_mas_validado_como_EN(plano_ok):
+    assert validar_plano(plano_ok) == []                      # sem alt: válido
+    plano_ok["clipe"]["decupagem"][0]["prompt_alt"] = "empty workshop at dawn, no people"
+    assert validar_plano(plano_ok) == []                      # com alt: válido
+    plano_ok["clipe"]["decupagem"][0]["prompt_alt"] = "oficina vazia, luz âmbar"
+    assert any("prompt_alt" in e for e in campos_prompt_en(plano_ok))

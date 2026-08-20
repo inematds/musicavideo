@@ -103,3 +103,9 @@ def test_contexto_sem_banco_de_referencias_nao_quebra(outdir, tmp_path, monkeypa
     monkeypatch.setenv("MUSICAVIDEO_ANALISEVIDEO", str(tmp_path / "vazio"))
     ctx = montar_contexto("rock", {}, outdir)
     assert "REFERÊNCIAS VISUAIS MEDIDAS" not in ctx and "SOLICITAÇÃO" in ctx
+
+
+def test_contexto_pede_o_plano_b_de_cada_shot(outdir):
+    from src.planner import montar_contexto
+    ctx = montar_contexto("rock", {}, outdir)
+    assert "prompt_alt" in ctx and "PLANO B" in ctx
