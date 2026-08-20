@@ -1,0 +1,5 @@
+{"provider": "fal", "env_keys": ["FAL_KEY"], "modelos": [
+  {"id": "kling-video-v2.5-turbo-pro", "capacidade": "video",
+   "api_path": "fal-ai/kling-video/v2.5-turbo/pro/text-to-video",
+   "custo": {"base_usd": 0.07, "por": "segundo"},
+   "params": {"resolucao": {"default": "720p"}, "duracao_shot_s": {"default": 5, "max": 10}}}]}

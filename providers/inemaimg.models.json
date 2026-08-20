@@ -1,0 +1,4 @@
+{"provider": "inemaimg", "env_keys": [], "modelos": [
+  {"id": "flux2-klein", "capacidade": "imagem",
+   "custo": {"base_usd": 0.0, "por": "geracao"},
+   "params": {"tamanho": {"default": "1024x1024"}}}]}

@@ -1,0 +1,6 @@
+{"provider": "kie", "env_keys": ["KIE_API_KEY"], "modelos": [
+  {"id": "suno-v4.5", "api_model": "V4_5", "capacidade": "musica",
+   "custo": {"base_usd": 0.08, "por": "geracao"},
+   "params": {"duracao_s": {"default": 180, "max": 240},
+              "instrumental": {"default": false},
+              "estilo_prompt_max_chars": 1000}}]}

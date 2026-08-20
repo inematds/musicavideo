@@ -1,0 +1,5 @@
+{"provider": "kling", "env_keys": ["KIE_API_KEY"], "modelos": [
+  {"id": "kling-2.5", "api_model": "kling/v2-5-turbo-text-to-video-pro",
+   "capacidade": "video",
+   "custo": {"base_usd": 0.056, "por": "segundo"},
+   "params": {"resolucao": {"default": "720p"}, "duracao_shot_s": {"default": 5, "max": 10}}}]}
