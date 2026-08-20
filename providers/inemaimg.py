@@ -1,11 +1,13 @@
+"""inemaimg — servidor local de imagem (flux2-klein no DGX). Sem chave, custo zero."""
+import base64
 from pathlib import Path
-from providers.base import Provider, Resultado, ProviderError, http_json
+
+from providers.base import Provider, Resultado, ProviderError, http_json, gravar_raw
 
 BASE_URL = "http://localhost:8000"
 
 
 class Inemaimg(Provider):
-    """Servidor local (DGX) de imagem — sem chave; disponibilidade = servidor no ar."""
     nome = "inemaimg"
 
     def __init__(self, decl):
@@ -27,7 +29,18 @@ class Inemaimg(Provider):
         return c["base_usd"]
 
     def gerar(self, modelo, params, workdir: Path) -> Resultado:
-        raise ProviderError(f"{self.nome}: gerar() ainda não implementado")
+        largura, _, altura = (params.get("tamanho") or "1024x1024").partition("x")
+        corpo = {"model": modelo, "prompt": params["prompt"],
+                 "negative_prompt": params.get("prompt_negativo", ""),
+                 "width": int(largura), "height": int(altura)}
+        resp = http_json(f"{BASE_URL}/generate", "POST", corpo, timeout=600)
+        b64 = resp.get("image") or resp.get("image_base64") or ""
+        if not b64:
+            raise ProviderError(f"inemaimg: resposta sem imagem base64: {str(resp)[:300]}")
+        gravar_raw(workdir, "inemaimg-capa", {"request": corpo, "response_keys": list(resp)})
+        alvo = workdir / "capa.png"
+        alvo.write_bytes(base64.b64decode(b64))
+        return Resultado(alvo, 0.0, {"size": f"{largura}x{altura}"})
 
 
 def criar(decl):
