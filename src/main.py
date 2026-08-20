@@ -57,8 +57,18 @@ def _cmd_ver(args):
     return cmd_ver(args)
 
 
+def _cmd_ok(args):
+    from src.planner import cmd_ok
+    return cmd_ok(args)
+
+
+def _cmd_ajusta(args):
+    from src.planner import cmd_ajusta
+    return cmd_ajusta(args)
+
+
 COMANDOS.update({"lista": _cmd_lista, "busca": _cmd_busca, "reindex": _cmd_reindex,
-                 "plano": _cmd_plano, "ver": _cmd_ver})
+                 "plano": _cmd_plano, "ver": _cmd_ver, "ok": _cmd_ok, "ajusta": _cmd_ajusta})
 
 
 def main(argv: list[str]) -> int:

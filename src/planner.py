@@ -7,7 +7,7 @@ import unicodedata
 from pathlib import Path
 
 from src.esquemas import validar_plano, campos_prompt_en
-from src.estado import novo_estado, salvar_estado, _agora
+from src.estado import (novo_estado, salvar_estado, carregar_estado, transicao, _agora)
 from src.indexer import linha_de, gravar_linha, contexto_acervo
 from src.registry import carregar_registry, disponibilidade, resolver_motor, validar_params
 
@@ -209,6 +209,64 @@ def render_plano_md(plano: dict, disp: dict) -> str:
     return "\n\n".join(cab + corpo + ["\n".join(prov)]) + "\n"
 
 
+# ---------------------------------------------------------------- portão
+
+def aprovar_parte(outdir: Path, slug: str, parte: str) -> None:
+    w = Path(outdir) / slug
+    plano = json.loads((w / "plano.json").read_text(encoding="utf-8"))
+    estado = carregar_estado(w)
+    transicao(estado, parte, "ok")
+    salvar_estado(w, estado)
+    gravar_linha(Path(outdir), linha_de(plano, estado))
+
+
+def ajustar_parte(outdir: Path, slug: str, parte: str, instrucao: str,
+                  refaz: bool = False, chamar_llm=chamar_fable) -> str:
+    outdir = Path(outdir)
+    w = outdir / slug
+    plano = json.loads((w / "plano.json").read_text(encoding="utf-8"))
+    estado = carregar_estado(w)
+    antiga = plano[parte]
+    letra_lei = (parte == "musica"
+                 and antiga.get("letra", {}).get("origem") == "final_usuario")
+    prompt = ("Plano atual:\n" + json.dumps(plano, ensure_ascii=False)
+              + f"\n\nReescreva APENAS a seção '{parte}' seguindo: {instrucao}. "
+                "Prompts de provedor em INGLÊS. Responda só o JSON da seção."
+              + ("\nREGRA: musica.letra é IMUTÁVEL (final_usuario) — copie verbatim."
+                 if letra_lei else ""))
+    nova = _extrair_json(chamar_llm(prompt))
+    if letra_lei and nova.get("letra", {}).get("texto") != antiga["letra"]["texto"]:
+        raise ValueError("musica.letra é final_usuario — o ajusta não pode alterá-la")
+    candidato = dict(plano)
+    candidato[parte] = nova
+    erros = _validar_tudo(candidato, carregar_registry())
+    if erros:
+        raise ValueError("ajuste inválido:\n- " + "\n- ".join(erros))
+    if estado["partes"][parte]["estado"] == "pronto":
+        if not refaz:
+            raise ValueError(f"{parte} está pronto — use --refaz para replanejar")
+        art = estado["partes"][parte]["artefato"]
+        if art and (w / art).exists():
+            raw = w / "raw"
+            raw.mkdir(exist_ok=True, parents=True)
+            n = 1
+            while (raw / f"{art}-v{n}").exists():
+                n += 1
+            (w / art).rename(raw / f"{art}-v{n}")
+        transicao(estado, parte, "refaz")
+    transicao(estado, parte, "ajusta")
+    plano[parte] = nova
+    gravar_plano(w, plano)
+    salvar_estado(w, estado)
+    gravar_linha(outdir, linha_de(plano, estado))
+    diff = "\n".join(difflib.unified_diff(
+        json.dumps(antiga, ensure_ascii=False, indent=2).splitlines(),
+        json.dumps(nova, ensure_ascii=False, indent=2).splitlines(),
+        fromfile=f"{parte} (antes)", tofile=f"{parte} (depois)", lineterm=""))
+    print(diff)
+    return diff
+
+
 # ---------------------------------------------------------------- comandos CLI
 
 def _parse_opts(args: list[str]) -> tuple[list[str], dict]:
@@ -267,6 +325,54 @@ def cmd_plano(args) -> int:
         (w / "pesquisa.md").write_text(opts["pesquisa_md"], encoding="utf-8")
     print((w / "PLANO.md").read_text(encoding="utf-8"))
     print(f"\nplano em {w}/PLANO.md — aprove com: musicavideo ok {plano['slug']} <parte>")
+    return 0
+
+
+def _valida_alvo(livres, uso, minimo=2):
+    import sys
+    from src.main import out_dir
+    if len(livres) < minimo:
+        print(f"uso: {uso}", file=sys.stderr)
+        return None
+    if livres[1] not in PARTES:
+        print(f"erro: parte inválida '{livres[1]}' (musica|capa|clipe)", file=sys.stderr)
+        return None
+    w = out_dir() / livres[0]
+    if not (w / "plano.json").exists():
+        print(f"erro: slug '{livres[0]}' não encontrado em {out_dir()}", file=sys.stderr)
+        return None
+    return out_dir()
+
+
+def cmd_ok(args) -> int:
+    import sys
+    from src.estado import TransicaoInvalida
+    livres, _ = _parse_opts(args)
+    od = _valida_alvo(livres, "ok <slug> <parte>")
+    if od is None:
+        return 1
+    try:
+        aprovar_parte(od, livres[0], livres[1])
+    except TransicaoInvalida as e:
+        print(f"erro: {e}", file=sys.stderr)
+        return 1
+    print(f"{livres[1]} aprovado — gere com: musicavideo faz {livres[0]} {livres[1]}")
+    return 0
+
+
+def cmd_ajusta(args) -> int:
+    import sys
+    from src.estado import TransicaoInvalida
+    livres, opts = _parse_opts(args)
+    od = _valida_alvo(livres, 'ajusta <slug> <parte> "<instrução>" [--refaz]', minimo=3)
+    if od is None:
+        return 1
+    try:
+        ajustar_parte(od, livres[0], livres[1], livres[2], refaz=bool(opts.get("refaz")))
+    except (ValueError, RuntimeError, TransicaoInvalida) as e:
+        print(f"erro: {e}", file=sys.stderr)
+        return 1
+    print(f"\n{livres[1]} replanejado — reveja com: musicavideo ver {livres[0]} {livres[1]}")
     return 0
 
 
