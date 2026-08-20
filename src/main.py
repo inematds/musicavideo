@@ -77,9 +77,44 @@ def _cmd_custo(args):
     return cmd_custo(args)
 
 
+def _cmd_tudo(args):
+    """Sem portão: planeja, aprova as 3 partes e executa respeitando o teto."""
+    import src.planner as pl
+    from src.executor import faz
+    from src.estado import carregar_estado, salvar_estado
+    if not args:
+        print('uso: tudo "<solicitação>" [--teto N] [--sim] [--telegram] [--estilo X] '
+              '[--letra arq [--letra-final]] [--pesquisa]', file=sys.stderr)
+        return 1
+    livres, opts = pl._parse_opts(args)
+    if not livres:
+        print('uso: tudo "<solicitação>" [flags]', file=sys.stderr)
+        return 1
+    solicitacao = livres[0]
+    if opts.get("pesquisa"):
+        from src.pesquisa import pesquisar
+        opts["pesquisa_md"] = pesquisar(solicitacao)
+    try:
+        plano = pl.gerar_plano(solicitacao, livres[1] if len(livres) > 1 else None,
+                               opts, out_dir())
+    except (ValueError, RuntimeError) as e:
+        print(f"erro: {e}", file=sys.stderr)
+        return 1
+    slug = plano["slug"]
+    for parte in ("musica", "capa", "clipe"):
+        pl.aprovar_parte(out_dir(), slug, parte)
+    if opts.get("teto") is not None:
+        w = out_dir() / slug
+        e = carregar_estado(w)
+        e["teto_usd"] = float(opts["teto"])
+        salvar_estado(w, e)
+    return faz(out_dir(), slug, None, sim=bool(opts.get("sim")),
+               telegram=bool(opts.get("telegram")), motor_override=opts.get("motor"))
+
+
 COMANDOS.update({"lista": _cmd_lista, "busca": _cmd_busca, "reindex": _cmd_reindex,
                  "plano": _cmd_plano, "ver": _cmd_ver, "ok": _cmd_ok, "ajusta": _cmd_ajusta,
-                 "faz": _cmd_faz, "custo": _cmd_custo})
+                 "faz": _cmd_faz, "custo": _cmd_custo, "tudo": _cmd_tudo})
 
 
 def main(argv: list[str]) -> int:

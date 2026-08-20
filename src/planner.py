@@ -111,7 +111,8 @@ def _impor_deterministicos(plano: dict, slug: str, solicitacao: str, opts: dict)
     return plano
 
 
-def gerar_plano(solicitacao, slug, opts, outdir, chamar_llm=chamar_fable) -> dict:
+def gerar_plano(solicitacao, slug, opts, outdir, chamar_llm=None) -> dict:
+    chamar_llm = chamar_llm or chamar_fable
     outdir = Path(outdir)
     outdir.mkdir(parents=True, exist_ok=True)
     slug = slug or derivar_slug(solicitacao, outdir)
@@ -221,7 +222,8 @@ def aprovar_parte(outdir: Path, slug: str, parte: str) -> None:
 
 
 def ajustar_parte(outdir: Path, slug: str, parte: str, instrucao: str,
-                  refaz: bool = False, chamar_llm=chamar_fable) -> str:
+                  refaz: bool = False, chamar_llm=None) -> str:
+    chamar_llm = chamar_llm or chamar_fable
     outdir = Path(outdir)
     w = outdir / slug
     plano = json.loads((w / "plano.json").read_text(encoding="utf-8"))

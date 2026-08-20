@@ -94,11 +94,8 @@ def faz(outdir, slug, partes=None, sim=False, telegram=False,
         salvar_estado(w, estado)
         gravar_linha(outdir, linha_de(plano, estado))
     if all(x["estado"] == "pronto" for x in estado["partes"].values()):
-        try:
-            from src.entrega import entregar
-            entregar(outdir, slug)
-        except ImportError:
-            pass
+        from src.entrega import entregar
+        entregar(outdir, slug)
     return 3 if houve_teto else (2 if houve_erro else 0)
 
 
