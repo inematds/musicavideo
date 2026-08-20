@@ -80,7 +80,7 @@ musicavideo/
 **Files:** Create `/home/nmaldaner/projetos/musicavideo/musicavideo.sh`, `/home/nmaldaner/projetos/musicavideo/src/main.py`, `/home/nmaldaner/projetos/musicavideo/tests/conftest.py`, `/home/nmaldaner/projetos/musicavideo/tests/test_main.py`, `/home/nmaldaner/projetos/musicavideo/.gitignore`
 **Interfaces:** Produces: `src/main.py` com `main(argv: list[str]) -> int` e dict `COMANDOS`; `conftest.py` com fixture `outdir` (tmp, seta `MUSICAVIDEO_OUT`); convenção `OUT_DIR` via `MUSICAVIDEO_OUT`.
 
-- [ ] **Step 1: git init + autoria local**
+- [x] **Step 1: git init + autoria local**
   ```bash
   cd /home/nmaldaner/projetos/musicavideo
   git init
@@ -88,7 +88,7 @@ musicavideo/
   git config user.email "inematds@gmail.com"
   printf '__pycache__/\n*.pyc\n.pytest_cache/\n' > .gitignore
   ```
-- [ ] **Step 2: Escrever o teste que falha** — `tests/conftest.py` e `tests/test_main.py`:
+- [x] **Step 2: Escrever o teste que falha** — `tests/conftest.py` e `tests/test_main.py`:
   ```python
   # tests/conftest.py
   import os, pytest
@@ -124,8 +124,8 @@ musicavideo/
       assert r.returncode == 1
       assert "uso:" in (r.stdout + r.stderr).lower()
   ```
-- [ ] **Step 3: Rodar e ver falhar:** `cd /home/nmaldaner/projetos/musicavideo && python3 -m pytest tests/ -x -q` — falha com `FileNotFoundError`/`No such file` para `src/main.py`.
-- [ ] **Step 4: Implementação mínima:**
+- [x] **Step 3: Rodar e ver falhar:** `cd /home/nmaldaner/projetos/musicavideo && python3 -m pytest tests/ -x -q` — falha com `FileNotFoundError`/`No such file` para `src/main.py`.
+- [x] **Step 4: Implementação mínima:**
   ```bash
   # musicavideo.sh
   #!/usr/bin/env bash
@@ -169,8 +169,8 @@ musicavideo/
       sys.exit(main(sys.argv[1:]))
   ```
   `chmod +x musicavideo.sh`
-- [ ] **Step 5: Rodar e ver passar:** `python3 -m pytest tests/ -x -q`
-- [ ] **Step 6: Commit:** `git add -A && git commit -m "esqueleto: roteador bash fino + dispatch python + pytest"`
+- [x] **Step 5: Rodar e ver passar:** `python3 -m pytest tests/ -x -q`
+- [x] **Step 6: Commit:** `git add -A && git commit -m "esqueleto: roteador bash fino + dispatch python + pytest"`
 
 ---
 
@@ -179,7 +179,7 @@ musicavideo/
 **Files:** Create `src/esquemas.py`, `tests/test_esquemas.py`, `tests/conftest.py` (adicionar fixture `plano_ok`)
 **Interfaces:** Produces: `validar_plano(plano: dict) -> list[str]` (lista de erros, vazia = válido), `validar_estado(estado: dict) -> list[str]`, `campos_prompt_en(plano: dict) -> list[str]` (erros de prompt não-EN). Consumido por planner (Task 7) e executor (Task 9).
 
-- [ ] **Step 1: Fixture `plano_ok` no conftest** (defaults pós-spec — agnes na capa e no clipe):
+- [x] **Step 1: Fixture `plano_ok` no conftest** (defaults pós-spec — agnes na capa e no clipe):
   ```python
   # acrescentar em tests/conftest.py
   @pytest.fixture
@@ -226,7 +226,7 @@ musicavideo/
         }
       }
   ```
-- [ ] **Step 2: Escrever o teste que falha:**
+- [x] **Step 2: Escrever o teste que falha:**
   ```python
   # tests/test_esquemas.py
   from src.esquemas import validar_plano, validar_estado, campos_prompt_en
@@ -272,8 +272,8 @@ musicavideo/
       e["partes"]["musica"]["estado"] = "voando"
       assert validar_estado(e) != []
   ```
-- [ ] **Step 3: Rodar e ver falhar:** `python3 -m pytest tests/test_esquemas.py -x -q` — `ModuleNotFoundError: src.esquemas`.
-- [ ] **Step 4: Implementação mínima:**
+- [x] **Step 3: Rodar e ver falhar:** `python3 -m pytest tests/test_esquemas.py -x -q` — `ModuleNotFoundError: src.esquemas`.
+- [x] **Step 4: Implementação mínima:**
   ```python
   # src/esquemas.py
   """Validação FECHADA dos contratos (spec §8): campo desconhecido é erro."""
@@ -354,8 +354,8 @@ musicavideo/
               erros.append(f"estado.{p}: estado inválido '{d.get('estado')}'")
       return erros
   ```
-- [ ] **Step 5: Rodar e ver passar:** `python3 -m pytest tests/test_esquemas.py -x -q`
-- [ ] **Step 6: Commit:** `git add -A && git commit -m "esquemas: validação fechada de plano/estado + prompts de provedor em EN"`
+- [x] **Step 5: Rodar e ver passar:** `python3 -m pytest tests/test_esquemas.py -x -q`
+- [x] **Step 6: Commit:** `git add -A && git commit -m "esquemas: validação fechada de plano/estado + prompts de provedor em EN"`
 
 ---
 
@@ -364,7 +364,7 @@ musicavideo/
 **Files:** Create `src/estado.py`, `tests/test_estado.py`
 **Interfaces:** Consumes: `validar_estado` (Task 2). Produces: `novo_estado(slug: str) -> dict`; `carregar_estado(workdir: Path) -> dict` (normaliza `gerando` interrompido → `erro` motivo `"interrompido"`); `salvar_estado(workdir: Path, estado: dict) -> None` (atômico, atualiza `atualizado_em`); `transicao(estado: dict, parte: str, evento: str, **kw) -> None` (eventos: `ok`, `ajusta`, `faz`, `pronto`, `erro`, `refaz`; levanta `TransicaoInvalida`); `registrar(estado, evento, **detalhe)` (append no `historico`); classe `TransicaoInvalida(ValueError)`. Usado por planner (7-8), executor (9), entrega (13).
 
-- [ ] **Step 1: Escrever o teste que falha:**
+- [x] **Step 1: Escrever o teste que falha:**
   ```python
   # tests/test_estado.py
   import json, pytest
@@ -427,8 +427,8 @@ musicavideo/
       assert e2["partes"]["musica"]["estado"] == "erro"
       assert e2["partes"]["musica"]["erro"]["msg"] == "interrompido"
   ```
-- [ ] **Step 2: Rodar e ver falhar:** `python3 -m pytest tests/test_estado.py -x -q` — `ModuleNotFoundError: src.estado`.
-- [ ] **Step 3: Implementação mínima:**
+- [x] **Step 2: Rodar e ver falhar:** `python3 -m pytest tests/test_estado.py -x -q` — `ModuleNotFoundError: src.estado`.
+- [x] **Step 3: Implementação mínima:**
   ```python
   # src/estado.py
   """estado.json: fonte de verdade. Máquina: planejado→(ok)→aprovado→(faz)→gerando→pronto|erro;
@@ -512,8 +512,8 @@ musicavideo/
               registrar(estado, "erro", parte=parte, detalhe="gerando interrompido")
       return estado
   ```
-- [ ] **Step 4: Rodar e ver passar:** `python3 -m pytest tests/test_estado.py -x -q`
-- [ ] **Step 5: Commit:** `git add -A && git commit -m "estado: máquina de estados por parte + escrita atômica + interrompido→erro"`
+- [x] **Step 4: Rodar e ver passar:** `python3 -m pytest tests/test_estado.py -x -q`
+- [x] **Step 5: Commit:** `git add -A && git commit -m "estado: máquina de estados por parte + escrita atômica + interrompido→erro"`
 
 ---
 
@@ -522,7 +522,7 @@ musicavideo/
 **Files:** Create `src/indexer.py`, `tests/test_indexer.py`; Modify `src/main.py` (registrar `lista`, `busca`, `reindex` em `COMANDOS`)
 **Interfaces:** Consumes: `out_dir()` (Task 1), `carregar_estado` (Task 3). Produces: `linha_de(plano: dict, estado: dict) -> dict`; `gravar_linha(outdir: Path, linha: dict) -> None` (substitui a linha do slug, atômico); `lista(outdir: Path, n: int = 10) -> list[dict]`; `busca(outdir: Path, termo: str) -> list[dict]`; `reindex(outdir: Path) -> int` (nº de linhas reconstruídas); `contexto_acervo(outdir: Path, solicitacao: str, n: int = 5) -> list[dict]` (últimas N + matches — insumo do planner Task 7).
 
-- [ ] **Step 1: Escrever o teste que falha:**
+- [x] **Step 1: Escrever o teste que falha:**
   ```python
   # tests/test_indexer.py
   import json
@@ -567,8 +567,8 @@ musicavideo/
       ctx = contexto_acervo(outdir, "quero um rock de virada")
       assert any(l["slug"] == "teste-rock" for l in ctx)
   ```
-- [ ] **Step 2: Rodar e ver falhar:** `python3 -m pytest tests/test_indexer.py -x -q` — `ModuleNotFoundError: src.indexer`.
-- [ ] **Step 3: Implementação mínima:**
+- [x] **Step 2: Rodar e ver falhar:** `python3 -m pytest tests/test_indexer.py -x -q` — `ModuleNotFoundError: src.indexer`.
+- [x] **Step 3: Implementação mínima:**
   ```python
   # src/indexer.py
   """index.jsonl: 1 linha por slug, reescrita por todo comando que muda estado."""
@@ -657,8 +657,8 @@ musicavideo/
   COMANDOS.update({"lista": _cmd_lista, "busca": _cmd_busca, "reindex": _cmd_reindex})
   ```
   (Para `from src...` funcionar com `python3 src/main.py`, adicionar no topo do `main.py`: `sys.path.insert(0, str(Path(__file__).resolve().parents[1]))`.)
-- [ ] **Step 4: Rodar e ver passar:** `python3 -m pytest tests/ -x -q`
-- [ ] **Step 5: Commit:** `git add -A && git commit -m "indexer: index.jsonl com lista/busca/reindex + contexto do acervo"`
+- [x] **Step 4: Rodar e ver passar:** `python3 -m pytest tests/ -x -q`
+- [x] **Step 5: Commit:** `git add -A && git commit -m "indexer: index.jsonl com lista/busca/reindex + contexto do acervo"`
 
 ---
 
@@ -667,7 +667,7 @@ musicavideo/
 **Files:** Create `data/templates-capa.json`, `data/templates-clipe.json` (conteúdo VERBATIM do spec §8.4 — copiar os dois blocos JSON inteiros de lá, removendo comentários `//`), `tests/fixtures/estilos.json`, `tests/test_dados.py`
 **Interfaces:** Produces: arquivos de dados carregáveis; `tests/fixtures/estilos.json` com 1 estilo mínimo para o planner (o real vem na Task 15).
 
-- [ ] **Step 1: Escrever o teste que falha:**
+- [x] **Step 1: Escrever o teste que falha:**
   ```python
   # tests/test_dados.py
   import json
@@ -696,8 +696,8 @@ musicavideo/
       d = json.loads((RAIZ / "tests/fixtures/estilos.json").read_text(encoding="utf-8"))
       assert d["schema_version"] == "1" and len(d["estilos"]) >= 1
   ```
-- [ ] **Step 2: Rodar e ver falhar:** `python3 -m pytest tests/test_dados.py -x -q` — `FileNotFoundError`.
-- [ ] **Step 3: Implementação mínima:** copiar os JSON do spec §8.4 (sem os comentários `//`) para os dois arquivos de `data/`, e criar a fixture:
+- [x] **Step 2: Rodar e ver falhar:** `python3 -m pytest tests/test_dados.py -x -q` — `FileNotFoundError`.
+- [x] **Step 3: Implementação mínima:** copiar os JSON do spec §8.4 (sem os comentários `//`) para os dois arquivos de `data/`, e criar a fixture:
   ```json
   // tests/fixtures/estilos.json (sem este comentário no arquivo real)
   {"schema_version": "1", "estilos": [
@@ -715,8 +715,8 @@ musicavideo/
      "tags": ["rock", "feminino", "virada"]}
   ]}
   ```
-- [ ] **Step 4: Rodar e ver passar:** `python3 -m pytest tests/test_dados.py -x -q`
-- [ ] **Step 5: Commit:** `git add -A && git commit -m "data: templates de capa e clipe (spec §8.4) + fixture de estilos p/ testes"`
+- [x] **Step 4: Rodar e ver passar:** `python3 -m pytest tests/test_dados.py -x -q`
+- [x] **Step 5: Commit:** `git add -A && git commit -m "data: templates de capa e clipe (spec §8.4) + fixture de estilos p/ testes"`
 
 ---
 
@@ -727,7 +727,7 @@ musicavideo/
 - `providers/base.py`: `class ProviderError(Exception)`; `@dataclass Resultado(arquivo: Path, custo_real: float, meta: dict)`; `class Provider` com `nome: str`, `disponivel(self) -> tuple[bool, str]`, `estimar_custo(self, modelo: str, params: dict) -> float`, `gerar(self, modelo: str, params: dict, workdir: Path) -> Resultado`; `ler_env_chave(nomes: list[str]) -> str | None` (varre `~/projetos/openpcbotv2/.env` depois `~/projetos/wifi/.env`, parse `CHAVE=valor`, nunca imprime valor); `http_json(url, metodo="GET", corpo=None, headers=None, tentativas=4, timeout=120) -> dict` (urllib + backoff 2/4/8s em 503/429); `gravar_raw(workdir: Path, nome: str, payload: dict) -> None` (em `workdir/raw/`, com sufixo `-vN` se colidir).
 - `src/registry.py`: `carregar_registry() -> dict` → `{"kie:suno-v4.5": {"provider": <Provider>, "modelo": <dict do models.json>}}`; `resolver_motor(reg, motor: str) -> tuple[Provider, dict]` (KeyError legível se não existe); `disponibilidade(reg) -> dict[str, tuple[bool, str]]` (por provider); `validar_params(modelo: dict, params: dict) -> list[str]` (só chaves declaradas).
 
-- [ ] **Step 1: Escrever os 5 models.json** (fatos medidos — não inventar):
+- [x] **Step 1: Escrever os 5 models.json** (fatos medidos — não inventar):
   ```json
   // providers/kie.models.json
   {"provider": "kie", "env_keys": ["KIE_API_KEY"], "modelos": [
@@ -772,7 +772,7 @@ musicavideo/
      "custo": {"base_usd": 0.07, "por": "segundo"},
      "params": {"resolucao": {"default": "720p"}, "duracao_shot_s": {"default": 5, "max": 10}}}]}
   ```
-- [ ] **Step 2: Escrever o teste que falha:**
+- [x] **Step 2: Escrever o teste que falha:**
   ```python
   # tests/test_registry.py
   from pathlib import Path
@@ -811,8 +811,8 @@ musicavideo/
       assert ler_env_chave(["MINHA_CHAVE"]) == "segredo"
       assert ler_env_chave(["OUTRA"]) is None
   ```
-- [ ] **Step 3: Rodar e ver falhar:** `python3 -m pytest tests/test_registry.py -x -q` — `ModuleNotFoundError`.
-- [ ] **Step 4: Implementação mínima:**
+- [x] **Step 3: Rodar e ver falhar:** `python3 -m pytest tests/test_registry.py -x -q` — `ModuleNotFoundError`.
+- [x] **Step 4: Implementação mínima:**
   ```python
   # providers/base.py
   """Contrato do adapter + utilitários compartilhados (stdlib only)."""
@@ -955,8 +955,8 @@ musicavideo/
   def criar(decl): return Kie(decl)
   ```
   (`inemaimg` difere: `disponivel()` faz `GET http://localhost:8000/health` com timeout 3s via `http_json`; sem servidor → `(False, "inemaimg: indisponível — servidor local não responde em localhost:8000")`.)
-- [ ] **Step 5: Rodar e ver passar:** `python3 -m pytest tests/ -x -q`
-- [ ] **Step 6: Commit:** `git add -A && git commit -m "providers: contrato base + registry declarativo + 5 provedores registrados (indisponível-com-motivo)"`
+- [x] **Step 5: Rodar e ver passar:** `python3 -m pytest tests/ -x -q`
+- [x] **Step 6: Commit:** `git add -A && git commit -m "providers: contrato base + registry declarativo + 5 provedores registrados (indisponível-com-motivo)"`
 
 ---
 
@@ -972,7 +972,7 @@ musicavideo/
 - `cmd_plano(args) -> int`, `cmd_ver(args) -> int`
 `chamar_llm` é injetável — testes usam um fake, nunca o `claude` real.
 
-- [ ] **Step 1: Escrever o teste que falha:**
+- [x] **Step 1: Escrever o teste que falha:**
   ```python
   # tests/test_planner.py
   import json, pytest
@@ -1026,8 +1026,8 @@ musicavideo/
       md = render_plano_md(plano_ok, {"kie": (False, "kie: indisponível — KIE_API_KEY não encontrada")})
       assert "indisponível" in md and "KIE_API_KEY" in md
   ```
-- [ ] **Step 2: Rodar e ver falhar:** `python3 -m pytest tests/test_planner.py -x -q` — `ModuleNotFoundError: src.planner`.
-- [ ] **Step 3: Implementação mínima** (pontos não-óbvios; o resto é encadeamento das interfaces já definidas):
+- [x] **Step 2: Rodar e ver falhar:** `python3 -m pytest tests/test_planner.py -x -q` — `ModuleNotFoundError: src.planner`.
+- [x] **Step 3: Implementação mínima** (pontos não-óbvios; o resto é encadeamento das interfaces já definidas):
   ```python
   # src/planner.py — núcleo
   import json, re, subprocess, unicodedata
@@ -1146,8 +1146,8 @@ musicavideo/
       return plano
   ```
   `render_plano_md` gera markdown com título, solicitação, seção por parte (motor, params, estilo/letra ou conceito/prompt ou decupagem em tabela) e um bloco "Disponibilidade dos provedores" listando `(ok/indisponível — motivo)`. Diff da letra rascunho (`texto_original` vs `texto`) via `difflib.unified_diff`. `cmd_plano` parseia flags (`--pesquisa` chama `src.pesquisa` quando existir — até a Task 14, flag aceita e ignorada com aviso), `cmd_ver` imprime `PLANO.md` inteiro ou a seção da parte. Registrar em `COMANDOS`.
-- [ ] **Step 4: Rodar e ver passar:** `python3 -m pytest tests/ -x -q`
-- [ ] **Step 5: Commit:** `git add -A && git commit -m "planner: plano+ver — Fable via claude -p injetável, validação com retry, defaults agnes/kie"`
+- [x] **Step 4: Rodar e ver passar:** `python3 -m pytest tests/ -x -q`
+- [x] **Step 5: Commit:** `git add -A && git commit -m "planner: plano+ver — Fable via claude -p injetável, validação com retry, defaults agnes/kie"`
 
 ---
 
@@ -1158,7 +1158,7 @@ musicavideo/
 - `ajustar_parte(outdir: Path, slug: str, parte: str, instrucao: str, refaz: bool = False, chamar_llm=chamar_fable) -> str` — retorna o diff unificado impresso; reescreve SÓ `plano[parte]` (LLM recebe o plano atual + instrução + regra de imutabilidade da letra final), valida a seção, aplica `transicao(estado, parte, "refaz")` se estava `pronto` (exigindo `refaz=True`, e movendo o artefato antigo pra `raw/<artefato>-vN`) senão `transicao(..., "ajusta")`, regrava plano/PLANO.md/estado/index.
 - `aprovar_parte(outdir: Path, slug: str, parte: str) -> None` — `transicao(..., "ok")` + persistências.
 
-- [ ] **Step 1: Escrever o teste que falha:**
+- [x] **Step 1: Escrever o teste que falha:**
   ```python
   # tests/test_ajusta_ok.py
   import json, pytest
@@ -1213,8 +1213,8 @@ musicavideo/
       with pytest.raises(TransicaoInvalida):
           aprovar_parte(outdir, slug_pronto, "musica")
   ```
-- [ ] **Step 2: Rodar e ver falhar:** `python3 -m pytest tests/test_ajusta_ok.py -x -q` — `ImportError: ajustar_parte`.
-- [ ] **Step 3: Implementação mínima:**
+- [x] **Step 2: Rodar e ver falhar:** `python3 -m pytest tests/test_ajusta_ok.py -x -q` — `ImportError: ajustar_parte`.
+- [x] **Step 3: Implementação mínima:**
   ```python
   # src/planner.py — acrescentar
   import difflib
@@ -1275,8 +1275,8 @@ musicavideo/
       return diff
   ```
   `cmd_ajusta`/`cmd_ok` em `main.py` traduzem `TransicaoInvalida`/`ValueError` em mensagem legível + exit 1 e registram-se em `COMANDOS`.
-- [ ] **Step 4: Rodar e ver passar:** `python3 -m pytest tests/ -x -q`
-- [ ] **Step 5: Commit:** `git add -A && git commit -m "planner: ajusta (diff por parte, letra final imutável, --refaz) + ok"`
+- [x] **Step 4: Rodar e ver passar:** `python3 -m pytest tests/ -x -q`
+- [x] **Step 5: Commit:** `git add -A && git commit -m "planner: ajusta (diff por parte, letra final imutável, --refaz) + ok"`
 
 ---
 
@@ -1288,7 +1288,7 @@ musicavideo/
 - `src/executor.py`: `faz(outdir: Path, slug: str, partes: list[str] | None, sim: bool = False, telegram: bool = False, motor_override: dict | None = None, reg=None) -> int` — carrega plano+estado; sem `partes` = todas em `aprovado`/`erro`; imprime estimativa e pede confirmação (a menos de `sim`); por parte: valida motor disponível (senão `transicao erro` com o motivo, segue), respeita `teto_usd` (estimativa + gasto > teto → pula, imprime motivo, exit 3 no fim), `transicao faz` + salvar (persistir `gerando` ANTES de chamar API), `provider.gerar(...)` com timeout de polling 15 min dentro do adapter, `transicao pronto|erro`, salvar estado + index a cada parte. Exit: 0 tudo ok; 2 alguma parte em erro; 3 teto.
 - `providers/kie.py::Kie.gerar` real (Suno via api.kie.ai).
 
-- [ ] **Step 1: Escrever os testes que falham:**
+- [x] **Step 1: Escrever os testes que falham:**
   ```python
   # tests/test_custo.py
   from src.custo import estimar_partes, relatorio
@@ -1418,8 +1418,8 @@ musicavideo/
       assert rc == 3
       assert carregar_estado(w)["partes"]["musica"]["estado"] == "aprovado"
   ```
-- [ ] **Step 2: Rodar e ver falhar:** `python3 -m pytest tests/test_custo.py tests/test_kie.py tests/test_executor.py -x -q`
-- [ ] **Step 3: Implementação mínima:**
+- [x] **Step 2: Rodar e ver falhar:** `python3 -m pytest tests/test_custo.py tests/test_kie.py tests/test_executor.py -x -q`
+- [x] **Step 3: Implementação mínima:**
   ```python
   # providers/kie.py — substituir gerar() do stub (resto do stub fica)
   import time
@@ -1546,8 +1546,8 @@ musicavideo/
   ```
   (Até a Task 13, o bloco de entrega fica protegido por `try/except ImportError`.)
   `src/custo.py`: `estimar_partes` resolve motor e chama `prov.estimar_custo(modelo["id"], params)`; pro clipe, quando `custo.por == "segundo"`, params ganham `duracao_shot_s = sum(s["duracao_s"] for s in decupagem)` antes; `relatorio` formata tabela do estado. Registrar `cmd_faz` (parse `--sim/--telegram/--motor`) e `cmd_custo` em `COMANDOS`.
-- [ ] **Step 4: Rodar e ver passar:** `python3 -m pytest tests/ -x -q`
-- [ ] **Step 5: Commit:** `git add -A && git commit -m "executor+custo+kie: faz musica ponta a ponta (mock), custo estimado antes, teto, exit 0/1/2/3"`
+- [x] **Step 4: Rodar e ver passar:** `python3 -m pytest tests/ -x -q`
+- [x] **Step 5: Commit:** `git add -A && git commit -m "executor+custo+kie: faz musica ponta a ponta (mock), custo estimado antes, teto, exit 0/1/2/3"`
 
 ---
 
@@ -1556,7 +1556,7 @@ musicavideo/
 **Files:** Modify `providers/agnes.py`, `providers/inemaimg.py`; Create `tests/test_agnes.py`, `tests/test_inemaimg.py`
 **Interfaces:** Consumes: base.py (T6), executor `_params_de` capa (T9: `{"tamanho", "prompt", "prompt_negativo"}`). Produces: `Agnes.gerar("agnes-image-2.1-flash", params, workdir) -> Resultado(arquivo=workdir/"capa.png", custo_real=0.0, meta)`; `Inemaimg.gerar("flux2-klein", ...) -> Resultado` idem. Fatos medidos do Agnes imagem: endpoint `POST https://apihub.agnes-ai.com/v1/images/generations`, corpo `{"model", "prompt", "size": "1024x1024"}` (size SEMPRE em pixels), prompt EN obrigatório, ~34% de 503 (o retry do `http_json` já cobre), URL de saída temporária (baixar na hora).
 
-- [ ] **Step 1: Escrever o teste que falha:**
+- [x] **Step 1: Escrever o teste que falha:**
   ```python
   # tests/test_agnes.py
   import json
@@ -1610,8 +1610,8 @@ musicavideo/
           {"tamanho": "1024x1024", "prompt": "album cover", "prompt_negativo": ""}, tmp_path)
       assert (tmp_path / "capa.png").read_bytes() == b"png-bytes"
   ```
-- [ ] **Step 2: Rodar e ver falhar:** `python3 -m pytest tests/test_agnes.py tests/test_inemaimg.py -x -q`
-- [ ] **Step 3: Implementação mínima:**
+- [x] **Step 2: Rodar e ver falhar:** `python3 -m pytest tests/test_agnes.py tests/test_inemaimg.py -x -q`
+- [x] **Step 3: Implementação mínima:**
   ```python
   # providers/agnes.py — gerar() de imagem (o de vídeo vem na Task 11)
   AGNES_BASE = "https://apihub.agnes-ai.com"
@@ -1639,8 +1639,8 @@ musicavideo/
       return Resultado(alvo, 0.0, {"size": corpo["size"]})
   ```
   `providers/inemaimg.py`: `disponivel()` = `http_json("http://localhost:8000/health", timeout=3, tentativas=1)` em try/except → `(False, "inemaimg: indisponível — servidor local não responde em localhost:8000")`; `gerar` = `POST http://localhost:8000/generate` com `{"prompt", "negative_prompt", "width", "height"}` (split do `tamanho`), decodifica o campo base64 da resposta pra `capa.png`, custo 0.
-- [ ] **Step 4: Rodar e ver passar:** `python3 -m pytest tests/ -x -q`
-- [ ] **Step 5: Commit:** `git add -A && git commit -m "capa: agnes imagem (default, size em pixels, EN) + inemaimg local como alternativa"`
+- [x] **Step 4: Rodar e ver passar:** `python3 -m pytest tests/ -x -q`
+- [x] **Step 5: Commit:** `git add -A && git commit -m "capa: agnes imagem (default, size em pixels, EN) + inemaimg local como alternativa"`
 
 ---
 
@@ -1649,7 +1649,7 @@ musicavideo/
 **Files:** Modify `providers/agnes.py`; Create `tests/test_agnes_video.py`
 **Interfaces:** Consumes: base.py; params do executor (T9): `{"resolucao": "1312x736", "duracao_shot_s": 5, "decupagem": [...]}`. Produces: `Agnes._gerar_video(params, workdir) -> Resultado(arquivo=workdir/"clipe.mp4", custo_real=0.0, meta={"shots": N, "video_ids": [...]})`. Fatos medidos: `POST {AGNES_BASE}/v1/videos` com `{"model": "agnes-video-v2.0", "prompt": <EN>, "num_frames", "frame_rate": 24, "width", "height"}`; poll `GET {AGNES_BASE}/agnesapi?video_id=<ID>` (`queued`→`in_progress`→`completed`|`failed`); `num_frames` segue regra **8n+1, ≤441** (5s@24fps=120→**121**); rate limit real **5 req/min** → throttle ≥12s entre submissões; a resposta MENTE o tamanho → conferir com `ffprobe` o arquivo, não o JSON.
 
-- [ ] **Step 1: Escrever o teste que falha:**
+- [x] **Step 1: Escrever o teste que falha:**
   ```python
   # tests/test_agnes_video.py
   import json
@@ -1704,8 +1704,8 @@ musicavideo/
                   {"n": 1, "secao": "i", "duracao_s": 5, "camera": "c",
                    "descricao": "d", "prompt": "p"}]}, tmp_path)
   ```
-- [ ] **Step 2: Rodar e ver falhar:** `python3 -m pytest tests/test_agnes_video.py -x -q` — `ImportError: num_frames_para`.
-- [ ] **Step 3: Implementação mínima:**
+- [x] **Step 2: Rodar e ver falhar:** `python3 -m pytest tests/test_agnes_video.py -x -q` — `ImportError: num_frames_para`.
+- [x] **Step 3: Implementação mínima:**
   ```python
   # providers/agnes.py — acrescentar
   import subprocess, time
@@ -1762,8 +1762,8 @@ musicavideo/
       return Resultado(alvo, 0.0, {"shots": len(shots_arq), "video_ids": video_ids,
                                    "size_real": probe})
   ```
-- [ ] **Step 4: Rodar e ver passar:** `python3 -m pytest tests/ -x -q`
-- [ ] **Step 5: Commit:** `git add -A && git commit -m "clipe: agnes vídeo (8n+1, throttle 5req/min, poll, ffprobe) + concat ffmpeg"`
+- [x] **Step 4: Rodar e ver passar:** `python3 -m pytest tests/ -x -q`
+- [x] **Step 5: Commit:** `git add -A && git commit -m "clipe: agnes vídeo (8n+1, throttle 5req/min, poll, ffprobe) + concat ffmpeg"`
 
 ---
 
@@ -1772,7 +1772,7 @@ musicavideo/
 **Files:** Modify `providers/kling.py`, `providers/fal.py`; Create `tests/test_kling_fal.py`
 **Interfaces:** Consumes: base.py; mesmos params de clipe da T11. Produces: `Kling.gerar` (kie `POST /api/v1/jobs/createTask` com `{"model": "kling/v2-5-turbo-text-to-video-pro", "input": {"prompt", "duration", "aspect_ratio"}}` por shot, poll `GET /api/v1/jobs/recordInfo?taskId=`, download + `concat_ffmpeg` importado de `providers.agnes`); `Fal.gerar` (fal queue: `POST https://queue.fal.run/<api_path>` header `Authorization: Key <FAL_KEY>`, poll `status_url`/`response_url` da resposta). **Testes 100% mock — decisão 3: o usuário testa esses adapters contra API real depois, junto.** Cabeçalho de ambos os arquivos leva o comentário `# NÃO testado contra API real nesta rodada (2026-08-20) — só contrato/mock.`
 
-- [ ] **Step 1: Escrever o teste que falha:**
+- [x] **Step 1: Escrever o teste que falha:**
   ```python
   # tests/test_kling_fal.py — contrato apenas; NUNCA chamar rede real
   import json
@@ -1827,8 +1827,8 @@ musicavideo/
           {"resolucao": "720p", "decupagem": DECUP}, tmp_path)
       assert r.arquivo.name == "clipe.mp4"
   ```
-- [ ] **Step 2: Rodar e ver falhar:** `python3 -m pytest tests/test_kling_fal.py -x -q`
-- [ ] **Step 3: Implementação mínima:**
+- [x] **Step 2: Rodar e ver falhar:** `python3 -m pytest tests/test_kling_fal.py -x -q`
+- [x] **Step 3: Implementação mínima:**
   ```python
   # providers/kling.py — substituir gerar() do stub
   # NÃO testado contra API real nesta rodada (2026-08-20) — só contrato/mock.
@@ -1911,8 +1911,8 @@ musicavideo/
       return Resultado(alvo, round(custo, 4), {"shots": len(shots_arq)})
   ```
   `estimar_custo` de vídeo em ambos (já no stub da T6): `base_usd * duracao_shot_s` — o executor injeta a soma da decupagem quando `custo.por == "segundo"`.
-- [ ] **Step 4: Rodar e ver passar:** `python3 -m pytest tests/ -x -q`
-- [ ] **Step 5: Commit:** `git add -A && git commit -m "kling+fal: adapters de clipe por contrato (mock-only nesta rodada, teste real fica pro usuário)"`
+- [x] **Step 4: Rodar e ver passar:** `python3 -m pytest tests/ -x -q`
+- [x] **Step 5: Commit:** `git add -A && git commit -m "kling+fal: adapters de clipe por contrato (mock-only nesta rodada, teste real fica pro usuário)"`
 
 ---
 
@@ -1923,7 +1923,7 @@ musicavideo/
 - `src/entrega.py`: `gerar_pacote(outdir: Path, slug: str) -> Path` — escreve `PACOTE.md` (título, solicitação, tabela parte/estado/artefato/custo, o que falta se parcial, caminho da pasta); `enviar_telegram(workdir: Path, estado: dict, plano: dict, http=None) -> None` — só age se `estado["telegram"]` for True E `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` via `ler_env_chave`; envia faixa (sendAudio), capa (sendPhoto), clipe (sendVideo) via `https://api.telegram.org/bot<token>/...` multipart (urllib); ausência de token = aviso, nunca erro; `entregar(outdir: Path, slug: str) -> Path` = pacote + telegram-se-ligado + `estado["fase"]="entregue"` quando as 3 prontas + index.
 - `src/main.py::cmd_tudo(args) -> int`: `gerar_plano` → auto-`aprovar_parte` nas 3 → grava `teto_usd` no estado (se `--teto`) → `faz(..., partes=None, sim=<--sim>, telegram=<--telegram>)` → propaga exit do faz.
 
-- [ ] **Step 1: Escrever o teste que falha:**
+- [x] **Step 1: Escrever o teste que falha:**
   ```python
   # tests/test_entrega.py
   import json
@@ -1999,8 +1999,8 @@ musicavideo/
       e = carregar_estado(outdir / slug)
       assert all(p["estado"] == "aprovado" for p in e["partes"].values())
   ```
-- [ ] **Step 2: Rodar e ver falhar:** `python3 -m pytest tests/test_entrega.py tests/test_tudo.py -x -q`
-- [ ] **Step 3: Implementação mínima:** `gerar_pacote` monta o markdown da tabela lendo plano+estado (linha "falta: <partes>" quando parcial); `entregar` chama pacote + telegram-se-ligado, grava `fase="entregue"` quando as 3 prontas e regrava o index. Núcleo do multipart e do `tudo`:
+- [x] **Step 2: Rodar e ver falhar:** `python3 -m pytest tests/test_entrega.py tests/test_tudo.py -x -q`
+- [x] **Step 3: Implementação mínima:** `gerar_pacote` monta o markdown da tabela lendo plano+estado (linha "falta: <partes>" quando parcial); `entregar` chama pacote + telegram-se-ligado, grava `fase="entregue"` quando as 3 prontas e regrava o index. Núcleo do multipart e do `tudo`:
   ```python
   # src/entrega.py — envio Telegram (multipart manual, stdlib)
   import json, uuid, urllib.request
@@ -2072,8 +2072,8 @@ musicavideo/
   COMANDOS["tudo"] = _cmd_tudo
   ```
   Remover o `try/except ImportError` do executor.
-- [ ] **Step 4: Rodar e ver passar:** `python3 -m pytest tests/ -x -q`
-- [ ] **Step 5: Commit:** `git add -A && git commit -m "tudo+entrega: PACOTE.md (completo/parcial), teto no tudo, telegram opt-in --telegram"`
+- [x] **Step 4: Rodar e ver passar:** `python3 -m pytest tests/ -x -q`
+- [x] **Step 5: Commit:** `git add -A && git commit -m "tudo+entrega: PACOTE.md (completo/parcial), teto no tudo, telegram opt-in --telegram"`
 
 ---
 
@@ -2082,7 +2082,7 @@ musicavideo/
 **Files:** Create `src/pesquisa.py`, `SKILL.md`, `.env.example`, `README.md`, `tests/test_pesquisa.py`; Modify `src/planner.py::cmd_plano` (ligar `--pesquisa` de verdade)
 **Interfaces:** Consumes: `chamar_fable` (T7). Produces: `pesquisar(solicitacao: str, workdir: Path, chamar_llm=chamar_fable) -> Path` — usa o próprio `claude -p` com WebSearch habilitado (`claude -p "<pedido de pesquisa>" --allowedTools WebSearch`) para produzir um resumo de referências (artistas, sonoridades, tendências) e grava `pesquisa.md`; o `cmd_plano` com `--pesquisa` roda isso ANTES e injeta o texto em `opts["pesquisa_md"]`. Default DESLIGADO (decisão 5).
 
-- [ ] **Step 1: Escrever o teste que falha:**
+- [x] **Step 1: Escrever o teste que falha:**
   ```python
   # tests/test_pesquisa.py
   from src.pesquisa import pesquisar
@@ -2099,10 +2099,10 @@ musicavideo/
       pl.gerar_plano("x", "s-sem", {}, outdir, chamar_llm=lambda p: json.dumps(plano_ok))
       assert not (outdir / "s-sem" / "pesquisa.md").exists()
   ```
-- [ ] **Step 2: Rodar e ver falhar:** `python3 -m pytest tests/test_pesquisa.py -x -q`
-- [ ] **Step 3: Implementação mínima:** `pesquisa.py` (10 linhas: prompt de pesquisa + gravar md); `.env.example` documentando `KIE_API_KEY` (música Suno — mora em `~/projetos/wifi/.env`), `AGNES_API_KEY` (capa/clipe default — `~/projetos/openpcbotv2/.env`), `FAL_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, com o aviso "valores reais são lidos EM RUNTIME dos .env autorizados; NUNCA copiar valores pra este repo"; `SKILL.md` com os 10 comandos, fases, exemplos e o mapa de saída; `README.md` com quickstart + defaults (agnes grátis, kie pago).
-- [ ] **Step 4: Rodar e ver passar:** `python3 -m pytest tests/ -x -q`
-- [ ] **Step 5: Commit:** `git add -A && git commit -m "pesquisa opt-in (--pesquisa) + SKILL.md + .env.example + README"`
+- [x] **Step 2: Rodar e ver falhar:** `python3 -m pytest tests/test_pesquisa.py -x -q`
+- [x] **Step 3: Implementação mínima:** `pesquisa.py` (10 linhas: prompt de pesquisa + gravar md); `.env.example` documentando `KIE_API_KEY` (música Suno — mora em `~/projetos/wifi/.env`), `AGNES_API_KEY` (capa/clipe default — `~/projetos/openpcbotv2/.env`), `FAL_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, com o aviso "valores reais são lidos EM RUNTIME dos .env autorizados; NUNCA copiar valores pra este repo"; `SKILL.md` com os 10 comandos, fases, exemplos e o mapa de saída; `README.md` com quickstart + defaults (agnes grátis, kie pago).
+- [x] **Step 4: Rodar e ver passar:** `python3 -m pytest tests/ -x -q`
+- [x] **Step 5: Commit:** `git add -A && git commit -m "pesquisa opt-in (--pesquisa) + SKILL.md + .env.example + README"`
 
 ---
 
@@ -2111,7 +2111,7 @@ musicavideo/
 **Files:** Create `data/estilos.json`; Modify `tests/test_dados.py` (adicionar teste do arquivo real)
 **Interfaces:** Consumes: schema §8.3. Fontes lidas de verdade: `/home/nmaldaner/projetos/output/musical/analises/*.md` (6 análises) + acervo `/home/nmaldaner/projetos/output/musical/musicas/` (28 mp3 + 1 wav). **Dados reais, não inventados.** As 3 análises do reel do Facebook são passes sobre a MESMA faixa — a v2 corrige o BPM (103, não 125/118... a 118/F Major é uma segunda leitura utilizável como receita própria); não semear como 3 estilos idênticos conflitantes.
 
-- [ ] **Step 1: Escrever o teste que falha:**
+- [x] **Step 1: Escrever o teste que falha:**
   ```python
   # acrescentar em tests/test_dados.py
   def test_estilos_reais_semeados():
@@ -2131,16 +2131,16 @@ musicavideo/
       for e in d["estilos"]:
           assert e["fonte"]
   ```
-- [ ] **Step 2: Rodar e ver falhar:** `python3 -m pytest tests/test_dados.py -x -q`
-- [ ] **Step 3: Implementação mínima** — escrever `data/estilos.json` com estas 5 entradas (dados extraídos das análises reais):
+- [x] **Step 2: Rodar e ver falhar:** `python3 -m pytest tests/test_dados.py -x -q`
+- [x] **Step 3: Implementação mínima** — escrever `data/estilos.json` com estas 5 entradas (dados extraídos das análises reais):
   1. **`uplifting-ambient-electronic`** — bpm **103**, tom **C maior**, gênero `["uplifting ambient electronic", "modern corporate instrumental", "chill tech"]`, mood `["inspirador", "otimista", "tecnológico", "etéreo"]`, instrumentação `["minimalist electronic drums", "clean warm synth bass", "wide atmospheric pads", "bright synth lead"]`, voz `{"presenca": "vocal chops", "tipos": [{"genero": "feminina", "registro": "agudo", "entrega": "ooh/aah etéreo com reverb e pitch-shift"}, {"genero": "masculina", "registro": "médio-grave", "entrega": "chops rítmicos filtrados, quase percussão vocal"}]}`, produção `"mix limpo, sidechain sutil, top end arejado, pads em estéreo largo"`, `prompt_suno_curto` e `prompt_suno_longo` **verbatim** dos campos "Versão Curta (200 chars)" e "Versão Longa (1000 chars)" de `analise-vozes-musica-fbvideo-gemini-v2.md`, referências `["reel-fb-vocal.mp3", "reel-fb-instrumental.mp3"]`, fonte `"output/musical/analises/analise-vozes-musica-fbvideo-gemini-v2.md (corrige o BPM de analise-musica-voz-fbvideo-gemini.md)"`, tags `["reel", "tech", "corporativo", "motivacional"]`.
   2. **`corporate-tech-electro-pop`** — bpm **118**, tom **F maior** (progressão Fmaj7-Bbmaj7-Cmaj7-Dm7), gênero `["corporate tech electro pop", "ambient house", "modern synthwave"]`, instrumentação `["warm synth pad", "plucked bell-like arpeggiator (hook principal)", "soft pulsating synth bass", "four-on-the-floor kick", "reverbed clap", "closed hi-hats + shakers", "synth stabs"]`, voz `{"presenca": "instrumental", "tipos": []}`, estrutura `["intro pad+arpejo", "main theme com bateria e bass", "variação sutil", "fade out"]`, produção `"-14 a -16 LUFS, estéreo amplo nos pads, sem drops dramáticos"`, `prompt_suno_longo` = o prompt inteiro da seção 5 de `analise-musica-fbvideo-gemini.md` (começa em "Corporate Tech Electro Pop, uplifting and positive, 118 BPM, F Major..."), `prompt_suno_curto` = `"Corporate Tech Electro Pop, uplifting, 118 BPM, F Major, plucked synth arpeggio hook, warm pads, soft four-on-the-floor drums, pulsating bass, clean bright modern mix."`, fonte `"output/musical/analises/analise-musica-fbvideo-gemini.md"`, tags `["corporativo", "tech", "instrumental", "arpejo"]`.
   3. **`uplifting-progressive-trance`** — bpm **132**, tom null, gênero `["uplifting progressive trance", "tech house", "melodic techno"]`, mood `["alta energia", "futurista", "otimista", "propulsor"]`, instrumentação `["four-on-the-floor kick", "open/closed hi-hats em semicolcheias", "electronic clap nos contratempos", "deep continuous synth bass", "bright arpeggiated synth lead", "ethereal sustained pads"]`, voz `{"presenca": "instrumental", "tipos": []}`, produção `"reverb nos synths/pads, delay no arpeggio, sidechain pumping sutil"`, `prompt_suno_curto`/`prompt_suno_longo` = os prompts "Prompt Suno" e "Prompt Upload&Cover" **verbatim** de `analise-musica-tiktok-gemini.md`, referências `["tiktok-audio.mp3", "Paul van Dyk", "Eric Prydz", "Deadmau5"]`, fonte `"output/musical/analises/analise-musica-tiktok-gemini.md"`, tags `["trance", "edm", "instrumental", "energia"]`.
   4. **`anthem-pop-rock`** — bpm **null**, tom null (a análise mediu só as vozes), gênero `["anthem pop rock"]`, voz `{"presenca": "lead", "tipos": [{"genero": "masculina", "registro": "tenor G3-B4, belting em peito→misto", "entrega": "brilhante, metálico, levemente raspy, vibrato médio controlado"}, {"genero": "feminina", "registro": "mezzo-soprano C4-G5, mista→cabeça", "entrega": "límpida, etérea, harmonias tight de hino nos refrões"}]}`, mood `["hino", "contagiante", "potente"]`, referências `["Counting Stars (OneRepublic) — faixa identificada na análise"]`, `prompt_suno_curto` = `"Anthem pop rock, energetic male tenor lead with belting and light rasp, ethereal female mezzo backing harmonies on choruses, driving hymn-like energy."`, `prompt_suno_longo` = versão expandida com os dados de registro/extensão/técnica acima (escrever em EN), fonte `"output/musical/analises/analise-voz-profunda-gemini.md"`, tags `["hino", "rock", "dueto"]`.
   5. **`female-anthem-rock`** — do acervo Suno (sem análise Gemini: bpm null, tom null — **não inventar números**), voz lead feminina belting, referências `["fire-rock-fem-a.mp3", "fire-rock-fem-b.mp3", "shatter-gates-a.mp3", "born-for-this-a.mp3"]`, fonte `"acervo output/musical/musicas/ (faixas Suno geradas, variantes A/B)"`, prompts curto/longo como na fixture da Task 5, tags `["rock", "feminino", "virada", "empoderamento"]`.
   Mais entradas de acervo opcionais (`throne-rock-masc`, `tears`, `wewerehere`, `suno-digital-sky`, `suno-horizons` chops, `suno-builders`) podem ser adicionadas no mesmo padrão referências-sem-números; o teste só exige as 5 acima.
-- [ ] **Step 4: Rodar e ver passar:** `python3 -m pytest tests/ -x -q`
-- [ ] **Step 5: Commit:** `git add -A && git commit -m "data: estilos.json semeado das 6 análises Gemini reais + acervo Suno (28 faixas)"`
+- [x] **Step 4: Rodar e ver passar:** `python3 -m pytest tests/ -x -q`
+- [x] **Step 5: Commit:** `git add -A && git commit -m "data: estilos.json semeado das 6 análises Gemini reais + acervo Suno (28 faixas)"`
 
 ---
 
@@ -2149,9 +2149,9 @@ musicavideo/
 **Files:** Create `guia/index.html` (+ `guia/assets/` se a skill gerar)
 **Interfaces:** Consumes: README/SKILL.md como fonte de conteúdo. Produces: página única landing+guia, self-contained, padrão INEMA dark âmbar, como `~/projetos/analisevideo/guia/index.html`.
 
-- [ ] **Step 1:** Invocar a skill `projetos-landing-guia` para o projeto `musicavideo` (ela gera o `guia/index.html` no padrão; conteúdo: o que é, fases plano→ok→faz, comandos, custo/portões, provedores com Agnes grátis como default, exemplos).
-- [ ] **Step 2: Verificar:** `python3 -c "html=open('guia/index.html').read(); assert 'musicavideo' in html and len(html) > 5000"` e abrir localmente (`xdg-open guia/index.html`) conferindo dark âmbar + seções de comandos.
-- [ ] **Step 3: Commit:** `git add guia && git commit -m "guia: landing+guia GitHub Pages (INEMA dark âmbar)"`
+- [x] **Step 1:** Invocar a skill `projetos-landing-guia` para o projeto `musicavideo` (ela gera o `guia/index.html` no padrão; conteúdo: o que é, fases plano→ok→faz, comandos, custo/portões, provedores com Agnes grátis como default, exemplos).
+- [x] **Step 2: Verificar:** `python3 -c "html=open('guia/index.html').read(); assert 'musicavideo' in html and len(html) > 5000"` e abrir localmente (`xdg-open guia/index.html`) conferindo dark âmbar + seções de comandos.
+- [x] **Step 3: Commit:** `git add guia && git commit -m "guia: landing+guia GitHub Pages (INEMA dark âmbar)"`
 
 ---
 
@@ -2160,16 +2160,16 @@ musicavideo/
 **Files:** — (operação git/gh)
 **Interfaces:** Consumes: repo local com todos os commits. Produces: `github.com/inematds/musicavideo` com branch main publicada; GitHub Pages da raiz (guia acessível em `https://inematds.github.io/musicavideo/guia/`).
 
-- [ ] **Step 1: Conferir autoria:** `git config user.email` deve ser `inematds@gmail.com`; `git log --format='%an %ae %cn %ce' | sort -u` só pode mostrar inematds.
-- [ ] **Step 2: Criar remoto e push:**
+- [x] **Step 1: Conferir autoria:** `git config user.email` deve ser `inematds@gmail.com`; `git log --format='%an %ae %cn %ce' | sort -u` só pode mostrar inematds.
+- [x] **Step 2: Criar remoto e push:**
   ```bash
   cd /home/nmaldaner/projetos/musicavideo
   gh repo create inematds/musicavideo --public --source=. --remote=origin
   git push -u origin main
   ```
   (Se o push HTTPS falhar por escopo workflow — não é o caso, não há `.github/workflows/` — o contorno padrão é push via SSH; NUNCA `gh auth refresh -s workflow`.)
-- [ ] **Step 3: Habilitar Pages (branch main, raiz):** `gh api -X POST repos/inematds/musicavideo/pages -f 'source[branch]=main' -f 'source[path]=/' || gh api -X PUT repos/inematds/musicavideo/pages -f 'source[branch]=main' -f 'source[path]=/'`
-- [ ] **Step 4: Verificar:** `git ls-remote origin main` responde; após alguns minutos `curl -sI https://inematds.github.io/musicavideo/guia/ | head -1` retorna 200 (se demorar, registrar e seguir — Pages propaga sozinho).
+- [x] **Step 3: Habilitar Pages (branch main, raiz):** `gh api -X POST repos/inematds/musicavideo/pages -f 'source[branch]=main' -f 'source[path]=/' || gh api -X PUT repos/inematds/musicavideo/pages -f 'source[branch]=main' -f 'source[path]=/'`
+- [x] **Step 4: Verificar:** `git ls-remote origin main` responde; após alguns minutos `curl -sI https://inematds.github.io/musicavideo/guia/ | head -1` retorna 200 (se demorar, registrar e seguir — Pages propaga sozinho).
 
 ---
 
@@ -2178,21 +2178,21 @@ musicavideo/
 **Files:** — (execução real; saída em `~/projetos/output/musicavideo/<slug>/`)
 **Interfaces:** Consumes: o CLI completo. **Autorização: UMA geração no kie (US$ ~0,08); Agnes é US$ 0.** Solicitação combinada: *"uma música de virada, rock feminino, sobre quem constrói em silêncio e agora cobra"*.
 
-- [ ] **Step 1: Plano (zero crédito):**
+- [x] **Step 1: Plano (zero crédito):**
   ```bash
   cd /home/nmaldaner/projetos/musicavideo
   ./musicavideo.sh plano "uma música de virada, rock feminino, sobre quem constrói em silêncio e agora cobra" virada-rock-feminino
   ./musicavideo.sh ver virada-rock-feminino
   ```
   Conferir no PLANO.md: motor musica `kie:suno-v4.5`, capa `agnes:agnes-image-2.1-flash`, clipe `agnes:agnes-video-v2.0`; prompts de provedor em EN; letra em PT coerente com "constrói em silêncio e agora cobra"; decupagem curta (≤6 shots — se o Fable gerar mais, `ajusta clipe "no máximo 6 shots"` antes de aprovar, pra corrida no rate limit do Agnes não se arrastar); estilo_ref apontando pra `female-anthem-rock`.
-- [ ] **Step 2: Aprovar e executar (gasta: só a música):**
+- [x] **Step 2: Aprovar e executar (gasta: só a música):**
   ```bash
   ./musicavideo.sh ok virada-rock-feminino musica
   ./musicavideo.sh ok virada-rock-feminino capa
   ./musicavideo.sh ok virada-rock-feminino clipe
   ./musicavideo.sh faz virada-rock-feminino    # confirmar o custo mostrado (~US$0,08 total)
   ```
-- [ ] **Step 3: Verificar critérios (spec §11):**
+- [x] **Step 3: Verificar critérios (spec §11):**
   ```bash
   S=~/projetos/output/musicavideo/virada-rock-feminino
   ls -la "$S"/faixa.mp3 "$S"/capa.png "$S"/clipe.mp4 "$S"/PACOTE.md
@@ -2202,7 +2202,7 @@ musicavideo/
   grep -RiE "sk-|Bearer [A-Za-z0-9]" "$S" && echo "VAZOU CHAVE" || echo "sem chave em saída"
   ```
   Aceite: os 4 arquivos existem; `custo` mostra estimado vs gasto (musica ~0.08, capa/clipe 0.00); `busca` acha o slug; nenhum valor de chave em nenhum arquivo de saída; ouvir a faixa e ver capa/clipe (relatar ao usuário o que saiu torto — deriva de identidade do Agnes é limitação conhecida, não bug).
-- [ ] **Step 4: Commit final de eventual ajuste + push:** `git add -A && git commit -m "e2e: teste real virada-rock-feminino (agnes capa/clipe + kie musica)" --allow-empty && git push`
+- [x] **Step 4: Commit final de eventual ajuste + push:** `git add -A && git commit -m "e2e: teste real virada-rock-feminino (agnes capa/clipe + kie musica)" --allow-empty && git push`
 
 ---
 
