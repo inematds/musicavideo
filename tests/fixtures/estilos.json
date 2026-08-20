@@ -1,0 +1,14 @@
+{"schema_version": "1", "estilos": [
+  {"id": "female-anthem-rock", "nome": "Female Anthem Rock",
+   "genero": ["anthem rock", "pop rock"], "bpm": null, "tom": null,
+   "mood": ["determinada", "vitoriosa"],
+   "instrumentacao": ["electric guitars", "bass", "drums"],
+   "voz": {"presenca": "lead", "tipos": [
+      {"genero": "feminina", "registro": "médio-agudo", "entrega": "belting com grit"}]},
+   "estrutura_tipica": ["intro", "verso", "refrão", "verso", "refrão", "ponte", "refrão final"],
+   "producao": "guitarras amplas, bateria forte, voz na frente",
+   "prompt_suno_curto": "Female anthem rock, powerful female belting vocals, driving guitars, big drums, triumphant mood.",
+   "prompt_suno_longo": "Female anthem rock. Powerful female lead with belting and light grit, driving distorted guitars, punchy live drums, anthemic gang-vocal chorus, triumphant build from quiet verse to explosive final chorus.",
+   "referencias": ["fire-rock-fem-a.mp3"], "fonte": "acervo suno",
+   "tags": ["rock", "feminino", "virada"]}
+]}

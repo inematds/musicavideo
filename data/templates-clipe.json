@@ -1,0 +1,37 @@
+{
+  "schema_version": "1",
+  "templates": [
+    {
+      "id": "performance",
+      "nome": "Performance",
+      "descricao": "artista/persona 'cantando' em cenário; câmera orbita e alterna planos",
+      "estrutura_shots": ["plano geral do cenário", "médio do intérprete", "close no refrão", "detalhe instrumental", "repetir alternando"],
+      "sincronia": "corte no beat; close em todo refrão",
+      "quando_usar": ["música com voz lead forte"]
+    },
+    {
+      "id": "narrativo",
+      "nome": "Narrativo",
+      "descricao": "mini-história em 6-12 shots seguindo o arco da letra (setup → tensão → virada → resolução)",
+      "estrutura_shots": ["setup do cenário/personagem", "gatilho da história", "desenvolvimento (2-4 shots)", "clímax no refrão final", "resolução no outro"],
+      "sincronia": "1 shot por seção da música; virada da história cai no primeiro refrão",
+      "quando_usar": ["letra com história clara", "balada", "sertanejo", "MPB"]
+    },
+    {
+      "id": "lyric-video",
+      "nome": "Lyric video",
+      "descricao": "letra em tipografia animada sobre fundos gerados, um fundo por seção da música",
+      "estrutura_shots": ["fundo do verso 1", "fundo do refrão (mais energia)", "fundo do verso 2", "fundo da ponte", "fundo do refrão final"],
+      "sincronia": "troca de fundo exatamente na troca de seção; tipografia entra no beat",
+      "quando_usar": ["letra é a estrela", "orçamento baixo de vídeo", "lançamento rápido"]
+    },
+    {
+      "id": "abstrato-loop",
+      "nome": "Abstrato / loop",
+      "descricao": "visuais abstratos que respiram com o BPM; loops curtos reutilizados por seção",
+      "estrutura_shots": ["loop A (versos)", "loop B mais intenso (refrões)", "loop C (ponte)", "variação de A no outro"],
+      "sincronia": "pulso do visual casado com o BPM; troca de loop na troca de seção",
+      "quando_usar": ["eletrônica", "instrumental", "ambient", "quando não há persona"]
+    }
+  ]
+}
