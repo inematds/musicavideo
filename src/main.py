@@ -47,7 +47,18 @@ def _cmd_reindex(args):
     return 0
 
 
-COMANDOS.update({"lista": _cmd_lista, "busca": _cmd_busca, "reindex": _cmd_reindex})
+def _cmd_plano(args):
+    from src.planner import cmd_plano
+    return cmd_plano(args)
+
+
+def _cmd_ver(args):
+    from src.planner import cmd_ver
+    return cmd_ver(args)
+
+
+COMANDOS.update({"lista": _cmd_lista, "busca": _cmd_busca, "reindex": _cmd_reindex,
+                 "plano": _cmd_plano, "ver": _cmd_ver})
 
 
 def main(argv: list[str]) -> int:
