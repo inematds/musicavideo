@@ -80,15 +80,27 @@ class Agnes(Provider):
 
     def _gerar_video(self, params, workdir: Path) -> Resultado:
         w, h = (params.get("resolucao") or "1312x736").split("x")
-        shots_arq, video_ids = [], []
+        shots_arq, video_ids, barrados = [], [], []
         for i, shot in enumerate(params["decupagem"]):
+            pronto = workdir / "raw" / f"shot-{shot['n']:02d}.mp4"
+            if pronto.exists() and pronto.stat().st_size > 10_000:
+                shots_arq.append(pronto)   # já gerado numa corrida anterior: não refaz
+                continue
             inicio_shot = time.time()   # timeout é POR shot, não do clipe inteiro
             if i > 0:
                 time.sleep(12)                       # rate limit real: 5 req/min
             corpo = {"model": "agnes-video-v2.0", "prompt": shot["prompt"],
                      "num_frames": num_frames_para(shot["duracao_s"]),
                      "frame_rate": FPS, "width": int(w), "height": int(h)}
-            resp = http_json(f"{AGNES_BASE}/v1/videos", "POST", corpo, self._headers())
+            try:
+                resp = http_json(f"{AGNES_BASE}/v1/videos", "POST", corpo, self._headers())
+            except ProviderError as e:
+                # filtro de conteúdo barra UM shot — não é motivo pra perder o clipe
+                if "content_policy" in str(e) or "HTTP 400" in str(e):
+                    barrados.append(shot["n"])
+                    print(f"agnes: shot {shot['n']} barrado pelo filtro de conteúdo — pulando")
+                    continue
+                raise
             vid = resp.get("video_id") or resp.get("task_id") or resp.get("id")
             if not vid:
                 raise ProviderError(f"agnes: POST /videos sem id: {str(resp)[:300]}")
@@ -105,8 +117,19 @@ class Agnes(Provider):
                     shots_arq.append(arq)
                     break
                 if st.get("status") == "failed":
-                    raise ProviderError(f"agnes: shot {shot['n']} failed: {st.get('error', '')}")
+                    barrados.append(shot["n"])
+                    print(f"agnes: shot {shot['n']} falhou ({st.get('error', '')}) — pulando")
+                    break
                 time.sleep(10)
+        total = len(params["decupagem"])
+        if len(shots_arq) < total * 0.8:
+            raise ProviderError(
+                f"agnes: só {len(shots_arq)} de {total} shots saíram "
+                f"(barrados: {barrados}) — pouco pra montar um clipe")
+        if barrados:
+            print(f"agnes: clipe montado sem os shots {barrados} "
+                  f"({len(shots_arq)}/{total} entraram)")
+        shots_arq.sort(key=lambda p: p.name)
         alvo = concat_ffmpeg(shots_arq, workdir / "clipe.mp4")
         try:   # a resposta MENTE o size — medir o arquivo real
             probe = subprocess.run(["ffprobe", "-v", "quiet", "-show_entries",
@@ -115,7 +138,7 @@ class Agnes(Provider):
         except FileNotFoundError:
             probe = "ffprobe ausente"
         return Resultado(alvo, 0.0, {"shots": len(shots_arq), "video_ids": video_ids,
-                                     "size_real": probe})
+                                     "shots_barrados": barrados, "size_real": probe})
 
 
 def criar(decl):
