@@ -1,5 +1,9 @@
 # 🎬 musicavideo
 
+## 📖 Guia de uso
+
+Guia completo (landing + passo a passo): **https://inematds.github.io/musicavideo/guia/**
+
 Você manda **uma solicitação em texto livre**. Sai **música + capa + clipe** —
 em fases, com portão de aprovação em cada parte, ou sem portão nenhum.
 
