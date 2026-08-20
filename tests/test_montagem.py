@@ -55,3 +55,28 @@ def test_arquivo_invalido_da_erro_legivel(tmp_path):
     _audio(a, 2)
     with pytest.raises(MontagemError):
         montar(ruim, a, tmp_path / "x.mp4")
+
+
+def test_montagem_acha_a_faixa_que_voce_escolheu(tmp_path):
+    """O Suno entrega faixa-1 e faixa-2; a montagem usa a APROVADA, não um nome fixo."""
+    from src.executor import faixa_aprovada
+    from src.estado import novo_estado, transicao
+    (tmp_path / "faixa-1.mp3").write_bytes(b"a")
+    (tmp_path / "faixa-2.mp3").write_bytes(b"b")
+    e = novo_estado("s")
+    transicao(e, "musica", "ok")
+    transicao(e, "musica", "faz")
+    transicao(e, "musica", "revisar", artefato="faixa-2.mp3", custo_real=0.08)
+    transicao(e, "musica", "aprova")
+    assert faixa_aprovada(tmp_path, e).name == "faixa-2.mp3"
+
+
+def test_faixa_de_slug_antigo_ainda_e_encontrada(tmp_path):
+    from src.executor import faixa_aprovada
+    (tmp_path / "faixa.mp3").write_bytes(b"a")
+    assert faixa_aprovada(tmp_path, None).name == "faixa.mp3"
+
+
+def test_sem_faixa_nenhuma_devolve_none(tmp_path):
+    from src.executor import faixa_aprovada
+    assert faixa_aprovada(tmp_path, None) is None

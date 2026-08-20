@@ -65,8 +65,10 @@ def enviar_telegram(workdir: Path, estado: dict, plano: dict, http=None) -> None
         print("telegram: token/chat_id não encontrados nos .env autorizados — pulando envio")
         return
     base = f"https://api.telegram.org/bot{token}"
-    envios = [("faixa.mp3", "sendAudio", "audio"), ("capa.png", "sendPhoto", "photo"),
-              ("clipe.mp4", "sendVideo", "video")]
+    from src.executor import faixa_aprovada
+    faixa = faixa_aprovada(Path(workdir), estado)
+    envios = [(faixa.name if faixa else "faixa.mp3", "sendAudio", "audio"),
+              ("capa.png", "sendPhoto", "photo"), ("clipe.mp4", "sendVideo", "video")]
     for nome, metodo, campo in envios:
         arq = Path(workdir) / nome
         if arq.exists():

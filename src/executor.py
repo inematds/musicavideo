@@ -33,11 +33,10 @@ def _reajustar_pela_faixa(w: Path, plano: dict, estado: dict) -> dict:
     """Se a faixa pronta tem duração bem diferente do que o plano chutou, o
     planejador refaz a decupagem ANTES de gerar vídeo — que é o passo caro."""
     from src.planner import precisa_reajuste, reajustar_decupagem
-    art = estado["partes"]["musica"].get("artefato")
-    if estado["partes"]["musica"]["estado"] != "pronto" or not art:
+    if estado["partes"]["musica"]["estado"] != "pronto":
         return plano
-    faixa = w / art
-    if not faixa.exists():
+    faixa = faixa_aprovada(w, estado)
+    if faixa is None:
         return plano
     from src.montagem import _ffprobe_duracao, MontagemError
     try:
@@ -53,11 +52,29 @@ def _reajustar_pela_faixa(w: Path, plano: dict, estado: dict) -> dict:
         return plano
 
 
+def faixa_aprovada(w: Path, estado: dict | None = None) -> Path | None:
+    """A faixa que VOCÊ escolheu — o Suno entrega duas, e o nome varia."""
+    if estado is None:
+        try:
+            estado = carregar_estado(w)
+        except (OSError, ValueError):
+            estado = None
+    if estado:
+        art = estado["partes"]["musica"].get("artefato")
+        if art and (w / art).exists():
+            return w / art
+    for nome in ("faixa-1.mp3", "faixa.mp3"):      # fallback p/ slug antigo
+        if (w / nome).exists():
+            return w / nome
+    achadas = sorted(w.glob("faixa*.mp3"))
+    return achadas[0] if achadas else None
+
+
 def _montar_com_a_faixa(w: Path, r, plano: dict):
     """Um clipe sem a música é só um vídeo. Se a faixa já existe, ela entra."""
     from src.montagem import montar, MontagemError
-    faixa = w / "faixa.mp3"
-    if not faixa.exists():
+    faixa = faixa_aprovada(w)
+    if faixa is None or not faixa.exists():
         print("clipe: faixa.mp3 ainda não existe — clipe fica com o áudio dos shots. "
               "Depois de `faz <slug> musica`, rode `musicavideo monta <slug>`.")
         return r
@@ -251,9 +268,10 @@ def cmd_monta(args) -> int:
               file=sys.stderr)
         return 1
     w = out_dir() / livres[0]
-    faixa, clipe = w / "faixa.mp3", w / "clipe.mp4"
-    if not (faixa.exists() and clipe.exists()):
-        faltam = [n for n, f in (("faixa.mp3", faixa), ("clipe.mp4", clipe)) if not f.exists()]
+    faixa, clipe = faixa_aprovada(w), w / "clipe.mp4"
+    if not (faixa and faixa.exists() and clipe.exists()):
+        faltam = [n for n, f in (("a faixa", faixa), ("clipe.mp4", clipe))
+                  if not (f and f.exists())]
         print(f"erro: falta {', '.join(faltam)} em {w}", file=sys.stderr)
         return 1
     bruto = w / "raw" / "clipe-sem-musica.mp4"
