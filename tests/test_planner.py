@@ -78,3 +78,28 @@ def test_contexto_pede_a_musica_inteira(outdir):
     from src.planner import montar_contexto
     ctx = montar_contexto("rock", {"duracao_s": 180}, outdir)
     assert "36 shots" in ctx and "cobrir a música INTEIRA" in ctx
+
+
+def test_contexto_injeta_referencias_do_analisevideo(outdir, tmp_path, monkeypatch):
+    """O planejamento visual deve se apoiar em vídeo medido, não só nos templates."""
+    import json as _json
+    from src.planner import montar_contexto
+    b = tmp_path / "av"
+    b.mkdir()
+    (b / "index.jsonl").write_text(_json.dumps({
+        "slug": "war-drums", "titulo": "War drums", "tipo": "clipe musical",
+        "look": "épico sombrio", "paleta": ["#C0873F"], "movimentos": ["whip-pan"],
+        "ritmo": "acelerado", "cortes_por_minuto": 42.0, "bpm": 120,
+        "mood": "épico", "tags": ["rock", "épico"], "referencias": ["Vikings"]}) + "\n",
+        encoding="utf-8")
+    monkeypatch.setenv("MUSICAVIDEO_ANALISEVIDEO", str(b))
+    ctx = montar_contexto("clipe de rock épico", {"estilo": "anthem rock"}, outdir)
+    assert "REFERÊNCIAS VISUAIS MEDIDAS" in ctx
+    assert "whip-pan" in ctx and "#C0873F" in ctx
+
+
+def test_contexto_sem_banco_de_referencias_nao_quebra(outdir, tmp_path, monkeypatch):
+    from src.planner import montar_contexto
+    monkeypatch.setenv("MUSICAVIDEO_ANALISEVIDEO", str(tmp_path / "vazio"))
+    ctx = montar_contexto("rock", {}, outdir)
+    assert "REFERÊNCIAS VISUAIS MEDIDAS" not in ctx and "SOLICITAÇÃO" in ctx

@@ -28,8 +28,10 @@ saem desconexos porque nunca houve um plano comum.
 
 Aqui a **fase de plano é o produto**: um `plano.json` de esquema fechado onde a
 estrutura da música, o conceito da capa e a decupagem do clipe são decididos
-juntos, olhando um banco de estilos medido de material real. A execução é só a
-consequência — e é plugável.
+juntos, olhando dois bancos medidos de material real — estilos musicais
+(BPM, tom, instrumentação, voz) e referências visuais vindas do
+[analisevideo](https://github.com/inematds/analisevideo) (paleta, câmera,
+cortes por minuto). A execução é só a consequência — e é plugável.
 
 ## Como funciona
 

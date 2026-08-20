@@ -9,6 +9,7 @@ from pathlib import Path
 from src.esquemas import validar_plano, campos_prompt_en
 from src.estado import (novo_estado, salvar_estado, carregar_estado, transicao, _agora)
 from src.indexer import linha_de, gravar_linha, contexto_acervo
+from src.referencias import referencias_visuais, resumir_para_contexto
 from src.registry import carregar_registry, disponibilidade, resolver_motor, validar_params
 
 RAIZ = Path(__file__).resolve().parents[1]
@@ -76,6 +77,14 @@ def montar_contexto(solicitacao: str, opts: dict, outdir: Path) -> str:
         "TEMPLATES CLIPE: " + (RAIZ / "data/templates-clipe.json").read_text(encoding="utf-8"),
         "ACERVO: " + json.dumps(contexto_acervo(outdir, solicitacao), ensure_ascii=False),
     ]
+    refs = resumir_para_contexto(referencias_visuais(
+        solicitacao, opts.get("mood") or [], opts.get("estilo") or ""))
+    if refs:
+        partes.append(
+            "REFERÊNCIAS VISUAIS MEDIDAS (vídeos reais analisados quadro a quadro pelo "
+            "analisevideo — paleta em hex, movimento de câmera, ritmo de corte que "
+            "funcionaram de verdade). Use como base da decupagem e da paleta da capa; "
+            "não copie o conteúdo, copie a LINGUAGEM visual:\n" + refs)
     if opts.get("estilo"):
         partes.append(f"ESTILO PEDIDO: {opts['estilo']}")
     if opts.get("pesquisa_md"):

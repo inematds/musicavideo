@@ -117,8 +117,13 @@ O que entra no pacote:
 4. **`data/templates-clipe.json`** — 4 decupagens: performance, narrativo,
    lyric-video, abstrato/loop
 5. **Seu acervo** (do `index.jsonl`)
-6. **`pesquisa.md`**, se você usou `--pesquisa`
-7. **As regras:** prompts de provedor em inglês, o clipe cobre a música inteira,
+6. **Referências visuais medidas** — as análises do `analisevideo` que casam com a
+   música: paleta em hex, look, movimentos de câmera, cortes por minuto, BPM e os
+   movimentos notáveis com timecode. Vêm de vídeos reais que você mandou analisar
+   (`~/projetos/output/analisevideo/`), e o planejador é instruído a copiar a
+   **linguagem** visual, não o conteúdo. Sem banco, o bloco simplesmente não entra.
+7. **`pesquisa.md`**, se você usou `--pesquisa`
+8. **As regras:** prompts de provedor em inglês, o clipe cobre a música inteira,
    schema fechado
 
 Antes de responder, o planejador faz um passe de autocrítica (coerência
@@ -186,7 +191,8 @@ fade-out. Se o vídeo ficar mais curto que a música, `--completo` repete o víd
 em loop; o certo é a decupagem cobrir tudo — e a validação agora obriga isso.
 
 **Em cima de quê:** a base é **a letra e a estrutura da música**, não imagem
-bonita solta. O shot da virada cai onde entra o primeiro refrão; o último fecha
+bonita solta — mais as referências visuais medidas do `analisevideo`, que dão
+paleta, movimento de câmera e ritmo de corte que funcionaram em vídeos reais. O shot da virada cai onde entra o primeiro refrão; o último fecha
 no outro. A sincronia é declarada no plano — por exemplo: *"1 shot por seção;
 virada no primeiro refrão; cortes no beat a 120 BPM"*.
 
