@@ -67,8 +67,19 @@ def _cmd_ajusta(args):
     return cmd_ajusta(args)
 
 
+def _cmd_faz(args):
+    from src.executor import cmd_faz
+    return cmd_faz(args)
+
+
+def _cmd_custo(args):
+    from src.executor import cmd_custo
+    return cmd_custo(args)
+
+
 COMANDOS.update({"lista": _cmd_lista, "busca": _cmd_busca, "reindex": _cmd_reindex,
-                 "plano": _cmd_plano, "ver": _cmd_ver, "ok": _cmd_ok, "ajusta": _cmd_ajusta})
+                 "plano": _cmd_plano, "ver": _cmd_ver, "ok": _cmd_ok, "ajusta": _cmd_ajusta,
+                 "faz": _cmd_faz, "custo": _cmd_custo})
 
 
 def main(argv: list[str]) -> int:
