@@ -203,3 +203,18 @@ virada no primeiro refrão; cortes no beat a 120 BPM"*.
 **Planejar é barato, executar é caro.** Por isso o plano é o produto: ele decide
 música, capa e clipe juntos, olhando um banco de estilos medido de material
 real — e você aprova parte por parte antes de qualquer centavo sair.
+
+---
+
+## 8. Ideias anotadas (não implementadas)
+
+- **Banco de referências público.** Hoje `data/estilos.json` mora no repo e as
+  análises visuais moram só no disco local (`~/projetos/output/analisevideo/`).
+  A ideia é publicá-las como repositório versionado ou base de dados consultável,
+  para que outras máquinas e outros projetos usem sem reanalisar tudo do zero.
+  `src/referencias.py` já isola a leitura num único ponto (`_banco()` /
+  `_ler_index()`), então trocar a fonte não toca o planejador. Ao publicar,
+  revisar o que vai junto: só a análise derivada, nunca mídia de terceiros.
+- **Busca dentro da letra** — hoje `busca` cobre slug, título, solicitação,
+  gênero e tags, mas não o texto da letra.
+- **Tags próprias no índice** — hoje as tags são o `mood` do plano.
