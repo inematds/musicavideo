@@ -1,0 +1,107 @@
+{
+  "schema_version": "1",
+  "estilos": [
+    {
+      "id": "uplifting-ambient-electronic",
+      "nome": "Uplifting Ambient Electronic",
+      "genero": ["uplifting ambient electronic", "modern corporate instrumental", "chill tech"],
+      "bpm": 103,
+      "tom": "C maior",
+      "mood": ["inspirador", "otimista", "tecnológico", "etéreo"],
+      "instrumentacao": ["minimalist electronic drums", "clean warm synth bass", "wide atmospheric pads", "bright synth lead"],
+      "voz": {
+        "presenca": "vocal chops",
+        "tipos": [
+          {"genero": "feminina", "registro": "agudo", "entrega": "ooh/aah etéreo com reverb e pitch-shift"},
+          {"genero": "masculina", "registro": "médio-grave", "entrega": "chops rítmicos filtrados, quase percussão vocal"}
+        ]
+      },
+      "estrutura_tipica": ["intro atmosférica", "groove principal com chops", "variação sutil", "fade out"],
+      "producao": "mix limpo, sidechain sutil, top end arejado, pads em estéreo largo",
+      "prompt_suno_curto": "Uplifting Ambient Electronic, 103 bpm, C Major. Smooth electronic drums, clean synth bass, ethereal pads, bright synth melody. Features high-pitched female vocal chops (ooh/aah) and subtle rhythmic male vocal chops. Modern, inspiring, tech mood.",
+      "prompt_suno_longo": "Genre: Uplifting Ambient Electronic / Modern Corporate Instrumental / Chill Tech.\nBPM: 103. Key: C Major.\nMood: Clean, professional, inspiring, optimistic, calm yet forward-thinking, technological, ethereal, spacious, slightly dreamy.\nDrums: Minimalist electronic, soft kick, crisp closed hi-hats, subtle filtered snare on 2 and 4.\nBass: Clean warm synth bass, sustained root notes.\nSynth Pads: Wide atmospheric evolving pads with shimmer.\nSynth Lead: Bright clear melody, catchy optimistic cyclic pattern.\nFemale Vocal Chops: Prominent high-pitched ethereal ooh/aah samples, heavy reverb, delay, pitch-shifted up, layered with pads, angelic abstract quality.\nMale Vocal Chops: Very subtle low-pitched rhythmic processed sussurro/hum, filtered percussive texture in lower-mid frequencies.\nOverall: Polished contemporary instrumental, blend of electronic with processed human voices, inviting forward-looking soundscape.",
+      "referencias": ["reel-fb-vocal.mp3", "reel-fb-instrumental.mp3"],
+      "fonte": "output/musical/analises/analise-vozes-musica-fbvideo-gemini-v2.md (corrige o BPM de analise-musica-voz-fbvideo-gemini.md)",
+      "tags": ["reel", "tech", "corporativo", "motivacional"]
+    },
+    {
+      "id": "corporate-tech-electro-pop",
+      "nome": "Corporate Tech Electro Pop",
+      "genero": ["corporate tech electro pop", "ambient house", "modern synthwave"],
+      "bpm": 118,
+      "tom": "F maior",
+      "mood": ["otimista", "brilhante", "motivacional", "profissional"],
+      "instrumentacao": ["warm synth pad", "plucked bell-like arpeggiator (hook principal)", "soft pulsating synth bass", "four-on-the-floor kick", "reverbed clap", "closed hi-hats + shakers", "synth stabs"],
+      "voz": {"presenca": "instrumental", "tipos": []},
+      "estrutura_tipica": ["intro pad+arpejo", "main theme com bateria e bass", "variação sutil", "fade out"],
+      "producao": "-14 a -16 LUFS, estéreo amplo nos pads, sem drops dramáticos; progressão Fmaj7-Bbmaj7-Cmaj7-Dm7",
+      "prompt_suno_curto": "Corporate Tech Electro Pop, uplifting, 118 BPM, F Major, plucked synth arpeggio hook, warm pads, soft four-on-the-floor drums, pulsating bass, clean bright modern mix.",
+      "prompt_suno_longo": "Corporate Tech Electro Pop, uplifting and positive, 118 BPM, F Major.\n\nWarm analog synth pad with slow attack and lush reverb creating wide atmospheric bed.\nProminent plucked/bell-like synth arpeggiator playing ascending and descending eighth-note\npatterns with synced delay and reverb — this is the main melodic hook.\nSoft pulsating synth bass marking chord roots in long notes or octaves.\nLight electronic drums: soft four-on-the-floor kick, reverbed clap on 2 and 4,\nclosed hi-hats in eighth/sixteenth notes with shakers for brightness.\nOccasional synth stabs and subtle electronic percussion clicks for texture.\n\nStructure: soft intro (pad + arpeggio only), gradual drum and bass entry into main loop,\nconsistent energy throughout, gentle fade out at the end. No dramatic drops or breaks.\n\nMood: positive, motivational, intelligent, future-focused, clean, bright, professional.\nLike background music for a Google/Apple tech product video or innovation documentary.",
+      "referencias": ["reel-fb-instrumental.mp3"],
+      "fonte": "output/musical/analises/analise-musica-fbvideo-gemini.md",
+      "tags": ["corporativo", "tech", "instrumental", "arpejo"]
+    },
+    {
+      "id": "uplifting-progressive-trance",
+      "nome": "Uplifting Progressive Trance",
+      "genero": ["uplifting progressive trance", "tech house", "melodic techno"],
+      "bpm": 132,
+      "tom": null,
+      "mood": ["alta energia", "futurista", "otimista", "propulsor"],
+      "instrumentacao": ["four-on-the-floor kick", "open/closed hi-hats em semicolcheias", "electronic clap nos contratempos", "deep continuous synth bass", "bright arpeggiated synth lead", "ethereal sustained pads"],
+      "voz": {"presenca": "instrumental", "tipos": []},
+      "estrutura_tipica": ["steady build de elementos eletrônicos"],
+      "producao": "reverb nos synths/pads, delay no arpeggio, sidechain pumping sutil",
+      "prompt_suno_curto": "Uplifting Progressive Trance, instrumental, 132 BPM. Driving four-on-the-floor kick, bright arpeggiated synth lead, continuous pulsating bassline, airy pads, subtle sidechain pumping. High-energy, futuristic, optimistic. No vocals.",
+      "prompt_suno_longo": "Uplifting Progressive Trance, Instrumental. High-energy, driving, futuristic, and optimistic. Features a powerful four-on-the-floor kick drum and dynamic electronic hi-hats. The core is a bright, resonant arpeggiated synth lead playing a repetitive, melodic pattern, underpinned by a continuous, slightly resonant synth bassline. Airy, sustained synth pads provide a wide harmonic background. Subtle sidechain compression creates a 'pumping' feel. Moderate reverb and delay on synths enhance spaciousness. No vocals. Tempo: 132 BPM. Structure: Steady build of electronic elements.",
+      "referencias": ["tiktok-audio.mp3", "Paul van Dyk", "Eric Prydz", "Deadmau5"],
+      "fonte": "output/musical/analises/analise-musica-tiktok-gemini.md",
+      "tags": ["trance", "edm", "instrumental", "energia"]
+    },
+    {
+      "id": "anthem-pop-rock",
+      "nome": "Anthem Pop Rock",
+      "genero": ["anthem pop rock"],
+      "bpm": null,
+      "tom": null,
+      "mood": ["hino", "contagiante", "potente"],
+      "instrumentacao": [],
+      "voz": {
+        "presenca": "lead",
+        "tipos": [
+          {"genero": "masculina", "registro": "tenor G3-B4, belting em peito→misto", "entrega": "brilhante, metálico, levemente raspy, vibrato médio controlado"},
+          {"genero": "feminina", "registro": "mezzo-soprano C4-G5, mista→cabeça", "entrega": "límpida, etérea, harmonias tight de hino nos refrões"}
+        ]
+      },
+      "estrutura_tipica": [],
+      "producao": "voz masculina dominante, feminina em harmonias sobrepostas nos refrões, textura de hino",
+      "prompt_suno_curto": "Anthem pop rock, energetic male tenor lead with belting and light rasp, ethereal female mezzo backing harmonies on choruses, driving hymn-like energy.",
+      "prompt_suno_longo": "Anthem pop rock with an infectious hymn-like energy. Male lead vocal: tenor, range G3 to B4, strong chest voice moving into a fluid mixed register on the high notes, bright metallic cutting timbre, slightly grainy/raspy texture at peak projection, medium controlled natural vibrato, consistent belting with subtle grit. Female backing vocal: mezzo-soprano, range C4 to G5, mixed voice shifting to head voice on the highs, bright limpid timbre, smooth ethereal texture, soft delicate vibrato. The male lead dominates while the female voice complements with tight anthem-like harmonies, overlapping on the chorus sections. Powerful yet clear high notes, contagious anthemic energy — energetic male timbre combined with limpid female harmonies.",
+      "referencias": ["Counting Stars (OneRepublic) — faixa identificada na análise"],
+      "fonte": "output/musical/analises/analise-voz-profunda-gemini.md",
+      "tags": ["hino", "rock", "dueto"]
+    },
+    {
+      "id": "female-anthem-rock",
+      "nome": "Female Anthem Rock",
+      "genero": ["anthem rock", "pop rock"],
+      "bpm": null,
+      "tom": null,
+      "mood": ["determinada", "vitoriosa"],
+      "instrumentacao": ["electric guitars", "bass", "drums"],
+      "voz": {
+        "presenca": "lead",
+        "tipos": [
+          {"genero": "feminina", "registro": "médio-agudo", "entrega": "belting com grit"}
+        ]
+      },
+      "estrutura_tipica": ["intro", "verso", "refrão", "verso", "refrão", "ponte", "refrão final"],
+      "producao": "guitarras amplas, bateria forte, voz na frente",
+      "prompt_suno_curto": "Female anthem rock, powerful female belting vocals, driving guitars, big drums, triumphant mood.",
+      "prompt_suno_longo": "Female anthem rock. Powerful female lead with belting and light grit, driving distorted guitars, punchy live drums, anthemic gang-vocal chorus, triumphant build from quiet verse to explosive final chorus.",
+      "referencias": ["fire-rock-fem-a.mp3", "fire-rock-fem-b.mp3", "shatter-gates-a.mp3", "born-for-this-a.mp3"],
+      "fonte": "acervo output/musical/musicas/ (faixas Suno geradas, variantes A/B)",
+      "tags": ["rock", "feminino", "virada", "empoderamento"]
+    }
+  ]
+}
