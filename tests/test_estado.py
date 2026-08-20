@@ -68,3 +68,29 @@ def test_persistencia_atomica_e_interrompido(outdir):
     e2 = carregar_estado(w)
     assert e2["partes"]["musica"]["estado"] == "erro"
     assert e2["partes"]["musica"]["erro"]["msg"] == "interrompido"
+
+
+def test_gerando_de_corrida_viva_nao_vira_erro(outdir):
+    """Enquanto o processo que gera está vivo, leitura não pode dizer 'interrompido'."""
+    from src.estado import marcar_gerando, desmarcar_gerando
+    w = outdir / "s2"
+    w.mkdir()
+    e = novo_estado("s2")
+    transicao(e, "clipe", "ok")
+    transicao(e, "clipe", "faz")
+    salvar_estado(w, e)
+    marcar_gerando(w, "clipe")                       # este processo está gerando
+    assert carregar_estado(w)["partes"]["clipe"]["estado"] == "gerando"
+    desmarcar_gerando(w, "clipe")
+    assert carregar_estado(w)["partes"]["clipe"]["estado"] == "erro"
+
+
+def test_lock_de_processo_morto_e_ignorado(outdir):
+    w = outdir / "s3"
+    w.mkdir()
+    e = novo_estado("s3")
+    transicao(e, "capa", "ok")
+    transicao(e, "capa", "faz")
+    salvar_estado(w, e)
+    (w / ".gerando-capa.pid").write_text("999999")   # pid que não existe
+    assert carregar_estado(w)["partes"]["capa"]["estado"] == "erro"

@@ -85,9 +85,38 @@ def salvar_estado(workdir: Path, estado: dict) -> None:
     os.replace(tmp, alvo)
 
 
+def _lock(workdir: Path, parte: str) -> Path:
+    return workdir / f".gerando-{parte}.pid"
+
+
+def marcar_gerando(workdir: Path, parte: str) -> None:
+    """Marca que ESTE processo está gerando a parte — distingue uma corrida viva
+    de um `gerando` órfão deixado por crash/ctrl-c."""
+    _lock(workdir, parte).write_text(str(os.getpid()), encoding="utf-8")
+
+
+def desmarcar_gerando(workdir: Path, parte: str) -> None:
+    _lock(workdir, parte).unlink(missing_ok=True)
+
+
+def _vivo(workdir: Path, parte: str) -> bool:
+    arq = _lock(workdir, parte)
+    if not arq.exists():
+        return False
+    try:
+        os.kill(int(arq.read_text().strip()), 0)   # sinal 0: só testa existência
+        return True
+    except (ValueError, ProcessLookupError):
+        return False
+    except PermissionError:
+        return True
+
+
 def carregar_estado(workdir: Path) -> dict:
     estado = json.loads((workdir / "estado.json").read_text(encoding="utf-8"))
     for parte, p in estado["partes"].items():
+        if p["estado"] == "gerando" and _vivo(workdir, parte):
+            continue                   # corrida viva: não mexer
         if p["estado"] == "gerando":   # crash/ctrl-c anterior
             p["estado"] = "erro"
             p["erro"] = {"quando": _agora(), "motor": "", "msg": "interrompido"}

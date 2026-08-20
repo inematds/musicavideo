@@ -2,7 +2,8 @@
 import json
 from pathlib import Path
 
-from src.estado import carregar_estado, salvar_estado, transicao
+from src.estado import (carregar_estado, salvar_estado, transicao,
+                        marcar_gerando, desmarcar_gerando)
 from src.indexer import linha_de, gravar_linha
 from src.registry import carregar_registry, resolver_motor
 from src.custo import estimar_partes
@@ -90,6 +91,7 @@ def faz(outdir, slug, partes=None, sim=False, telegram=False,
             x["custo_estimado_usd"] for x in estado["partes"].values()), 4)
         transicao(estado, p, "faz")
         salvar_estado(w, estado)   # 'gerando' persistido ANTES de chamar a API
+        marcar_gerando(w, p)
         try:
             pars = _params_de(plano, p)
             if era_erro:
@@ -107,6 +109,8 @@ def faz(outdir, slug, partes=None, sim=False, telegram=False,
             transicao(estado, p, "erro", motor=plano[p]["motor"], msg=msg)
             print(f"{p}: erro — {msg}")
             houve_erro = True
+        finally:
+            desmarcar_gerando(w, p)
         salvar_estado(w, estado)
         gravar_linha(outdir, linha_de(plano, estado))
     if all(x["estado"] == "pronto" for x in estado["partes"].values()):
