@@ -20,6 +20,13 @@ def _motor_ok(m, ctx, erros):
         erros.append(f"{ctx}: motor inválido '{m}' (esperado provider:modelo)")
 
 
+def _listas(d: dict, campos: tuple, ctx: str, erros: list):
+    """Campo de lista que vem como string vira lista de LETRAS lá na frente."""
+    for k in campos:
+        if k in d and not isinstance(d[k], list):
+            erros.append(f"{ctx}.{k}: deve ser lista, veio {type(d[k]).__name__}")
+
+
 def validar_plano(plano: dict) -> list[str]:
     erros: list[str] = []
     _chaves(plano, {"schema_version", "slug", "criado_em", "solicitacao", "pesquisa",
@@ -33,6 +40,8 @@ def validar_plano(plano: dict) -> list[str]:
     est = m.get("estilo", {})
     _chaves(est, {"genero", "bpm", "tom", "mood", "instrumentacao", "voz", "prompt_estilo"},
             set(), "musica.estilo", erros)
+    _listas(est, ("mood", "instrumentacao"), "musica.estilo", erros)
+    _listas(m, ("estrutura",), "musica", erros)
     le = m.get("letra", {})
     _chaves(le, {"origem", "texto", "texto_original", "idioma"}, set(), "musica.letra", erros)
     if le.get("origem") not in (None, "gerada", "rascunho_usuario", "final_usuario"):
@@ -44,10 +53,12 @@ def validar_plano(plano: dict) -> list[str]:
                 "prompt_negativo", "paleta"}, set(), "capa", erros)
     if "motor" in c:
         _motor_ok(c["motor"], "capa", erros)
+    _listas(c, ("paleta",), "capa", erros)
     v = plano.get("clipe", {})
     _chaves(v, {"motor", "params", "template", "sincronia", "decupagem"}, set(), "clipe", erros)
     if "motor" in v:
         _motor_ok(v["motor"], "clipe", erros)
+    _listas(v, ("decupagem",), "clipe", erros)
     for i, shot in enumerate(v.get("decupagem", []) or []):
         _chaves(shot, {"n", "secao", "duracao_s", "camera", "descricao", "prompt"},
                 set(), f"clipe.decupagem[{i}]", erros)

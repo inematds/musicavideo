@@ -47,3 +47,11 @@ def test_estado_valido():
     assert validar_estado(e) == []
     e["partes"]["musica"]["estado"] = "voando"
     assert validar_estado(e) != []
+
+
+def test_campo_de_lista_como_string_e_erro(plano_ok):
+    plano_ok["musica"]["estilo"]["mood"] = "determinada, vitoriosa"
+    assert any("mood" in e and "lista" in e for e in validar_plano(plano_ok))
+    plano_ok["musica"]["estilo"]["mood"] = ["determinada"]
+    plano_ok["capa"]["paleta"] = "#E8A13C"
+    assert any("paleta" in e for e in validar_plano(plano_ok))
