@@ -1,0 +1,49 @@
+from src.esquemas import validar_plano, validar_estado, campos_prompt_en
+
+
+def test_plano_valido_sem_erros(plano_ok):
+    assert validar_plano(plano_ok) == []
+
+
+def test_campo_desconhecido_e_erro(plano_ok):
+    plano_ok["extra"] = 1
+    assert any("extra" in e for e in validar_plano(plano_ok))
+
+
+def test_campo_obrigatorio_faltando(plano_ok):
+    del plano_ok["musica"]["letra"]
+    assert any("letra" in e for e in validar_plano(plano_ok))
+
+
+def test_motor_malformado(plano_ok):
+    plano_ok["capa"]["motor"] = "semdoispontos"
+    assert any("motor" in e for e in validar_plano(plano_ok))
+
+
+def test_letra_final_exige_texto(plano_ok):
+    plano_ok["musica"]["letra"]["origem"] = "final_usuario"
+    plano_ok["musica"]["letra"]["texto"] = ""
+    assert any("final_usuario" in e for e in validar_plano(plano_ok))
+
+
+def test_prompt_em_portugues_e_rejeitado(plano_ok):
+    plano_ok["capa"]["prompt_imagem"] = "capa de álbum, retrato de mulher, iluminação âmbar"
+    erros = campos_prompt_en(plano_ok)
+    assert any("prompt_imagem" in e for e in erros)
+
+
+def test_conceito_em_pt_e_permitido(plano_ok):
+    assert campos_prompt_en(plano_ok) == []
+
+
+def test_estado_valido():
+    e = {"schema_version": "1", "slug": "x", "atualizado_em": "2026-08-20T14:00:00-03:00",
+         "fase": "plano", "telegram": False, "teto_usd": None,
+         "partes": {p: {"estado": "planejado", "aprovado_em": None, "ajustes": 0,
+                        "tentativas": 0, "custo_estimado_usd": 0.0, "custo_real_usd": 0.0,
+                        "artefato": None, "erro": None, "meta": {}}
+                    for p in ("musica", "capa", "clipe")},
+         "custo_total_usd": {"estimado": 0.0, "gasto": 0.0}, "historico": []}
+    assert validar_estado(e) == []
+    e["partes"]["musica"]["estado"] = "voando"
+    assert validar_estado(e) != []

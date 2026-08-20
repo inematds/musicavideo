@@ -1,0 +1,86 @@
+"""Validação FECHADA dos contratos (spec §8): campo desconhecido é erro."""
+import re
+
+_ESTADOS = {"planejado", "aprovado", "gerando", "pronto", "erro"}
+_PARTES = ("musica", "capa", "clipe")
+_ACENTOS = re.compile(r"[áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ]")
+
+
+def _chaves(d: dict, obrig: set, opc: set, ctx: str, erros: list):
+    for k in d:
+        if k not in obrig | opc:
+            erros.append(f"{ctx}: campo desconhecido '{k}'")
+    for k in obrig:
+        if k not in d:
+            erros.append(f"{ctx}: campo obrigatório '{k}' ausente")
+
+
+def _motor_ok(m, ctx, erros):
+    if not (isinstance(m, str) and re.fullmatch(r"[a-z0-9_-]+:[A-Za-z0-9._/-]+", m)):
+        erros.append(f"{ctx}: motor inválido '{m}' (esperado provider:modelo)")
+
+
+def validar_plano(plano: dict) -> list[str]:
+    erros: list[str] = []
+    _chaves(plano, {"schema_version", "slug", "criado_em", "solicitacao", "pesquisa",
+                    "estilo_ref", "titulo", "musica", "capa", "clipe"}, set(), "plano", erros)
+    if plano.get("schema_version") != "1":
+        erros.append('plano: schema_version deve ser "1"')
+    m = plano.get("musica", {})
+    _chaves(m, {"motor", "params", "estilo", "estrutura", "letra"}, set(), "musica", erros)
+    if "motor" in m:
+        _motor_ok(m["motor"], "musica", erros)
+    est = m.get("estilo", {})
+    _chaves(est, {"genero", "bpm", "tom", "mood", "instrumentacao", "voz", "prompt_estilo"},
+            set(), "musica.estilo", erros)
+    le = m.get("letra", {})
+    _chaves(le, {"origem", "texto", "texto_original", "idioma"}, set(), "musica.letra", erros)
+    if le.get("origem") not in (None, "gerada", "rascunho_usuario", "final_usuario"):
+        erros.append(f"musica.letra: origem inválida '{le.get('origem')}'")
+    if le.get("origem") == "final_usuario" and not le.get("texto"):
+        erros.append("musica.letra: origem final_usuario exige texto não vazio")
+    c = plano.get("capa", {})
+    _chaves(c, {"motor", "params", "template", "conceito", "prompt_imagem",
+                "prompt_negativo", "paleta"}, set(), "capa", erros)
+    if "motor" in c:
+        _motor_ok(c["motor"], "capa", erros)
+    v = plano.get("clipe", {})
+    _chaves(v, {"motor", "params", "template", "sincronia", "decupagem"}, set(), "clipe", erros)
+    if "motor" in v:
+        _motor_ok(v["motor"], "clipe", erros)
+    for i, shot in enumerate(v.get("decupagem", []) or []):
+        _chaves(shot, {"n", "secao", "duracao_s", "camera", "descricao", "prompt"},
+                set(), f"clipe.decupagem[{i}]", erros)
+    return erros
+
+
+def campos_prompt_en(plano: dict) -> list[str]:
+    """Prompts que vão pro provedor DEVEM ser EN (Agnes 400 em PT legítimo)."""
+    erros = []
+    alvos = [("musica.estilo.prompt_estilo", plano["musica"]["estilo"].get("prompt_estilo", "")),
+             ("capa.prompt_imagem", plano["capa"].get("prompt_imagem", "")),
+             ("capa.prompt_negativo", plano["capa"].get("prompt_negativo", ""))]
+    for i, s in enumerate(plano["clipe"].get("decupagem", []) or []):
+        alvos.append((f"clipe.decupagem[{i}].prompt", s.get("prompt", "")))
+    for nome, txt in alvos:
+        if _ACENTOS.search(txt or ""):
+            erros.append(f"{nome}: prompt de provedor deve ser em INGLÊS (achei acento)")
+    return erros
+
+
+def validar_estado(estado: dict) -> list[str]:
+    erros: list[str] = []
+    _chaves(estado, {"schema_version", "slug", "atualizado_em", "fase", "telegram",
+                     "teto_usd", "partes", "custo_total_usd", "historico"}, set(), "estado", erros)
+    if estado.get("fase") not in ("plano", "execucao", "entregue"):
+        erros.append(f"estado: fase inválida '{estado.get('fase')}'")
+    for p in _PARTES:
+        d = estado.get("partes", {}).get(p)
+        if d is None:
+            erros.append(f"estado: parte '{p}' ausente")
+            continue
+        _chaves(d, {"estado", "aprovado_em", "ajustes", "tentativas", "custo_estimado_usd",
+                    "custo_real_usd", "artefato", "erro", "meta"}, set(), f"estado.{p}", erros)
+        if d.get("estado") not in _ESTADOS:
+            erros.append(f"estado.{p}: estado inválido '{d.get('estado')}'")
+    return erros
