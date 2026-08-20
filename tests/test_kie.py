@@ -88,3 +88,27 @@ def test_first_success_ignora_faixa_sem_audiourl(tmp_path, monkeypatch):
                                                 "instrumental": False}, tmp_path)
     assert baixados == ["http://x/pronta.mp3"]
     assert r.meta["duracao_s"] == 175
+
+
+def test_retry_reaproveita_geracao_ja_paga(tmp_path, monkeypatch):
+    """Falha pós-geração (ex.: 403 no download) não deve pagar de novo."""
+    posts = []
+    (tmp_path / "raw").mkdir()
+    (tmp_path / "raw" / "kie-generate.json").write_text(json.dumps({"taskId": "TJA"}))
+
+    def fake_http(url, metodo="GET", corpo=None, headers=None, **kw):
+        if metodo == "POST":
+            posts.append(url)
+            return {"data": {"taskId": "NOVA"}}
+        return {"data": {"status": "SUCCESS", "response": {"sunoData": [
+            {"audioUrl": "http://x/ja-paga.mp3", "duration": 184}]}}}
+
+    monkeypatch.setattr(kie_mod, "http_json", fake_http)
+    monkeypatch.setattr(kie_mod, "baixar",
+                        lambda url, destino, **kw: (destino.write_bytes(b"m"), destino)[-1])
+    monkeypatch.setattr(kie_mod, "ler_env_chave", lambda n: "k")
+    r = kie_mod.criar(DECL).gerar("suno-v4.5", {"titulo": "t", "letra": "l", "estilo": "s",
+                                                "instrumental": False, "retry": True}, tmp_path)
+    assert posts == []                 # NÃO gerou de novo
+    assert r.custo_real == 0.0         # nem cobrou de novo
+    assert r.meta["kie_task_id"] == "TJA"

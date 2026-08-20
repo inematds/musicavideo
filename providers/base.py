@@ -83,10 +83,18 @@ def http_json(url: str, metodo: str = "GET", corpo: dict | None = None,
     raise ProviderError(f"esgotou tentativas em {url}")
 
 
+UA = "Mozilla/5.0 (X11; Linux x86_64) musicavideo/1.0"
+
+
 def baixar(url: str, destino: Path, timeout: int = 300) -> Path:
-    """Baixa NA HORA (URLs de provedores expiram)."""
+    """Baixa NA HORA (URLs de provedores expiram).
+
+    O User-Agent não é enfeite: o CDN do Suno (tempfile.aiquickdraw.com)
+    responde 403 ao UA padrão do urllib.
+    """
     destino.parent.mkdir(parents=True, exist_ok=True)
-    with urllib.request.urlopen(url, timeout=timeout) as r:
+    req = urllib.request.Request(url, headers={"User-Agent": UA})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
         destino.write_bytes(r.read())
     return destino
 

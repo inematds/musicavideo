@@ -84,13 +84,17 @@ def faz(outdir, slug, partes=None, sim=False, telegram=False,
                   f"Retomar: musicavideo faz {slug} {p}")
             houve_teto = True
             continue
+        era_erro = estado["partes"][p]["estado"] == "erro"
         estado["partes"][p]["custo_estimado_usd"] = est[p]
         estado["custo_total_usd"]["estimado"] = round(sum(
             x["custo_estimado_usd"] for x in estado["partes"].values()), 4)
         transicao(estado, p, "faz")
         salvar_estado(w, estado)   # 'gerando' persistido ANTES de chamar a API
         try:
-            r = prov.gerar(modelo["id"], _params_de(plano, p), w)
+            pars = _params_de(plano, p)
+            if era_erro:
+                pars["retry"] = True   # provider pode reaproveitar geração já paga
+            r = prov.gerar(modelo["id"], pars, w)
             transicao(estado, p, "pronto", artefato=r.arquivo.name,
                       custo_real=r.custo_real, meta=r.meta)
             print(f"{p}: pronto → {r.arquivo.name} (US$ {r.custo_real:.4f})")

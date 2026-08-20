@@ -1,4 +1,5 @@
 """Música: Suno via api.kie.ai. O POST /generate já gasta — taskId vai pro raw/ antes do poll."""
+import json
 import os
 import time
 from pathlib import Path
@@ -35,8 +36,34 @@ class Kie(Provider):
             return round(c["base_usd"] * float(params.get("duracao_shot_s", 5)), 4)
         return c["base_usd"]
 
+    def _task_reaproveitavel(self, workdir: Path):
+        """Retry depois de falha PÓS-geração (download, rede) não deve pagar de
+        novo: se a task anterior ainda entrega áudio, reusa o taskId."""
+        raws = sorted((workdir / "raw").glob("kie-generate*.json"),
+                      key=lambda f: f.stat().st_mtime, reverse=True)
+        for arq in raws:
+            try:
+                task = json.loads(arq.read_text(encoding="utf-8")).get("taskId")
+                if not task:
+                    continue
+                r = http_json(f"{KIE_BASE}/generate/record-info?taskId={task}",
+                              headers=self._headers())
+                d = r.get("data") or {}
+                pronta = [f for f in ((d.get("response") or {}).get("sunoData") or [])
+                          if (f.get("audioUrl") or "").startswith("http")]
+                if pronta and d.get("status") in ("SUCCESS", "FIRST_SUCCESS"):
+                    return task
+            except Exception:
+                continue
+        return None
+
     def gerar(self, modelo, params, workdir: Path) -> Resultado:
         m = next(x for x in self.decl["modelos"] if x["id"] == modelo)
+        if params.get("retry"):
+            task = self._task_reaproveitavel(workdir)
+            if task:
+                print(f"kie: reaproveitando a geração já paga (taskId={task})")
+                return self._colher(task, m, workdir, ja_pago=True)
         corpo = {"prompt": params["letra"],
                  "style": params["estilo"][:m["params"]["estilo_prompt_max_chars"]],
                  "title": params["titulo"], "customMode": True,
@@ -49,6 +76,9 @@ class Kie(Provider):
             raise ProviderError(f"kie: POST /generate sem taskId: {str(resp)[:300]}")
         gravar_raw(workdir, "kie-generate",
                    {"taskId": task, "request_sem_chave": corpo, "response": resp})
+        return self._colher(task, m, workdir)
+
+    def _colher(self, task: str, m: dict, workdir: Path, ja_pago: bool = False) -> Resultado:
         inicio = time.time()
         faixas = []
         while True:
@@ -69,7 +99,7 @@ class Kie(Provider):
                 raise ProviderError(f"kie: geração falhou: {d.get('errorMessage', st)}")
             time.sleep(15)
         alvo = baixar(faixas[0]["audioUrl"], workdir / "faixa.mp3")   # URL do Suno EXPIRA
-        return Resultado(alvo, m["custo"]["base_usd"],
+        return Resultado(alvo, 0.0 if ja_pago else m["custo"]["base_usd"],
                          {"kie_task_id": task, "duracao_s": faixas[0].get("duration"),
                           "faixas_geradas": len(faixas), "status_final": st})
 
