@@ -340,6 +340,11 @@ def _parse_opts(args: list[str]) -> tuple[list[str], dict]:
             opts["refaz"] = True
         elif a == "--completo":
             opts["completo"] = True
+        elif a == "--sem-revisao":
+            opts["sem_revisao"] = True
+        elif a == "--faixa":
+            i += 1
+            opts["faixa"] = int(args[i])
         elif a in ("--estilo", "--letra", "--teto"):
             i += 1
             opts[a[2:]] = args[i]

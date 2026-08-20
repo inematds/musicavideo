@@ -51,7 +51,7 @@ def _montar_com_a_faixa(w: Path, r, plano: dict):
 
 
 def faz(outdir, slug, partes=None, sim=False, telegram=False,
-        motor_override=None, reg=None) -> int:
+        motor_override=None, reg=None, sem_revisao=False) -> int:
     outdir = Path(outdir)
     w = outdir / slug
     if not (w / "plano.json").exists():
@@ -64,11 +64,30 @@ def faz(outdir, slug, partes=None, sim=False, telegram=False,
     for parte, motor in (motor_override or {}).items():
         plano[parte]["motor"] = motor
     reg = reg or carregar_registry()
+    revisao = not sem_revisao
     if partes is None:
-        partes = [p for p in PARTES if estado["partes"][p]["estado"] in ("aprovado", "erro")]
-        if not partes:
+        prontas = [p for p in PARTES if estado["partes"][p]["estado"] in ("aprovado", "erro")]
+        if not prontas:
+            em_revisao = [p for p in PARTES if estado["partes"][p]["estado"] == "revisao"]
+            if em_revisao:
+                print(f"esperando sua revisão: {', '.join(em_revisao)} — "
+                      f"veja com `musicavideo revisa {slug}`")
+                return 1
             print("nada aprovado pra fazer — use `ok <slug> <parte>` antes")
             return 1
+        # MÚSICA PRIMEIRO: capa e clipe só depois da faixa aprovada (a duração
+        # dela é que ancora o clipe, e ninguém quer 2h de vídeo pra faixa rejeitada)
+        est_mus = estado["partes"]["musica"]["estado"]
+        if "musica" in prontas:
+            partes = ["musica"]
+            if len(prontas) > 1:
+                print("música primeiro — capa e clipe entram depois que você aprovar a faixa")
+        elif est_mus != "pronto":
+            print(f"a música está em '{est_mus}' — aprove a faixa antes "
+                  f"(ou peça a parte explicitamente: `faz {slug} capa`)")
+            return 1
+        else:
+            partes = prontas
     for p in partes:
         if estado["partes"][p]["estado"] not in ("aprovado", "erro"):
             print(f"{p}: estado '{estado['partes'][p]['estado']}' não permite faz "
@@ -122,9 +141,21 @@ def faz(outdir, slug, partes=None, sim=False, telegram=False,
             r = prov.gerar(modelo["id"], pars, w)
             if p == "clipe":
                 r = _montar_com_a_faixa(w, r, plano)
-            transicao(estado, p, "pronto", artefato=r.arquivo.name,
+            evento = "pronto" if sem_revisao else "revisar"
+            transicao(estado, p, evento, artefato=r.arquivo.name,
                       custo_real=r.custo_real, meta=r.meta)
-            print(f"{p}: pronto → {r.arquivo.name} (US$ {r.custo_real:.4f})")
+            if sem_revisao:
+                print(f"{p}: pronto → {r.arquivo.name} (US$ {r.custo_real:.4f})")
+            else:
+                print(f"{p}: aguardando sua revisão → {r.arquivo.name} "
+                      f"(US$ {r.custo_real:.4f})")
+                if p == "clipe":
+                    try:
+                        from src.revisao import folha_de_contato
+                        print(f"  folha de contato: {folha_de_contato(w)}")
+                    except Exception as err:
+                        print(f"  (sem folha de contato: {err})")
+                print(f"  revise com: musicavideo revisa {slug} {p}")
         except ProviderError as e:
             transicao(estado, p, "erro", motor=plano[p]["motor"], msg=str(e))
             print(f"{p}: erro — {e}")
@@ -161,7 +192,8 @@ def cmd_faz(args) -> int:
             return 1
         partes = [livres[1]]
     return faz(out_dir(), livres[0], partes, sim=bool(opts.get("sim")),
-               telegram=bool(opts.get("telegram")), motor_override=opts.get("motor"))
+               telegram=bool(opts.get("telegram")), motor_override=opts.get("motor"),
+               sem_revisao=bool(opts.get("sem_revisao")))
 
 
 def cmd_custo(args) -> int:
@@ -206,4 +238,134 @@ def cmd_monta(args) -> int:
         return 1
     print(f"clipe montado com a música: {clipe} "
           f"({meta['duracao_final_s']}s{', vídeo em loop' if meta['video_em_loop'] else ''})")
+    return 0
+
+
+# ---------------------------------------------------------------- portão de artefato
+
+def _alvo_revisao(args, uso):
+    """Valida <slug> <parte> e devolve (outdir, slug, parte, opts)."""
+    import sys
+    from src.main import out_dir
+    from src.planner import _parse_opts
+    livres, opts = _parse_opts(args)
+    if len(livres) < 2 or livres[1] not in PARTES:
+        print(f"uso: {uso}", file=sys.stderr)
+        return None
+    w = out_dir() / livres[0]
+    if not (w / "estado.json").exists():
+        print(f"erro: slug '{livres[0]}' não encontrado em {out_dir()}", file=sys.stderr)
+        return None
+    return out_dir(), livres[0], livres[1], opts
+
+
+def cmd_revisa(args) -> int:
+    """Mostra o que está parado no portão esperando você."""
+    import sys
+    from src.main import out_dir
+    from src.planner import _parse_opts
+    from src.revisao import o_que_revisar
+    livres, _ = _parse_opts(args)
+    if not livres:
+        print("uso: revisa <slug> [musica|capa|clipe]", file=sys.stderr)
+        return 1
+    w = out_dir() / livres[0]
+    if not (w / "estado.json").exists():
+        print(f"erro: slug '{livres[0]}' não encontrado", file=sys.stderr)
+        return 1
+    estado = carregar_estado(w)
+    itens = o_que_revisar(w, estado)
+    if len(livres) > 1:
+        itens = [i for i in itens if i["parte"] == livres[1]]
+    if not itens:
+        print("nada esperando revisão neste slug.")
+        return 0
+    for i in itens:
+        print(f"\n## {i['parte']} — US$ {i['custo']:.4f}")
+        print(f"   arquivo: {w / (i['artefato'] or '?')}")
+        for o in i["opcoes"]:
+            print(f"   opção:   {w / o}")
+        for x in i["extra"]:
+            print(f"   {x}")
+        print(f"   aprovar:  musicavideo aprova  {livres[0]} {i['parte']}"
+              + ("  [--faixa N]" if i["parte"] == "musica" else ""))
+        print(f"   reprovar: musicavideo reprova {livres[0]} {i['parte']}"
+              + ("  4,17,23" if i["parte"] == "clipe" else ""))
+    return 0
+
+
+def cmd_aprova(args) -> int:
+    import sys
+    from src.estado import TransicaoInvalida
+    alvo = _alvo_revisao(args, "aprova <slug> <parte> [--faixa N]")
+    if alvo is None:
+        return 1
+    outdir, slug, parte, opts = alvo
+    w = outdir / slug
+    plano = json.loads((w / "plano.json").read_text(encoding="utf-8"))
+    estado = carregar_estado(w)
+    if parte == "musica" and opts.get("faixa"):
+        escolhida = w / f"faixa-{int(opts['faixa'])}.mp3"
+        if not escolhida.exists():
+            print(f"erro: {escolhida.name} não existe", file=sys.stderr)
+            return 1
+        estado["partes"]["musica"]["artefato"] = escolhida.name
+        estado["partes"]["musica"]["meta"]["escolhida"] = escolhida.name
+    try:
+        transicao(estado, parte, "aprova")
+    except TransicaoInvalida as e:
+        print(f"erro: {e}", file=sys.stderr)
+        return 1
+    salvar_estado(w, estado)
+    gravar_linha(outdir, linha_de(plano, estado))
+    art = estado["partes"][parte]["artefato"]
+    print(f"{parte} aprovado → {art}")
+    if all(estado["partes"][p]["estado"] == "pronto" for p in PARTES):
+        from src.entrega import entregar
+        entregar(outdir, slug)
+    elif parte == "musica":
+        print(f"agora vão capa e clipe: musicavideo faz {slug}")
+    return 0
+
+
+def cmd_reprova(args) -> int:
+    """Reprova o artefato: apaga o que não serviu e devolve a parte pra fila do `faz`."""
+    import sys
+    from src.estado import TransicaoInvalida
+    from src.revisao import descartar_shots, parse_numeros
+    alvo = _alvo_revisao(args, 'reprova <slug> <parte> ["4,17,23" só no clipe]')
+    if alvo is None:
+        return 1
+    outdir, slug, parte, opts = alvo
+    from src.planner import _parse_opts
+    livres, _ = _parse_opts(args)
+    w = outdir / slug
+    plano = json.loads((w / "plano.json").read_text(encoding="utf-8"))
+    estado = carregar_estado(w)
+    if parte == "clipe" and len(livres) > 2:
+        nums = parse_numeros(livres[2])
+        apagados = descartar_shots(w, nums)
+        print(f"shots descartados: {apagados or 'nenhum (números não existem)'}")
+        (w / "clipe.mp4").unlink(missing_ok=True)
+        (w / "raw" / "clipe-sem-musica.mp4").unlink(missing_ok=True)
+    else:
+        art = estado["partes"][parte]["artefato"]
+        if art:
+            (w / art).unlink(missing_ok=True)
+        if parte == "clipe":     # reprovou o clipe todo: fora com os shots
+            for s_ in (w / "raw").glob("shot-*.mp4"):
+                s_.unlink()
+            (w / "raw" / "clipe-sem-musica.mp4").unlink(missing_ok=True)
+        if parte == "musica":    # nova geração custa: avisa
+            for f in w.glob("faixa-*.mp3"):
+                f.unlink()
+            print("as faixas foram descartadas — o próximo `faz` gera de novo (~US$ 0,08)")
+    try:
+        transicao(estado, parte, "reprova")
+    except TransicaoInvalida as e:
+        print(f"erro: {e}", file=sys.stderr)
+        return 1
+    salvar_estado(w, estado)
+    gravar_linha(outdir, linha_de(plano, estado))
+    print(f"{parte} reprovado — regenere com: musicavideo faz {slug} {parte}")
     return 0

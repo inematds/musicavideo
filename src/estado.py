@@ -32,8 +32,12 @@ _TRANSICOES = {  # (estado_atual, evento) -> novo_estado
     ("planejado", "ajusta"): "planejado",
     ("aprovado", "ajusta"): "planejado",
     ("aprovado", "faz"): "gerando",
-    ("gerando", "pronto"): "pronto",
+    ("gerando", "revisar"): "revisao",   # portão de artefato: você olha antes
+    ("gerando", "pronto"): "pronto",     # só com --sem-revisao
     ("gerando", "erro"): "erro",
+    ("revisao", "aprova"): "pronto",
+    ("revisao", "reprova"): "aprovado",  # volta pra fila do `faz`
+    ("revisao", "ajusta"): "planejado",  # o problema era o plano, não a geração
     ("erro", "faz"): "gerando",
     ("erro", "ajusta"): "planejado",
     ("pronto", "refaz"): "planejado",
@@ -57,7 +61,7 @@ def transicao(estado: dict, parte: str, evento: str, **kw) -> None:
     elif evento == "faz":
         p["tentativas"] += 1
         p["erro"] = None
-    elif evento == "pronto":
+    elif evento in ("pronto", "revisar"):
         p["artefato"] = kw["artefato"]
         p["erro"] = None
         p["custo_real_usd"] += float(kw.get("custo_real", 0.0))
@@ -67,6 +71,8 @@ def transicao(estado: dict, parte: str, evento: str, **kw) -> None:
             p["meta"] = kw["meta"]
     elif evento == "erro":
         p["erro"] = {"quando": _agora(), "motor": kw.get("motor", ""), "msg": kw.get("msg", "")}
+    elif evento == "reprova":
+        p["artefato"] = None
     elif evento == "refaz":
         p["aprovado_em"] = None
         p["artefato"] = None

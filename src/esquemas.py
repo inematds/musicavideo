@@ -1,7 +1,7 @@
 """Validação FECHADA dos contratos (spec §8): campo desconhecido é erro."""
 import re
 
-_ESTADOS = {"planejado", "aprovado", "gerando", "pronto", "erro"}
+_ESTADOS = {"planejado", "aprovado", "gerando", "revisao", "pronto", "erro"}
 _PARTES = ("musica", "capa", "clipe")
 _ACENTOS = re.compile(r"[áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ]")
 

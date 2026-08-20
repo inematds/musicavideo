@@ -39,16 +39,24 @@ def slug(outdir, plano_ok):
     return "teste-rock"
 
 
-def test_faz_musica_aprovada(outdir, slug):
+def test_faz_musica_para_no_portao_de_revisao(outdir, slug):
+    """Com portão ligado (padrão), a faixa espera você ouvir antes de virar pronto."""
     aprovar_parte(outdir, slug, "musica")
     rc = faz(outdir, slug, ["musica"], sim=True, reg=_reg_fake(ProvFake()))
     assert rc == 0
     e = carregar_estado(outdir / slug)
-    assert e["partes"]["musica"]["estado"] == "pronto"
+    assert e["partes"]["musica"]["estado"] == "revisao"
     assert e["partes"]["musica"]["artefato"] == "faixa.mp3"
-    assert e["custo_total_usd"]["gasto"] == 0.08
+    assert e["custo_total_usd"]["gasto"] == 0.08     # o custo conta na geração
     idx = json.loads((outdir / "index.jsonl").read_text().splitlines()[0])
-    assert idx["estados"]["musica"] == "pronto"
+    assert idx["estados"]["musica"] == "revisao"
+
+
+def test_sem_revisao_vai_direto_pra_pronto(outdir, slug):
+    aprovar_parte(outdir, slug, "musica")
+    rc = faz(outdir, slug, ["musica"], sim=True, sem_revisao=True, reg=_reg_fake(ProvFake()))
+    assert rc == 0
+    assert carregar_estado(outdir / slug)["partes"]["musica"]["estado"] == "pronto"
 
 
 def test_faz_parte_nao_aprovada_erra_uso(outdir, slug):

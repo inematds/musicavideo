@@ -17,7 +17,10 @@ USO = """uso: musicavideo <comando> ...
   ver <slug> [musica|capa|clipe]
   ajusta <slug> <parte> "<instrução>" [--refaz]
   ok <slug> <parte>
-  faz <slug> [parte] [--sim] [--telegram] [--motor parte=prov:modelo]
+  faz <slug> [parte] [--sim] [--telegram] [--sem-revisao] [--motor parte=prov:modelo]
+  revisa  <slug> [parte]              # o que está esperando você olhar
+  aprova  <slug> <parte> [--faixa N]  # fecha a parte
+  reprova <slug> <parte> ["4,17,23"]  # descarta e devolve pro faz
   tudo "<solicitação>" [--teto N] [demais flags de plano] [--sim] [--telegram]
   monta <slug> [--completo]      # casa o clipe com a faixa (não gasta)
   custo <slug> | lista [N] | busca "<termo>" | reindex"""
@@ -78,6 +81,21 @@ def _cmd_monta(args):
     return cmd_monta(args)
 
 
+def _cmd_revisa(args):
+    from src.executor import cmd_revisa
+    return cmd_revisa(args)
+
+
+def _cmd_aprova(args):
+    from src.executor import cmd_aprova
+    return cmd_aprova(args)
+
+
+def _cmd_reprova(args):
+    from src.executor import cmd_reprova
+    return cmd_reprova(args)
+
+
 def _cmd_custo(args):
     from src.executor import cmd_custo
     return cmd_custo(args)
@@ -114,14 +132,23 @@ def _cmd_tudo(args):
         e = carregar_estado(w)
         e["teto_usd"] = float(opts["teto"])
         salvar_estado(w, e)
-    return faz(out_dir(), slug, None, sim=bool(opts.get("sim")),
-               telegram=bool(opts.get("telegram")), motor_override=opts.get("motor"))
+    # `tudo` é o modo sem portão: nem o do plano, nem o do artefato.
+    # Ainda assim respeita a ordem — música primeiro, depois capa e clipe.
+    rc = faz(out_dir(), slug, ["musica"], sim=bool(opts.get("sim")),
+             telegram=bool(opts.get("telegram")), motor_override=opts.get("motor"),
+             sem_revisao=True)
+    if rc != 0:
+        return rc
+    return faz(out_dir(), slug, ["capa", "clipe"], sim=bool(opts.get("sim")),
+               telegram=bool(opts.get("telegram")), motor_override=opts.get("motor"),
+               sem_revisao=True)
 
 
 COMANDOS.update({"lista": _cmd_lista, "busca": _cmd_busca, "reindex": _cmd_reindex,
                  "plano": _cmd_plano, "ver": _cmd_ver, "ok": _cmd_ok, "ajusta": _cmd_ajusta,
                  "faz": _cmd_faz, "custo": _cmd_custo, "tudo": _cmd_tudo,
-                 "monta": _cmd_monta})
+                 "monta": _cmd_monta, "revisa": _cmd_revisa,
+                 "aprova": _cmd_aprova, "reprova": _cmd_reprova})
 
 
 def main(argv: list[str]) -> int:

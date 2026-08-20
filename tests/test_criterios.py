@@ -74,7 +74,7 @@ def slug(outdir, plano_ok):
 def test_parte_sem_chave_erra_e_as_outras_seguem(outdir, slug):
     for p in ("musica", "capa", "clipe"):
         aprovar_parte(outdir, slug, p)
-    rc = faz(outdir, slug, None, sim=True,
+    rc = faz(outdir, slug, ["musica", "capa", "clipe"], sim=True, sem_revisao=True,
              reg=_reg(ProvSemChave(), ProvOK("capa.png"), ProvOK("clipe.mp4")))
     assert rc == 2
     e = carregar_estado(outdir / slug)
@@ -88,7 +88,7 @@ def test_parte_sem_chave_erra_e_as_outras_seguem(outdir, slug):
 def test_adapter_que_levanta_erro_nao_ProviderError_nao_derruba(outdir, slug):
     for p in ("musica", "capa", "clipe"):
         aprovar_parte(outdir, slug, p)
-    rc = faz(outdir, slug, None, sim=True,
+    rc = faz(outdir, slug, ["musica", "capa", "clipe"], sim=True, sem_revisao=True,
              reg=_reg(ProvExplode(), ProvOK("capa.png"), ProvOK("clipe.mp4")))
     assert rc == 2
     e = carregar_estado(outdir / slug)
@@ -99,15 +99,36 @@ def test_adapter_que_levanta_erro_nao_ProviderError_nao_derruba(outdir, slug):
 
 # ---- critério 5: retomar depois, sem dizer as partes
 
-def test_faz_sem_parte_retoma_so_o_aprovado(outdir, slug):
-    aprovar_parte(outdir, slug, "capa")            # só a capa foi aprovada
+def test_faz_sem_parte_exige_a_musica_primeiro(outdir, slug):
+    """Só a capa aprovada e música ainda no plano: o faz automático recusa e explica."""
+    aprovar_parte(outdir, slug, "capa")
     rc = faz(outdir, slug, None, sim=True,
              reg=_reg(ProvSemChave(), ProvOK("capa.png"), ProvOK("clipe.mp4")))
+    assert rc == 1
+    e = carregar_estado(outdir / slug)
+    assert e["partes"]["capa"]["estado"] == "aprovado"      # nada foi gerado
+
+
+def test_parte_explicita_ignora_a_ordem(outdir, slug):
+    """Pedir a capa de propósito gera a capa, mesmo sem música."""
+    aprovar_parte(outdir, slug, "capa")
+    rc = faz(outdir, slug, ["capa"], sim=True, sem_revisao=True,
+             reg=_reg(ProvSemChave(), ProvOK("capa.png"), ProvOK("clipe.mp4")))
+    assert rc == 0
+    assert carregar_estado(outdir / slug)["partes"]["capa"]["estado"] == "pronto"
+
+
+def test_faz_automatico_faz_a_musica_primeiro(outdir, slug):
+    """As três aprovadas: só a música roda, capa e clipe esperam a faixa."""
+    for p in ("musica", "capa", "clipe"):
+        aprovar_parte(outdir, slug, p)
+    rc = faz(outdir, slug, None, sim=True, sem_revisao=True,
+             reg=_reg(ProvOK("faixa-1.mp3"), ProvOK("capa.png"), ProvOK("clipe.mp4")))
     assert rc == 0
     e = carregar_estado(outdir / slug)
-    assert e["partes"]["capa"]["estado"] == "pronto"
-    assert e["partes"]["musica"]["estado"] == "planejado"
-    assert e["partes"]["clipe"]["estado"] == "planejado"
+    assert e["partes"]["musica"]["estado"] == "pronto"
+    assert e["partes"]["capa"]["estado"] == "aprovado"      # ainda não rodou
+    assert e["partes"]["clipe"]["estado"] == "aprovado"
 
 
 def test_faz_sem_nada_aprovado_erra_uso(outdir, slug):
@@ -130,7 +151,7 @@ def test_chave_nunca_vaza_pros_arquivos(outdir, slug, monkeypatch, capsys):
                         lambda url, destino, **kw: (destino.write_bytes(b"mp3"), destino)[-1])
     decl = json.loads((Path(__file__).resolve().parents[1] / "providers/kie.models.json").read_text())
     aprovar_parte(outdir, slug, "musica")
-    rc = faz(outdir, slug, ["musica"], sim=True,
+    rc = faz(outdir, slug, ["musica"], sim=True, sem_revisao=True,
              reg={"kie:suno-v4.5": {"provider": kie_mod.criar(decl),
                                     "modelo": decl["modelos"][0]},
                   "agnes:agnes-image-2.1-flash": {"provider": ProvOK("capa.png"),
@@ -149,7 +170,7 @@ def test_chave_nunca_vaza_pros_arquivos(outdir, slug, monkeypatch, capsys):
 
 def test_forca_nao_destroi_parte_pronta(outdir, slug, plano_ok):
     aprovar_parte(outdir, slug, "musica")
-    faz(outdir, slug, ["musica"], sim=True,
+    faz(outdir, slug, ["musica"], sim=True, sem_revisao=True,
         reg=_reg(ProvOK("faixa.mp3"), ProvOK("capa.png"), ProvOK("clipe.mp4")))
     with pytest.raises(ValueError, match="pronta"):
         gerar_plano("x", slug, {"forca": True}, outdir,
@@ -158,7 +179,8 @@ def test_forca_nao_destroi_parte_pronta(outdir, slug, plano_ok):
 
 def test_motor_override_persiste_no_plano(outdir, slug):
     aprovar_parte(outdir, slug, "clipe")
-    faz(outdir, slug, ["clipe"], sim=True, motor_override={"clipe": "kling:kling-2.5"},
+    faz(outdir, slug, ["clipe"], sim=True, sem_revisao=True,
+        motor_override={"clipe": "kling:kling-2.5"},
         reg={**_reg(ProvOK("faixa.mp3"), ProvOK("capa.png"), ProvOK("clipe.mp4")),
              "kling:kling-2.5": {"provider": ProvOK("clipe.mp4"),
                                  "modelo": {"id": "kling-2.5", "params": {},

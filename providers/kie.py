@@ -98,10 +98,15 @@ class Kie(Provider):
             if "FAIL" in st or "ERROR" in st:
                 raise ProviderError(f"kie: geração falhou: {d.get('errorMessage', st)}")
             time.sleep(15)
-        alvo = baixar(faixas[0]["audioUrl"], workdir / "faixa.mp3")   # URL do Suno EXPIRA
-        return Resultado(alvo, 0.0 if ja_pago else m["custo"]["base_usd"],
-                         {"kie_task_id": task, "duracao_s": faixas[0].get("duration"),
-                          "faixas_geradas": len(faixas), "status_final": st})
+        # a geração traz 2 faixas pelo mesmo preço — baixa as duas, você escolhe
+        baixadas, duracoes = [], []
+        for i, f in enumerate(faixas[:2], 1):
+            baixadas.append(baixar(f["audioUrl"], workdir / f"faixa-{i}.mp3"))  # URL EXPIRA
+            duracoes.append(f.get("duration"))
+        return Resultado(baixadas[0], 0.0 if ja_pago else m["custo"]["base_usd"],
+                         {"kie_task_id": task, "duracao_s": duracoes[0],
+                          "faixas_geradas": len(baixadas), "status_final": st,
+                          "opcoes": [p.name for p in baixadas], "duracoes_s": duracoes})
 
 
 def criar(decl):

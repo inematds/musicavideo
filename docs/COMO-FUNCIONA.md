@@ -15,6 +15,7 @@ atuar e refazer**, **como a busca funciona**, **como o planejamento decide**, e
 | — | revisão | `ver` / `ajusta` | não | é o lugar de mexer |
 | — | portão | `ok <slug> <parte>` | não | destrava a execução |
 | 2 | execução | `faz <slug> [parte]` | **sim** (só a música) | sim, com `--refaz` |
+| 2.2 | **revisão do artefato** | `revisa` / `aprova` / `reprova` | não | sim, sempre |
 | 2.5 | montagem | automática, ou `monta <slug>` | não | sim, sempre |
 | 3 | entrega | automática | não | — |
 
@@ -25,14 +26,41 @@ clipe: ~3 min por shot).
 Cada parte — música, capa, clipe — anda na sua própria máquina de estados:
 
 ```
-planejado ──ok──▶ aprovado ──faz──▶ gerando ──▶ pronto
-    ▲                │                  │
-    │              ajusta               ▼
-    └──── ajusta ────┘                erro ──faz (retry)──▶ gerando
-                                        └──ajusta──▶ planejado
+planejado ──ok──▶ aprovado ──faz──▶ gerando ──▶ revisao ──aprova──▶ pronto
+    ▲                │                  │           │
+    │              ajusta               ▼        reprova
+    └──── ajusta ────┘                erro          │
+                                        └───────────┴──▶ aprovado (regera)
 
 pronto ──ajusta --refaz──▶ planejado   (o artefato antigo vai pra raw/ com -vN)
 ```
+
+**Dois portões, não um.** O primeiro aprova o *plano* (`ok`); o segundo aprova o
+*artefato gerado* (`aprova`). Nada vira `pronto` sem você olhar — `--sem-revisao`
+desliga o segundo, e o `tudo` já roda sem ele.
+
+### O portão de artefato
+
+```bash
+musicavideo revisa  <slug> [parte]          # o que está esperando você
+musicavideo aprova  <slug> musica --faixa 2 # o Suno gera 2 faixas: escolha
+musicavideo reprova <slug> clipe 4,17,23    # descarta só esses shots
+musicavideo aprova  <slug> capa
+```
+
+- **Música** — as **duas** faixas da geração são baixadas (`faixa-1.mp3`,
+  `faixa-2.mp3`) e você escolhe. Reprovar as duas custa nova geração.
+- **Clipe** — sai uma **folha de contato** (`revisao/contato-clipe.jpg`): grade
+  com um frame de cada shot, numerada. Você reprova pelos números; só esses são
+  apagados e regerados no próximo `faz` — o resto é reaproveitado do disco.
+- **Capa** — reprovar regenera (custo zero no Agnes).
+
+### A música é o portão-mestre
+
+`faz <slug>` sem dizer a parte gera **só a música** e para. Capa e clipe só
+entram depois que a faixa for aprovada — a duração real dela é que ancora o
+clipe, e ninguém quer 2 h de vídeo gerado para uma faixa que vai ser rejeitada.
+Pedir uma parte explicitamente (`faz <slug> capa`) ignora a ordem: você mandou.
 
 Tudo isso vive no `estado.json` do slug, que é a fonte de verdade. Pode parar
 depois do `ok capa` e voltar três dias depois: `faz <slug>` retoma de onde parou.

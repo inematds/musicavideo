@@ -32,7 +32,7 @@ def test_gerar_posta_polla_e_baixa(tmp_path, monkeypatch, plano_ok):
                                  "letra": plano_ok["musica"]["letra"]["texto"],
                                  "estilo": plano_ok["musica"]["estilo"]["prompt_estilo"],
                                  "instrumental": False}, tmp_path)
-    assert r.arquivo == tmp_path / "faixa.mp3" and r.arquivo.exists()
+    assert r.arquivo == tmp_path / "faixa-1.mp3" and r.arquivo.exists()
     assert r.custo_real == 0.08
     assert r.meta["kie_task_id"] == "T1"
     raws = list((tmp_path / "raw").glob("*.json"))
@@ -112,3 +112,27 @@ def test_retry_reaproveita_geracao_ja_paga(tmp_path, monkeypatch):
     assert posts == []                 # NÃO gerou de novo
     assert r.custo_real == 0.0         # nem cobrou de novo
     assert r.meta["kie_task_id"] == "TJA"
+
+
+def test_baixa_as_duas_faixas_da_mesma_geracao(tmp_path, monkeypatch):
+    """O Suno entrega 2 faixas pelo mesmo preço — jogar uma fora é desperdício."""
+    baixados = []
+
+    def fake_http(url, metodo="GET", corpo=None, headers=None, **kw):
+        if url.endswith("/generate"):
+            return {"data": {"taskId": "T3"}}
+        return {"data": {"status": "SUCCESS", "response": {"sunoData": [
+            {"audioUrl": "http://x/a.mp3", "duration": 180},
+            {"audioUrl": "http://x/b.mp3", "duration": 195}]}}}
+
+    monkeypatch.setattr(kie_mod, "http_json", fake_http)
+    monkeypatch.setattr(kie_mod, "baixar",
+                        lambda url, destino, **kw: (baixados.append(destino.name),
+                                                    destino.write_bytes(b"m"), destino)[-1])
+    monkeypatch.setattr(kie_mod, "ler_env_chave", lambda n: "k")
+    r = kie_mod.criar(DECL).gerar("suno-v4.5", {"titulo": "t", "letra": "l", "estilo": "s",
+                                                "instrumental": False}, tmp_path)
+    assert baixados == ["faixa-1.mp3", "faixa-2.mp3"]
+    assert r.meta["opcoes"] == ["faixa-1.mp3", "faixa-2.mp3"]
+    assert r.meta["duracoes_s"] == [180, 195]
+    assert r.custo_real == 0.08          # uma geração só
