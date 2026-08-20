@@ -4,6 +4,8 @@ import os
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 
 def out_dir() -> Path:
     return Path(os.environ.get("MUSICAVIDEO_OUT",
@@ -20,6 +22,32 @@ USO = """uso: musicavideo <comando> ...
   custo <slug> | lista [N] | busca "<termo>" | reindex"""
 
 COMANDOS = {}   # nome -> callable(argv) -> int; preenchido pelas próximas tasks
+
+
+def _cmd_lista(args):
+    from src.indexer import lista
+    for l in lista(out_dir(), int(args[0]) if args else 10):
+        print(f"{l['slug']:40s} {l['estados']}  US${l['custo_gasto_usd']}")
+    return 0
+
+
+def _cmd_busca(args):
+    if not args:
+        print('uso: busca "<termo>"', file=sys.stderr)
+        return 1
+    from src.indexer import busca
+    for l in busca(out_dir(), args[0]):
+        print(f"{l['slug']:40s} {l['titulo']}")
+    return 0
+
+
+def _cmd_reindex(args):
+    from src.indexer import reindex
+    print(f"reindexadas: {reindex(out_dir())} linhas")
+    return 0
+
+
+COMANDOS.update({"lista": _cmd_lista, "busca": _cmd_busca, "reindex": _cmd_reindex})
 
 
 def main(argv: list[str]) -> int:
