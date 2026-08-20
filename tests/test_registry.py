@@ -7,7 +7,7 @@ from providers.base import ler_env_chave, Resultado, Provider
 def test_registry_tem_os_5_provedores_e_defaults():
     reg = carregar_registry()
     for motor in ("kie:suno-v4.5", "agnes:agnes-image-2.1-flash", "agnes:agnes-video-v2.0",
-                  "inemaimg:flux2-klein", "kling:kling-2.5", "fal:kling-video-v2.5-turbo-pro"):
+                  "inemaimg:flux2-klein", "kling:kling-v2_5", "fal:kling-v3-turbo"):
         assert motor in reg, motor
 
 

@@ -1,5 +1,9 @@
 {"provider": "fal", "env_keys": ["FAL_KEY"], "modelos": [
-  {"id": "kling-video-v2.5-turbo-pro", "capacidade": "video",
-   "api_path": "fal-ai/kling-video/v2.5-turbo/pro/text-to-video",
-   "custo": {"base_usd": 0.07, "por": "segundo"},
+  {"id": "kling-v3-pro", "capacidade": "video",
+   "api_path": "fal-ai/kling-video/v3/pro/text-to-video",
+   "custo": {"base_usd": 0.09, "por": "segundo"},
+   "params": {"resolucao": {"default": "1080p"}, "duracao_shot_s": {"default": 5, "max": 10}}},
+  {"id": "kling-v3-turbo", "capacidade": "video",
+   "api_path": "fal-ai/kling-video/v3/turbo/standard/text-to-video",
+   "custo": {"base_usd": 0.05, "por": "segundo"},
    "params": {"resolucao": {"default": "720p"}, "duracao_shot_s": {"default": 5, "max": 10}}}]}

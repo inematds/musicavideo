@@ -180,13 +180,13 @@ def test_forca_nao_destroi_parte_pronta(outdir, slug, plano_ok):
 def test_motor_override_persiste_no_plano(outdir, slug):
     aprovar_parte(outdir, slug, "clipe")
     faz(outdir, slug, ["clipe"], sim=True, sem_revisao=True,
-        motor_override={"clipe": "kling:kling-2.5"},
+        motor_override={"clipe": "kling:kling-v2_5"},
         reg={**_reg(ProvOK("faixa.mp3"), ProvOK("capa.png"), ProvOK("clipe.mp4")),
-             "kling:kling-2.5": {"provider": ProvOK("clipe.mp4"),
+             "kling:kling-v2_5": {"provider": ProvOK("clipe.mp4"),
                                  "modelo": {"id": "kling-2.5", "params": {},
                                             "custo": {"base_usd": 0.0, "por": "geracao"}}}})
     plano = json.loads((outdir / slug / "plano.json").read_text(encoding="utf-8"))
-    assert plano["clipe"]["motor"] == "kling:kling-2.5"
+    assert plano["clipe"]["motor"] == "kling:kling-v2_5"
 
 
 def test_motor_inexistente_no_faz_nao_da_stacktrace(outdir, slug, capsys):

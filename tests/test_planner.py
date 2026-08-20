@@ -43,9 +43,9 @@ def test_letra_final_e_lei(outdir, plano_ok, tmp_path):
 
 
 def test_motor_override(outdir, plano_ok):
-    p = gerar_plano("x", "s4", {"motor": {"clipe": "kling:kling-2.5"}},
+    p = gerar_plano("x", "s4", {"motor": {"clipe": "kling:kling-v2_5"}},
                     outdir, chamar_llm=_fake_llm(plano_ok))
-    assert p["clipe"]["motor"] == "kling:kling-2.5"
+    assert p["clipe"]["motor"] == "kling:kling-v2_5"
 
 
 def test_slug_existente_sem_forca_erra(outdir, plano_ok):

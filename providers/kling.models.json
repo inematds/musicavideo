@@ -1,5 +1,22 @@
-{"provider": "kling", "env_keys": ["KIE_API_KEY"], "modelos": [
-  {"id": "kling-2.5", "api_model": "kling/v2-5-turbo-text-to-video-pro",
-   "capacidade": "video",
-   "custo": {"base_usd": 0.056, "por": "segundo"},
-   "params": {"resolucao": {"default": "720p"}, "duracao_shot_s": {"default": 5, "max": 10}}}]}
+{"provider": "kling", "env_keys": [], "modelos": [
+  {"id": "kling-v2_5", "api_model": "kling-video-v2_5", "capacidade": "video",
+   "custo": {"base_usd": 0.0, "por": "geracao"},
+   "params": {"resolucao": {"default": "720p", "allowed": ["720p", "1080p"]},
+              "aspect_ratio": {"default": "16:9"},
+              "duration": {"default": 5, "max": 10},
+              "resolution": {"default": "720p"},
+              "duracao_shot_s": {"default": 5, "max": 10}}},
+  {"id": "kling-v2_6", "api_model": "kling-video-v2_6", "capacidade": "video",
+   "custo": {"base_usd": 0.0, "por": "geracao"},
+   "params": {"resolucao": {"default": "720p", "allowed": ["720p", "1080p"]},
+              "aspect_ratio": {"default": "16:9"},
+              "duration": {"default": 5, "max": 10},
+              "resolution": {"default": "720p"},
+              "duracao_shot_s": {"default": 5, "max": 10}}},
+  {"id": "kling-v3_0_turbo", "api_model": "kling-video-v3_0_turbo", "capacidade": "video",
+   "custo": {"base_usd": 0.0, "por": "geracao"},
+   "params": {"resolucao": {"default": "720p", "allowed": ["720p", "1080p"]},
+              "aspect_ratio": {"default": "16:9"},
+              "duration": {"default": 5, "max": 8},
+              "resolution": {"default": "720p"},
+              "duracao_shot_s": {"default": 5, "max": 8}}}]}
