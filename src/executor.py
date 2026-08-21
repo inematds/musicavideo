@@ -228,10 +228,15 @@ def faz(outdir, slug, partes=None, sim=False, telegram=False,
 def cmd_faz(args) -> int:
     import sys
     from src.main import out_dir
-    from src.planner import _parse_opts, PARTES as _P
+    from src.planner import _parse_opts, exigir_autorizacao_de_motor, PARTES as _P
     livres, opts = _parse_opts(args)
     if not livres:
         print("uso: faz <slug> [musica|capa|clipe] [--sim] [--telegram]", file=sys.stderr)
+        return 1
+    try:
+        exigir_autorizacao_de_motor(opts)
+    except ValueError as e:
+        print(f"erro: {e}", file=sys.stderr)
         return 1
     partes = None
     if len(livres) > 1:

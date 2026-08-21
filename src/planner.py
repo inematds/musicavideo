@@ -435,6 +435,34 @@ def ajustar_parte(outdir: Path, slug: str, parte: str, instrucao: str,
 
 # ---------------------------------------------------------------- comandos CLI
 
+# Provedor que consome recurso do DONO — crédito de conta ou dinheiro. Trocar
+# para um deles é decisão dele, não conveniência de quem está rodando o comando:
+# em 2026-08-21, com a Agnes fora do ar no meio de um clipe, um `--motor
+# clipe=kling:...` "óbvio" queimou 105 créditos antes de alguém perceber.
+#
+# Portão, e não aviso: instrução em prosa não segura ninguém — nem agente, nem
+# eu às três da manhã. Os DEFAULTS do plano seguem intocados (a música nasce em
+# `kie:suno-v4.5`, e isso é sabido e barato); o que exige autorização é TROCAR
+# para um deles com `--motor`.
+PROVEDORES_QUE_GASTAM = ("kie", "kling", "fal")
+
+
+def exigir_autorizacao_de_motor(opts: dict) -> None:
+    """Levanta se um `--motor` aponta para provedor pago sem `--autorizo-pago`."""
+    if opts.get("autorizo_pago"):
+        return
+    pedidos = [(parte, motor) for parte, motor in (opts.get("motor") or {}).items()
+               if motor.split(":", 1)[0].strip().lower() in PROVEDORES_QUE_GASTAM]
+    if not pedidos:
+        return
+    lista = ", ".join(f"{parte}={motor}" for parte, motor in pedidos)
+    raise ValueError(
+        f"motor pago sem autorização: {lista}. "
+        "kie, kling e fal consomem crédito ou dinheiro do dono da conta — "
+        "confirme com ele e repita o comando com --autorizo-pago."
+    )
+
+
 def _parse_opts(args: list[str]) -> tuple[list[str], dict]:
     livres, opts = [], {}
     i = 0
@@ -466,6 +494,8 @@ def _parse_opts(args: list[str]) -> tuple[list[str], dict]:
             i += 1
             parte, _, motor = args[i].partition("=")
             opts.setdefault("motor", {})[parte] = motor
+        elif a == "--autorizo-pago":
+            opts["autorizo_pago"] = True
         else:
             livres.append(a)
         i += 1
@@ -483,6 +513,12 @@ def cmd_plano(args) -> int:
         return 1
     solicitacao = livres[0]
     slug = livres[1] if len(livres) > 1 else None
+    try:
+        exigir_autorizacao_de_motor(opts)
+    except ValueError as e:
+        import sys as _s
+        print(f"erro: {e}", file=_s.stderr)
+        return 1
     if opts.get("pesquisa"):
         from src.pesquisa import pesquisar
         opts["pesquisa_md"] = pesquisar(solicitacao)

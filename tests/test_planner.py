@@ -76,6 +76,34 @@ def test_contexto_leva_o_idioma_ao_planejador(outdir):
     assert "Lyrics in en-US" in ctx
 
 
+# Portão, não aviso. Em 2026-08-21, com a Agnes fora do ar no meio de um clipe,
+# um `--motor clipe=kling:...` "óbvio" queimou 105 créditos da conta do dono
+# antes de alguém perceber. Trocar para provedor que gasta é decisão dele.
+def test_motor_pago_exige_autorizacao():
+    from src.planner import exigir_autorizacao_de_motor
+    import pytest as _p
+    for motor in ("kling:kling-v2_5", "fal:kling-v3-turbo", "kie:suno-v4.5"):
+        with _p.raises(ValueError, match="sem autorização"):
+            exigir_autorizacao_de_motor({"motor": {"clipe": motor}})
+
+
+def test_motor_pago_passa_com_autorizacao():
+    from src.planner import exigir_autorizacao_de_motor
+    exigir_autorizacao_de_motor({"motor": {"clipe": "kling:kling-v2_5"},
+                                 "autorizo_pago": True})
+
+
+# Os DEFAULTS do plano não são afetados: a música nasce em kie e isso é sabido.
+# O portão é sobre TROCAR de motor na linha de comando.
+def test_motor_gratis_e_plano_sem_motor_passam(outdir, plano_ok):
+    from src.planner import exigir_autorizacao_de_motor
+    exigir_autorizacao_de_motor({})
+    exigir_autorizacao_de_motor({"motor": {"capa": "inemaimg:flux2-klein"}})
+    exigir_autorizacao_de_motor({"motor": {"clipe": "agnes:agnes-video-v2.0"}})
+    p = gerar_plano("x", "s-default-kie", {}, outdir, chamar_llm=_fake_llm(plano_ok))
+    assert p["musica"]["motor"] == "kie:suno-v4.5"
+
+
 def test_motor_override(outdir, plano_ok):
     p = gerar_plano("x", "s4", {"motor": {"clipe": "kling:kling-v2_5"}},
                     outdir, chamar_llm=_fake_llm(plano_ok))
