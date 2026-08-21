@@ -58,3 +58,32 @@ def test_ok_duas_vezes_erra(outdir, slug_pronto):
     aprovar_parte(outdir, slug_pronto, "musica")
     with pytest.raises(TransicaoInvalida):
         aprovar_parte(outdir, slug_pronto, "musica")
+
+
+# `--aprovar` é o que o FLUXO DO BOT usa: quem abriu o portão no chat aprovou o
+# plano inteiro, então a fase promove `planejado → aprovado` sozinha. Nasceu com
+# o evento ERRADO (`aprova`, que é o portão do artefato lá na frente) e derrubou
+# a fase de música do MVD#91 com TransicaoInvalida — sem teste que a exercitasse.
+def test_aprovar_promove_planejado_e_gera(outdir, slug_pronto):
+    from src.executor import faz
+    from tests.test_executor import ProvFake, _reg_fake
+    from src.estado import carregar_estado as ler
+
+    r = faz(outdir, slug_pronto, ["musica"], sim=True, sem_revisao=True,
+            aprovar=True, reg=_reg_fake(ProvFake()))
+    assert r == 0
+    assert ler(outdir / slug_pronto)["partes"]["musica"]["estado"] == "pronto"
+
+
+def test_aprovar_e_idempotente_em_parte_ja_aprovada(outdir, slug_pronto):
+    """Retentativa não pode morrer em TransicaoInvalida."""
+    from src.estado import salvar_estado, transicao
+    from src.executor import faz
+    from tests.test_executor import ProvFake, _reg_fake
+
+    w = outdir / slug_pronto
+    e = carregar_estado(w)
+    transicao(e, "musica", "ok")          # já aprovada
+    salvar_estado(w, e)
+    assert faz(outdir, slug_pronto, ["musica"], sim=True, sem_revisao=True,
+               aprovar=True, reg=_reg_fake(ProvFake())) == 0

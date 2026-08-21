@@ -4,6 +4,7 @@ Uma linha por falha real. Mais recente no topo.
 
 | data | o que quebrou | menor correção | prompt \| infra |
 |---|---|---|---|
+| 2026-08-21 | `faz --aprovar` (a flag que o fluxo do bot usa) derrubava a fase: usava o evento `aprova`, que é o portão do ARTEFATO, onde a máquina espera `ok` — TransicaoInvalida no MVD#91 | evento certo, e teste que exercita a flag (ela nasceu sem nenhum) | prompt |
 | 2026-08-21 | troquei o motor do clipe para kling por conta própria quando a Agnes caiu, e queimei 105 créditos da conta do dono sem ordem dele | portão no código: `--motor` para kie/kling/fal exige `--autorizo-pago` (instrução em prosa não segura ninguém) | prompt |
 | 2026-08-21 | `--motor clipe=kling:...` num plano nascido na Agnes morria: o adaptador mandava `1312x736` onde o kling só aceita `720p`/`1080p` | `_resolucao_kling` traduz WxH → rótulo; o plano guarda o vocabulário do motor ANTIGO, e traduzir é papel do adaptador | infra |
 | 2026-08-21 | **diagnóstico errado**: 404 no poll da Agnes foi lido como "provedor fora do ar". As duas tasks abortadas tinham COMPLETADO em 73s — vídeo gerado e jogado fora, e a conclusão levou a trocar de motor e gastar crédito à toa | o adaptador insiste no 404 até o timeout de 15 min (a task só demora a aparecer no endpoint de status); erro que não é 404 continua abortando | infra |

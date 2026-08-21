@@ -124,7 +124,11 @@ def faz(outdir, slug, partes=None, sim=False, telegram=False,
         alvo_aprovar = partes if partes is not None else list(PARTES)
         for p in alvo_aprovar:
             if estado["partes"][p]["estado"] == "planejado":
-                transicao(estado, p, "aprova")
+                # O evento é `ok`, não `aprova`: a máquina é
+                # `planejado→(ok)→aprovado→(faz)→gerando→…→(aprova)→pronto`.
+                # `aprova` é o portão do ARTEFATO, lá na frente — usá-lo aqui
+                # estourava TransicaoInvalida e derrubava a fase (MVD#91).
+                transicao(estado, p, "ok")
         salvar_estado(w, estado)
     if partes is None:
         prontas = [p for p in PARTES if estado["partes"][p]["estado"] in ("aprovado", "erro")]
