@@ -8,7 +8,13 @@ Fatos que importam:
 - URLs de saída são temporárias: baixar na hora;
 - **404 no poll não é falha**: o POST devolve o id na hora, mas o endpoint de
   status registra a task com atraso e responde `404 task not found` no
-  intervalo. Abortar aí joga fora vídeo que ficou pronto (MVD#89, 2026-08-21).
+  intervalo. Abortar aí joga fora vídeo que ficou pronto (MVD#89, 2026-08-21);
+- **503 `video_queue_full` no POST não é falha**: é o provedor dizendo "retry
+  later". Espera-se 60s dentro do mesmo teto do polling (MVD#91);
+- **`resolucao` pode vir como RÓTULO** (`1080p`) em vez de pixels: é o
+  vocabulário de outro provedor chegando pelo plano. Traduzir é papel do
+  adaptador — `1080p".split("x")` estourou o clipe do MVD#90 com 47 shots
+  planejados e a música já paga.
 
 ONDE ESTÁ O RESTO DO CONHECIMENTO desta API, que não cabe aqui:
 - `~/projetos/videos-agnes/pipeline.py` — o irmão que roda esta API há mais
@@ -33,6 +39,32 @@ MAX_FRAMES = 441
 # comentário registra o porquê — "30min deixava job lento virar buraco no
 # filme". Aqui era 15 min, escolhido sem essa evidência.
 TIMEOUT_POLL_S = 45 * 60
+
+
+# Rótulo de resolução → PIXELS, que é o vocabulário desta API (`width`/`height`).
+#
+# O plano guarda o que o planejador escreveu, e ele às vezes escreve `1080p` —
+# rótulo do kling, não da Agnes. Um `"1080p".split("x")` devolve um item só e
+# estoura `ValueError: not enough values to unpack`, DEPOIS de a música estar
+# pronta e paga: foi o MVD#90 (2026-08-21), com 47 shots planejados e nenhum
+# gerado.
+#
+# É o espelho exato do `_resolucao_kling` (que traduz WxH → rótulo). Cada
+# provedor tem seu vocabulário, e traduzir é papel do adaptador — não do plano,
+# que nasce antes de se saber qual motor vai rodar.
+PADRAO_WH = ("1312", "736")
+_ROTULOS = {"720p": ("1280", "720"), "1080p": ("1920", "1080"), "480p": ("854", "480")}
+
+
+def _resolucao_agnes(valor) -> tuple[str, str]:
+    texto = str(valor or "").strip().lower()
+    if texto in _ROTULOS:
+        return _ROTULOS[texto]
+    if "x" in texto:
+        w, _, h = texto.partition("x")
+        if w.isdigit() and h.isdigit():
+            return (w, h)
+    return PADRAO_WH
 
 
 def num_frames_para(duracao_s: float, fps: int = FPS) -> int:
@@ -123,7 +155,26 @@ class Agnes(Provider):
         corpo = {"model": "agnes-video-v2.0", "prompt": prompt,
                  "num_frames": num_frames_para(shot["duracao_s"]),
                  "frame_rate": FPS, "width": int(w), "height": int(h)}
-        resp = http_json(f"{AGNES_BASE}/v1/videos", "POST", corpo, self._headers())
+        # FILA CHEIA NÃO É FALHA. O POST responde
+        # `503 video_queue_full: video queue is full, please retry later` quando
+        # a fila da Agnes lota — e o `http_json` até repete, mas na exponencial
+        # curta (2s, 4s, 8s), que devolve para dentro da mesma lotação. Abortar
+        # ali derrubou o clipe do MVD#91 com a música já pronta e paga.
+        #
+        # Esperar é o certo porque o provedor DIZ "retry later": a espera é a
+        # resposta dele, não um palpite nosso. O teto é o mesmo do polling, e
+        # dentro dele são poucas tentativas longas em vez de muitas curtas.
+        resp = None
+        limite = time.time() + TIMEOUT_POLL_S
+        while resp is None:
+            try:
+                resp = http_json(f"{AGNES_BASE}/v1/videos", "POST", corpo, self._headers())
+            except ProviderError as e:
+                cheia = "503" in str(e) or "queue_full" in str(e) or "queue is full" in str(e)
+                if not cheia or time.time() > limite:
+                    raise
+                print(f"agnes: fila cheia no shot {shot['n']} — esperando 60s", flush=True)
+                time.sleep(60)
         vid = resp.get("video_id") or resp.get("task_id") or resp.get("id")
         if not vid:
             raise ProviderError(f"agnes: POST /videos sem id: {str(resp)[:300]}")
@@ -174,7 +225,7 @@ class Agnes(Provider):
         A duração total é sagrada: é ela que mantém imagem e música alinhadas.
         Perder variedade num shot é aceitável; encurtar o clipe desloca TUDO
         que vem depois."""
-        w, h = (params.get("resolucao") or "1312x736").split("x")
+        w, h = _resolucao_agnes(params.get("resolucao"))
         reescrever = params.get("reescrever")      # injetado pelo executor (Fable)
         decupagem = params["decupagem"]
         feitos: dict[int, Path] = {}

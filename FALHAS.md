@@ -4,6 +4,8 @@ Uma linha por falha real. Mais recente no topo.
 
 | data | o que quebrou | menor correção | prompt \| infra |
 |---|---|---|---|
+| 2026-08-21 | clipe do MVD#90 morreu com `ValueError: not enough values to unpack` — o plano trazia `resolucao: "1080p"` (rótulo do kling) e o adaptador da Agnes fazia `.split("x")`. 47 shots planejados, nenhum gerado, música já paga | `_resolucao_agnes` traduz rótulo → pixels, espelho do `_resolucao_kling` | infra |
+| 2026-08-21 | clipe do MVD#91 morreu com `503 video_queue_full` — o provedor dizia "retry later" e o adaptador abortava (o retry do http_json é exponencial curto: 2s, 4s, 8s, dentro da mesma lotação) | fila cheia vira espera de 60s dentro do teto do polling | infra |
 | 2026-08-21 | `faz --aprovar` (a flag que o fluxo do bot usa) derrubava a fase: usava o evento `aprova`, que é o portão do ARTEFATO, onde a máquina espera `ok` — TransicaoInvalida no MVD#91 | evento certo, e teste que exercita a flag (ela nasceu sem nenhum) | prompt |
 | 2026-08-21 | troquei o motor do clipe para kling por conta própria quando a Agnes caiu, e queimei 105 créditos da conta do dono sem ordem dele | portão no código: `--motor` para kie/kling/fal exige `--autorizo-pago` (instrução em prosa não segura ninguém) | prompt |
 | 2026-08-21 | `--motor clipe=kling:...` num plano nascido na Agnes morria: o adaptador mandava `1312x736` onde o kling só aceita `720p`/`1080p` | `_resolucao_kling` traduz WxH → rótulo; o plano guarda o vocabulário do motor ANTIGO, e traduzir é papel do adaptador | infra |

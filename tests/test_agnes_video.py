@@ -103,6 +103,84 @@ def test_erro_que_nao_e_404_continua_abortando(tmp_path, monkeypatch):
                                      "decupagem": decup}, tmp_path)
 
 
+# `resolucao` como RÓTULO (`1080p`) é vocabulário de OUTRO provedor chegando
+# pelo plano — e `"1080p".split("x")` estoura ValueError. Foi o MVD#90
+# (2026-08-21): 47 shots planejados, nenhum gerado, música já paga.
+def test_resolucao_como_rotulo_nao_estoura(tmp_path, monkeypatch):
+    corpos = []
+
+    def fake_http(url, metodo="GET", corpo=None, headers=None, **kw):
+        if metodo == "POST":
+            corpos.append(corpo)
+            return {"video_id": "V1"}
+        return {"status": "completed", "video_url": "http://tmp/shot.mp4"}
+
+    monkeypatch.setattr(agnes_mod, "http_json", fake_http)
+    monkeypatch.setattr(agnes_mod, "baixar",
+                        lambda url, destino, **kw: (destino.parent.mkdir(parents=True, exist_ok=True),
+                                                    destino.write_bytes(b"mp4"), destino)[-1])
+    monkeypatch.setattr(agnes_mod, "ler_env_chave", lambda n: "k")
+    monkeypatch.setattr(agnes_mod.time, "sleep", lambda s: None)
+    monkeypatch.setattr(agnes_mod, "concat_ffmpeg",
+                        lambda shots, alvo: (alvo.write_bytes(b"final"), alvo)[-1])
+    decup = [{"n": 1, "secao": "intro", "duracao_s": 5, "camera": "d",
+              "descricao": "x", "prompt": "slow dolly-in, 5s"}]
+    agnes_mod.criar(DECL).gerar("agnes-video-v2.0",
+                                {"resolucao": "1080p", "duracao_shot_s": 5,
+                                 "decupagem": decup}, tmp_path)
+    assert (corpos[0]["width"], corpos[0]["height"]) == (1920, 1080)
+
+
+# FILA CHEIA é o provedor dizendo "retry later", não falha. Abortar ali derrubou
+# o clipe do MVD#91 com a música pronta e paga.
+def test_503_fila_cheia_espera_e_repete(tmp_path, monkeypatch):
+    from providers.base import ProviderError
+    tentativas = {"post": 0}
+
+    def fake_http(url, metodo="GET", corpo=None, headers=None, **kw):
+        if metodo == "POST":
+            tentativas["post"] += 1
+            if tentativas["post"] <= 2:
+                raise ProviderError('HTTP 503 em .../v1/videos: {"code":"video_queue_full"}')
+            return {"video_id": "V1"}
+        return {"status": "completed", "video_url": "http://tmp/shot.mp4"}
+
+    monkeypatch.setattr(agnes_mod, "http_json", fake_http)
+    monkeypatch.setattr(agnes_mod, "baixar",
+                        lambda url, destino, **kw: (destino.parent.mkdir(parents=True, exist_ok=True),
+                                                    destino.write_bytes(b"mp4"), destino)[-1])
+    monkeypatch.setattr(agnes_mod, "ler_env_chave", lambda n: "k")
+    monkeypatch.setattr(agnes_mod.time, "sleep", lambda s: None)
+    monkeypatch.setattr(agnes_mod, "concat_ffmpeg",
+                        lambda shots, alvo: (alvo.write_bytes(b"final"), alvo)[-1])
+    decup = [{"n": 1, "secao": "intro", "duracao_s": 5, "camera": "d",
+              "descricao": "x", "prompt": "slow dolly-in, 5s"}]
+    r = agnes_mod.criar(DECL).gerar("agnes-video-v2.0",
+                                    {"resolucao": "1312x736", "duracao_shot_s": 5,
+                                     "decupagem": decup}, tmp_path)
+    assert r.meta["shots"] == 1
+    assert tentativas["post"] == 3      # esperou as duas recusas e conseguiu
+
+
+# Erro que NÃO é fila cheia continua abortando na hora.
+def test_500_no_post_continua_abortando(tmp_path, monkeypatch):
+    import pytest
+    from providers.base import ProviderError
+
+    def fake_http(url, metodo="GET", corpo=None, headers=None, **kw):
+        raise ProviderError("HTTP 500 em .../v1/videos: boom")
+
+    monkeypatch.setattr(agnes_mod, "http_json", fake_http)
+    monkeypatch.setattr(agnes_mod, "ler_env_chave", lambda n: "k")
+    monkeypatch.setattr(agnes_mod.time, "sleep", lambda s: None)
+    decup = [{"n": 1, "secao": "intro", "duracao_s": 5, "camera": "d",
+              "descricao": "x", "prompt": "p"}]
+    with pytest.raises(ProviderError):
+        agnes_mod.criar(DECL).gerar("agnes-video-v2.0",
+                                    {"resolucao": "1312x736", "duracao_shot_s": 5,
+                                     "decupagem": decup}, tmp_path)
+
+
 def test_todos_os_shots_falhando_vira_provider_error(tmp_path, monkeypatch):
     """Um shot falho é pulado; TODOS falhando não dá clipe nenhum."""
     import pytest
