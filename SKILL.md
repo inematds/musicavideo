@@ -40,7 +40,7 @@ bash $S painel [--porta N] [--lan]   # painel no navegador (:5400): acervo do
 |---|---|---|---|---|
 | 0 | pesquisa | `--pesquisa` (**opt-in**) | `pesquisa.md` | tempo |
 | 1 | plano | `plano` / `tudo` | `plano.json` + `PLANO.md` | **zero** |
-| 2 | execução | `faz` (por parte) | `faixa.mp3` / `capa.png` / `clipe.mp4` | **gasta** |
+| 2 | execução | `faz` (por parte) | `faixa-N.mp3` / `capa.png` / `clipe-N.mp4` | **gasta** |
 | 3 | entrega | automática com as 3 prontas | `PACOTE.md` (+ Telegram se `--telegram`) | zero |
 
 Cada parte tem portão próprio e vive sua própria máquina de estados:
