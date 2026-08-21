@@ -1,0 +1,72 @@
+/musicavideo — uma frase vira música + capa + clipe, planejados juntos.
+
+Uso: /musicavideo balada pop sobre recomeço
+
+Fases (cada uma para e espera /aprovar, menos a última):
+  1. plano       (fila texto)  → plano.json + PLANO.md · NÃO gasta nada
+  2. musica      (fila io)     → faixa.mp3 · ÚNICA parte paga (~US$ 0,08)
+  3. capa-clipe  (fila render) → capa.png + clipe.mp4 · US$ 0 no default
+  4. entrega     (fila io)     → PACOTE.md + reel entregue ao canal
+
+Acompanhar: /status MVD#N · /aprovar MVD#N · /refazer MVD#N · /cancelar MVD#N
+
+## PADROES
+
+Os valores que valem quando você não diz nada:
+
+| o quê | padrão | onde muda |
+|---|---|---|
+| canal de entrega | **lives10** (`~/projetos/yt-pub-lives10/imports/videos`) | `alvos.unico.canal` no `flow.json` |
+| público | `unico` — o fluxo tem UM só | `alvos` no `flow.json` |
+| portão | **liga** em `plano`, `musica` e `capa-clipe` | campo `sem-portao` na hora, ou `pausa_apos` no `flow.json` |
+| motor da música | `kie:suno-v4.5` (~US$ 0,08, traz 2 faixas) | `--motor musica=...` |
+| motor da capa | `agnes:agnes-image-2.1-flash` (**US$ 0**) | `--motor capa=inemaimg:flux2-klein` |
+| motor do clipe | `agnes:agnes-video-v2.0` (**US$ 0**) | `--motor clipe=kling:kling-2.5` ou `fal:kling-video-v2.5-turbo-pro` |
+| pesquisa prévia | **desligada** (opt-in) | `--pesquisa` |
+| letra | o planejador escreve | `--letra <arq>`, e `--letra-final` para ela virar lei |
+| pasta de saída | `~/projetos/output/musicavideo/<slug>/` | `MUSICAVIDEO_OUT` |
+| slug | derivado da solicitação, com `-2`, `-3` se repetir | 2º argumento do `plano` |
+
+O plano é sempre de graça: quem gasta é só a fase `musica`, e o custo estimado
+aparece antes.
+
+## CAMPOS
+
+Escreva depois de um `|` no fim da mensagem (ou `--campo=valor` em qualquer
+lugar):
+
+  | de=<fase>    começa nessa fase — plano, musica, capa-clipe, entrega
+  | sem-portao   não para para você aprovar (vai até o fim de uma vez)
+  | versao=N     versão do assunto
+  | sombra       mostra o plano de execução sem enfileirar nada
+
+Não existem aqui: `| alvos=` (o fluxo tem um público só, `unico`) e
+`| legenda=` (é campo de reel do promoavatar; nada nesta definição usa).
+
+## CUSTO
+
+| parte | quem gera | custo |
+|---|---|---|
+| plano | Fable, local | zero |
+| música | kie.ai / Suno v4.5 | ~US$ 0,08 por geração (2 faixas) |
+| capa | Agnes AI | US$ 0 |
+| clipe | Agnes AI | US$ 0 |
+
+Chave lida em runtime de `~/projetos/openpcbotv2/.env` ou `~/projetos/wifi/.env`
+(`KIE_API_KEY`, `AGNES_API_KEY`). Provedor sem chave não derruba o fluxo:
+aparece como INDISPONÍVEL COM O MOTIVO no plano, e só aquela parte vira `erro`.
+
+## ESTADOS
+
+Cada parte (música, capa, clipe) tem portão próprio e sua própria máquina:
+
+  planejado → (aprovar) → aprovado → (faz) → gerando → pronto | erro
+
+`erro` aceita nova tentativa ou ajuste. `pronto` só volta com `ajusta --refaz` —
+e o artefato antigo vai para `raw/` com sufixo `-vN`, nunca é sobrescrito.
+
+## DOCS
+
+Guia de uso: https://inematds.github.io/musicavideo/guia/
+As fases em detalhe: docs/FASES.md · Por dentro: docs/COMO-FUNCIONA.md
+Interface para o bot: SKILL.md

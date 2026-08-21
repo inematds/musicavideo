@@ -4,7 +4,7 @@
   "versao_def": 1,
   "alvos": {
     "unico": {
-      "canal": "livesN",
+      "canal": "lives10",
       "gatilho": "usuário pede uma música com capa e clipe a partir de uma frase"
     }
   },
