@@ -1,0 +1,53 @@
+{
+  "nome": "musicavideo",
+  "prefixo": "MVD",
+  "versao_def": 1,
+  "alvos": {
+    "unico": {
+      "canal": "livesN",
+      "gatilho": "usuário pede uma música com capa e clipe a partir de uma frase"
+    }
+  },
+  "fases": [
+    {
+      "id": "plano",
+      "escopo": "fluxo",
+      "fila": "texto",
+      "kind": "agent",
+      "tarefa": "fluxo-agente",
+      "prompt": "prompts/fase-plano.md",
+      "max_tentativas": 2,
+      "pausa_apos": true
+    },
+    {
+      "id": "musica",
+      "escopo": "fluxo",
+      "fila": "io",
+      "kind": "agent",
+      "tarefa": "fluxo-agente",
+      "prompt": "prompts/fase-musica.md",
+      "max_tentativas": 2,
+      "pausa_apos": true
+    },
+    {
+      "id": "capa-clipe",
+      "escopo": "fluxo",
+      "fila": "render",
+      "kind": "agent",
+      "tarefa": "fluxo-agente",
+      "prompt": "prompts/fase-capa-clipe.md",
+      "max_tentativas": 2,
+      "pausa_apos": true
+    },
+    {
+      "id": "entrega",
+      "escopo": "fluxo",
+      "fila": "io",
+      "kind": "agent",
+      "tarefa": "fluxo-agente",
+      "prompt": "prompts/fase-entrega.md",
+      "max_tentativas": 2,
+      "pausa_apos": false
+    }
+  ]
+}
