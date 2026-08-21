@@ -63,6 +63,31 @@ def creditos() -> float | None:
         return None
 
 
+def _resolucao_kling(valor) -> str:
+    """`1312x736` (vocabulário da Agnes) → `720p`. O kling só aceita 720p/1080p.
+
+    O plano guarda os params do motor que estava escolhido quando ele foi feito.
+    Trocar de motor no `faz --motor` troca o provedor, não o plano — e o
+    adaptador é justamente quem traduz. Sem isto, `--motor clipe=kling:...` num
+    plano nascido na Agnes morria com "Invalid value '1312x736' for argument
+    'resolution'" (2026-08-21, ao contornar uma queda da Agnes no meio do
+    MVD#89, com 8 dos 43 shots já prontos).
+
+    Corte em 1080 de altura: acima disso é 1080p, o resto é 720p — e a altura é
+    o que o rótulo nomeia.
+    """
+    texto = str(valor or "").strip().lower()
+    if texto in ("720p", "1080p"):
+        return texto
+    if "x" in texto:
+        try:
+            altura = int(texto.split("x")[1])
+        except (IndexError, ValueError):
+            return "720p"
+        return "1080p" if altura >= 1080 else "720p"
+    return "1080p" if texto == "" else "720p"
+
+
 class Kling(Provider):
     nome = "kling"
 
@@ -88,7 +113,7 @@ class Kling(Provider):
         flags = []
         for nome, valor in (("duration", int(shot.get("duracao_s", 5))),
                             ("aspect_ratio", params.get("aspect_ratio", "16:9")),
-                            ("resolution", params.get("resolucao", "1080p"))):
+                            ("resolution", _resolucao_kling(params.get("resolucao")))):
             if nome in aceitos:
                 flags += [f"--{nome}", str(valor)]
         antes = creditos()
