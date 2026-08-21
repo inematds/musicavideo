@@ -5,7 +5,18 @@ Fatos que importam:
 - imagem: `size` sempre em PIXELS ("1024x1024"), nunca ratio;
 - vídeo: `num_frames` segue 8n+1 com teto 441; rate limit real de 5 req/min;
 - a resposta do vídeo MENTE o tamanho — conferir o arquivo com ffprobe;
-- URLs de saída são temporárias: baixar na hora.
+- URLs de saída são temporárias: baixar na hora;
+- **404 no poll não é falha**: o POST devolve o id na hora, mas o endpoint de
+  status registra a task com atraso e responde `404 task not found` no
+  intervalo. Abortar aí joga fora vídeo que ficou pronto (MVD#89, 2026-08-21).
+
+ONDE ESTÁ O RESTO DO CONHECIMENTO desta API, que não cabe aqui:
+- `~/projetos/videos-agnes/pipeline.py` — o irmão que roda esta API há mais
+  tempo, e de onde vieram o teto de polling (45 min) e a espera de 70s no 429.
+  Ele tolera QUALQUER erro no poll; nós toleramos 404 e 429 e deixamos o resto
+  abortar, para não esconder chave errada atrás de 45 minutos de espera.
+- `~/projetos/bench-studio-br/docs/RELATORIO-integracao-modelos.md` — medições
+  de ponta a ponta (o vídeo de 3,4s levou 71s de parede e 4 polls).
 """
 import subprocess
 import time
@@ -17,7 +28,11 @@ from providers.base import (Provider, Resultado, ProviderError, ler_env_chave,
 AGNES_BASE = "https://apihub.agnes-ai.com"
 FPS = 24
 MAX_FRAMES = 441
-TIMEOUT_POLL_S = 15 * 60
+# 45 min, e o número não é chute: é o `ESPERA_VIDEO` do `videos-agnes`
+# (`pipeline.py`), projeto irmão que roda esta mesma API há mais tempo. Lá o
+# comentário registra o porquê — "30min deixava job lento virar buraco no
+# filme". Aqui era 15 min, escolhido sem essa evidência.
+TIMEOUT_POLL_S = 45 * 60
 
 
 def num_frames_para(duracao_s: float, fps: int = FPS) -> int:
@@ -131,11 +146,19 @@ class Agnes(Provider):
             #
             # Só antes do primeiro `completed`: task que some DEPOIS de ter
             # aparecido é outra história, e aí o timeout de 15 min fecha.
+            #
+            # E 429 é rate limit (5 req/min, real): espera LONGA, não a
+            # exponencial curta do `http_json` (2s, 4s, 8s — que devolve para
+            # dentro da mesma janela e leva outro 429). O `videos-agnes` dorme
+            # 70s aqui, e é o número que sobreviveu ao uso.
             try:
                 st = http_json(f"{AGNES_BASE}/agnesapi?video_id={vid}", headers=self._headers())
             except ProviderError as e:
                 if "404" in str(e):
                     time.sleep(10)
+                    continue
+                if "429" in str(e):
+                    time.sleep(70)
                     continue
                 raise
             if st.get("status") == "completed":
