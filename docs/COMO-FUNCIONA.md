@@ -1,5 +1,8 @@
 # Como o musicavideo funciona por dentro
 
+> Nos exemplos, `musicavideo <sub>` é abreviação de `bash <repo>/musicavideo.sh <sub>`:
+> não existe binário com esse nome no PATH.
+
 Este documento responde cinco perguntas: **quais são as fases**, **onde dá pra
 atuar e refazer**, **como a busca funciona**, **como o planejamento decide**, e
 **como música e clipe são montados** — e em cima de quê.

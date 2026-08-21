@@ -3,10 +3,10 @@
 Uso: /musicavideo balada pop sobre recomeço
 
 Fases (cada uma para e espera /aprovar, menos a última):
-  1. plano       (fila texto)  → plano.json + PLANO.md · NÃO gasta nada
-  2. musica      (fila io)     → faixa.mp3 · ÚNICA parte paga (~US$ 0,08)
-  3. capa-clipe  (fila render) → capa.png + clipe.mp4 · US$ 0 no default
-  4. entrega     (fila io)     → PACOTE.md + reel entregue ao canal
+  1. plano       (fila texto)  → PLANO.md no chat · NÃO gasta nada
+  2. musica      (fila io)     → a faixa, como arquivo · ÚNICA parte paga (~US$ 0,08)
+  3. capa-clipe  (fila render) → a capa (arquivo) e o clipe (link) · US$ 0 no default
+  4. entrega     (fila io)     → PACOTE.md
 
 Acompanhar: /status MVD#N · /aprovar MVD#N · /refazer MVD#N · /cancelar MVD#N
 
@@ -21,7 +21,7 @@ Os valores que valem quando você não diz nada:
 | portão | **liga** em `plano`, `musica` e `capa-clipe` | campo `sem-portao` na hora, ou `pausa_apos` no `flow.json` |
 | motor da música | `kie:suno-v4.5` (~US$ 0,08, traz 2 faixas) | `--motor musica=...` |
 | motor da capa | `agnes:agnes-image-2.1-flash` (**US$ 0**) | `--motor capa=inemaimg:flux2-klein` |
-| motor do clipe | `agnes:agnes-video-v2.0` (**US$ 0**) | `--motor clipe=kling:kling-2.5` ou `fal:kling-video-v2.5-turbo-pro` |
+| motor do clipe | `agnes:agnes-video-v2.0` (**US$ 0**) | `--motor clipe=kling:kling-v2_5` ou `fal:kling-v3-turbo` |
 | pesquisa prévia | **desligada** (opt-in) | `--pesquisa` |
 | letra | o planejador escreve | `--letra <arq>`, e `--letra-final` para ela virar lei |
 | idioma da letra | **pt-BR** | `--idioma en-US` |
@@ -79,6 +79,24 @@ Para mudar depois do plano pronto, fale em português:
 ```
 bash musicavideo.sh ajusta <slug> clipe "usa narrativo, menos close em rosto, mais mar e gelo"
 ```
+
+## ENTREGA
+
+O que chega no chat quando cada portão abre:
+
+| fase | o que você recebe |
+|---|---|
+| plano | o `PLANO.md` inteiro, para ler e decidir |
+| musica | `faixa-1.mp3` como **arquivo** |
+| capa-clipe | `capa.png` como **arquivo**, e o clipe como **link** |
+
+O clipe vai por link e não anexado porque mp4 de música passa dos 50 MB que o
+Telegram aceita como documento. Tudo também fica em
+`~/projetos/output/musicavideo/<slug>/`.
+
+O Suno entrega DUAS faixas. A que vale é a `faixa-1.mp3`, e o clipe é montado
+com as duas (`clipe-1.mp4`, `clipe-2.mp4`) — trocar depois é `aprova <slug>
+musica --faixa 2`, que só reaponta, sem re-render e sem custo.
 
 ## CAMPOS
 

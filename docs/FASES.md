@@ -3,6 +3,13 @@
 Cada fase aqui está descrita como ela realmente roda: o comando, o que acontece
 por dentro, o que fica no disco, o que custa e onde você decide.
 
+> **Nos exemplos, `musicavideo <sub>` é abreviação de `bash <repo>/musicavideo.sh <sub>`.**
+> NÃO existe binário `musicavideo` no PATH — o `musicavideo.sh` é o roteador, e
+> ele delega para o `src/main.py`. Vale a pena registrar por quê: em 2026-08-21
+> o prompt que um modelo escreveu para a fase do bot mandava rodar o binário
+> inexistente, e a fase falhou duas vezes por isso. Se quiser o atalho de
+> verdade, `alias musicavideo='bash ~/projetos/musicavideo/musicavideo.sh'`.
+
 Referência rápida do ciclo inteiro:
 
 ```
@@ -217,3 +224,32 @@ No fim: falha se sobrarem menos de 80% dos shots; senão `ffmpeg concat -c copy`
 | `musicavideo lista [N]` | últimos slugs com estado e custo |
 | `musicavideo busca "<termo>"` | slug, título, solicitação, gênero e tags |
 | `musicavideo reindex` | reconstrói o índice a partir das pastas |
+| `musicavideo pacote <slug>` | gera o `PACOTE.md` sob demanda (é o que a fase de entrega do bot chama) |
+
+---
+
+## As mesmas fases, rodando pelo BOT
+
+Plugado no inemaccbot, o ciclo acima é o mesmo — o que muda é quem digita. Desde
+2026-08-21 o `flow.json` declara o COMANDO de cada fase e o bot executa direto,
+sem agente lendo prompt (`tarefa: cli.rodar`):
+
+| fase do fluxo | comando declarado | o portão mostra |
+|---|---|---|
+| `plano` | `plano {{input}} --bruto` | o `PLANO.md`, para ler e aprovar |
+| `musica` | `faz {{anterior:slug}} musica --sim --sem-revisao --aprovar` | a faixa, como arquivo |
+| `capa-clipe` | `faz {{anterior:slug}} --sim --sem-revisao --aprovar` | capa (arquivo) e clipe (link) |
+| `entrega` | `pacote {{anterior:slug}}` | — |
+
+Três diferenças em relação ao uso na mão, e todas têm motivo:
+
+- **`--bruto`** — o texto do chat vem inteiro num argumento só, e é este CLI que
+  separa as flags. O bot não conhece `--estilo` nem `--idioma`.
+- **`--sem-revisao --aprovar`** — o portão humano é o do bot, no chat. A revisão
+  interna (`revisao`, `ok`) seria um SEGUNDO portão, invisível para quem está no
+  Telegram: foi assim que um fluxo travou com a faixa já paga e nada gerado.
+- **O RECIBO** — `plano`, `faz` e `pacote` terminam imprimindo `campo: valor`
+  (`slug:`, `titulo:`, `plano:`, `musica:`, `capa:`, `clipe:`, `pacote:`). É o
+  que o portão do bot lê para mostrar o arquivo certo, e o que a fase seguinte
+  usa em `{{anterior:slug}}` — o slug é derivado do texto e desambiguado com
+  `-2`, e o bot nunca o conhece.

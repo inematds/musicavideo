@@ -28,6 +28,8 @@ bash $S aprova <slug> musica --faixa 2       # troca a faixa: reaponta o clipe.m
 # SEM PORTÃO
 bash $S tudo "<solicitação>" [--teto 2] [--sim] [--telegram]
 
+bash $S pacote <slug>       # gera o PACOTE.md sob demanda (a entrega do fluxo)
+
 # consulta
 bash $S custo <slug>        # estimado vs gasto, por parte
 bash $S lista [N]           # últimos slugs
@@ -54,6 +56,10 @@ Cada parte tem portão próprio e vive sua própria máquina de estados:
 
 Solicitação em texto livre. Opcionais:
 - `--estilo X` — estilo/gênero (livre ou id do `data/estilos.json`)
+- `--idioma X` — idioma da letra (default `pt-BR`). Vai para a letra E para o
+  prompt do Suno, que são dois lugares e precisam concordar
+- `--bruto` — a solicitação vem com as flags DENTRO dela, num argumento só
+  (é como o bot chama; ver "Fluxo no bot")
 - `--letra arq` — letra **rascunho**: o planejador termina/ajusta e o `PLANO.md`
   mostra o **diff** do que mudou
 - `--letra arq --letra-final` — a letra é **lei**: vai verbatim pro plano e
@@ -65,9 +71,15 @@ Solicitação em texto livre. Opcionais:
 |---|---|---|---|
 | música | `kie:suno-v4.5` | ~US$ 0,08 | — |
 | capa | `agnes:agnes-image-2.1-flash` | **US$ 0** | `inemaimg:flux2-klein` (local) |
-| clipe | `agnes:agnes-video-v2.0` | **US$ 0** | `kling:kling-2.5`, `fal:kling-video-v2.5-turbo-pro` |
+| clipe | `agnes:agnes-video-v2.0` | **US$ 0** | `kling:kling-v2_5`, `fal:kling-v3-turbo` |
 
-Trocar: `--motor clipe=kling:kling-2.5` em `plano`, `ajusta` ou `faz`.
+Trocar: `--motor clipe=fal:kling-v3-turbo` em `plano`, `ajusta` ou `faz`.
+
+**`kie`, `kling` e `fal` consomem crédito ou dinheiro do dono da conta**, então
+trocar para um deles exige `--autorizo-pago` no mesmo comando. É portão, não
+aviso: em 2026-08-21, com a Agnes parecendo fora do ar, um `--motor` "óbvio"
+queimou 105 créditos antes de alguém perceber. Os defaults do plano não mudam —
+a música nasce em `kie:suno-v4.5`, que é sabido e custa ~US$ 0,08.
 Provedor sem chave aparece **indisponível com o motivo** — nunca stacktrace.
 Adicionar provedor = criar `providers/<nome>.py` + `<nome>.models.json`.
 
@@ -78,14 +90,39 @@ Adicionar provedor = criar `providers/<nome>.py` + `<nome>.models.json`.
 Index geral em `~/projetos/output/musicavideo/index.jsonl` — uma linha por slug,
 reescrita a cada mudança de estado; é o que `lista` e `busca` leem.
 
-## Fluxo no bot
+## Fluxo no bot (inemaccbot) — SEM agente desde 2026-08-21
 
-1. Briefing de 1 linha ("planejando a música, já te mostro").
-2. `plano "<solicitação>"` — mandar o `PLANO.md` no Telegram e **esperar o ok**.
-3. Ajuste pedido? `ajusta <slug> <parte> "<o que o usuário disse>"` e remostrar.
-4. Ok? `ok <slug> <parte>` e então `faz <slug> <parte> --sim`.
-5. `faz` é tarefa longa (poll de API): avisar nos checkpoints.
-6. No fim, mandar o `PACOTE.md` + os arquivos.
+O `flow.json` deste repo declara o COMANDO de cada fase, e quem executa é o bot
+(tarefa `cli.rodar`). Não há agente lendo prompt para digitar linha de comando —
+as quatro fases eram assim até 2026-08-21, e as quatro falharam na primeira
+execução real (binário inventado, contrato de saída quebrado, render destacado
+morto pelo job, portão duplo).
+
+| fase | comando |
+|---|---|
+| `plano` | `plano {{input}} --bruto` |
+| `musica` | `faz {{anterior:slug}} musica --sim --sem-revisao --aprovar` |
+| `capa-clipe` | `faz {{anterior:slug}} --sim --sem-revisao --aprovar` (destacado, poll de 60s) |
+| `entrega` | `pacote {{anterior:slug}}` |
+
+Três coisas fazem isso funcionar, e todas são deste repo:
+
+- **`--bruto`**: o texto do chat chega INTEIRO num argumento só, e quem
+  interpreta as flags (`--estilo`, `--idioma`, `--letra`) é este CLI. O bot não
+  conhece o vocabulário do domínio, e aspar tudo é o que impede texto de virar
+  comando.
+- **O RECIBO em `campo: valor`** nas últimas linhas de `plano`, `faz` e
+  `pacote` (`slug:`, `titulo:`, `plano:`, `musica:`, `capa:`, `clipe:`,
+  `pacote:`). É o que o portão do bot mostra no chat e o que a fase seguinte lê
+  em `{{anterior:slug}}` — o slug é derivado do texto e desambiguado com `-2`, e
+  o bot nunca o conhece.
+- **`--aprovar` e `--sem-revisao`**: o portão humano é o do BOT, no chat. Sem
+  eles a parte fica em `revisao` esperando alguém que está do outro lado, e o
+  fluxo trava com a faixa já paga.
+
+O que o portão manda no chat, declarado em `portao.mostrar`: o `PLANO.md`
+(inline), a faixa e a capa (arquivo), e o clipe (link publicado — mp4 de música
+passa dos 50 MB que o Telegram aceita).
 
 ## Detalhes que importam
 

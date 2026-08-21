@@ -141,15 +141,23 @@ alcançar a porta vê o acervo inteiro).
 |---|---|---|---|
 | música | `kie:suno-v4.5` | ~US$ 0,08 (traz 2 faixas) | — |
 | capa | `agnes:agnes-image-2.1-flash` | **US$ 0** | `inemaimg:flux2-klein` (servidor local) |
-| clipe | `agnes:agnes-video-v2.0` | **US$ 0** | `kling:kling-2.5`, `fal:kling-video-v2.5-turbo-pro` |
+| clipe | `agnes:agnes-video-v2.0` | **US$ 0** | `kling:kling-v2_5`, `fal:kling-v3-turbo` |
 
 Os defaults de capa e clipe são de custo zero de propósito: **roda em qualquer
 VPS**, sem conta em lugar nenhum. Trocar é uma flag —
-`--motor clipe=kling:kling-2.5` — porque o motor mora no plano, nunca no código.
+`--motor clipe=kling:kling-v2_5` — porque o motor mora no plano, nunca no código.
 
 Provedor sem chave não estoura erro na hora de gerar: aparece **indisponível com
 o motivo** já no plano, e o `faz` daquela parte vira `erro` enquanto as outras
 seguem (exit 2).
+
+**Trocar para provedor que gasta exige autorização explícita.** `kie`, `kling` e
+`fal` consomem crédito de conta ou dinheiro, então um `--motor` que aponte para
+eles é recusado sem `--autorizo-pago` no mesmo comando. É portão e não aviso
+porque o caso real foi este: em 2026-08-21, com a Agnes parecendo fora do ar no
+meio de um clipe, a troca "óbvia" de motor queimou 105 créditos antes de alguém
+perceber — e a Agnes nem estava fora, era um 404 transitório no poll que o
+adaptador tratava como fatal.
 
 **Adicionar um provedor são dois arquivos:** `providers/<nome>.py` (implementando
 `disponivel` / `estimar_custo` / `gerar`) e `providers/<nome>.models.json`
@@ -175,6 +183,18 @@ seguem (exit 2).
 - **Chave de API nunca aparece** em arquivo, log ou tela.
 
 ---
+
+## No bot do Telegram (inemaccbot)
+
+Este repo é plugado no bot como FLUXO: `/musicavideo <sua descrição>`. Desde
+2026-08-21 as quatro fases rodam **sem agente** — o `flow.json` declara o comando
+de cada uma (`plano`, `faz musica`, `faz` capa+clipe, `pacote`) e quem executa é
+o bot. Detalhe da mecânica em [SKILL.md](SKILL.md); a ajuda dentro do chat é
+`/musicavideo help`, que sai do [HELP.md](HELP.md) deste repo.
+
+O que chega no chat, em cada portão: o `PLANO.md` para você ler e aprovar, a
+faixa e a capa como arquivo, e o clipe como **link** — mp4 de música passa dos
+50 MB que o Telegram aceita como documento.
 
 ## Saída
 
