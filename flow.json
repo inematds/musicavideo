@@ -13,56 +13,56 @@
       "id": "plano",
       "escopo": "fluxo",
       "fila": "texto",
-      "kind": "agent",
-      "tarefa": "fluxo-agente",
-      "prompt": "prompts/fase-plano.md",
+      "kind": "function",
+      "tarefa": "cli.rodar",
       "max_tentativas": 2,
       "pausa_apos": true,
       "portao": {
         "mostrar": [
           "{{artefato:plano}}"
         ]
-      }
+      },
+      "comando": "bash {{repo}}/musicavideo.sh plano {{input}} --bruto"
     },
     {
       "id": "musica",
       "escopo": "fluxo",
       "fila": "io",
-      "kind": "agent",
-      "tarefa": "fluxo-agente",
-      "prompt": "prompts/fase-musica.md",
+      "kind": "function",
+      "tarefa": "cli.rodar",
       "max_tentativas": 2,
       "pausa_apos": true,
       "portao": {
         "mostrar": [
           "{{artefato}}"
         ]
-      }
+      },
+      "comando": "bash {{repo}}/musicavideo.sh faz {{anterior:slug}} musica --sim --sem-revisao --aprovar"
     },
     {
       "id": "capa-clipe",
       "escopo": "fluxo",
       "fila": "render",
-      "kind": "agent",
-      "tarefa": "fluxo-agente",
-      "prompt": "prompts/fase-capa-clipe.md",
+      "kind": "function",
+      "tarefa": "cli.rodar",
       "max_tentativas": 2,
       "pausa_apos": true,
       "portao": {
         "mostrar": [
           "{{artefato}}"
         ]
-      }
+      },
+      "comando": "bash {{repo}}/musicavideo.sh faz {{anterior:slug}} --sim --sem-revisao --aprovar"
     },
     {
       "id": "entrega",
       "escopo": "fluxo",
       "fila": "io",
-      "kind": "agent",
-      "tarefa": "fluxo-agente",
-      "prompt": "prompts/fase-entrega.md",
+      "kind": "function",
+      "tarefa": "cli.rodar",
       "max_tentativas": 2,
-      "pausa_apos": false
+      "pausa_apos": false,
+      "comando": "bash {{repo}}/musicavideo.sh pacote {{anterior:slug}}"
     }
   ]
 }

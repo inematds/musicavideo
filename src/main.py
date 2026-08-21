@@ -23,6 +23,7 @@ USO = """uso: musicavideo <comando> ...
   reprova <slug> <parte> ["4,17,23"]  # descarta e devolve pro faz
   tudo "<solicitação>" [--teto N] [demais flags de plano] [--sim] [--telegram]
   monta <slug> [--completo]      # casa o clipe com CADA faixa (não gasta)
+  pacote <slug>                  # gera o PACOTE.md sob demanda
   custo <slug> | lista [N] | busca "<termo>" | reindex
   painel [--porta N] [--lan]     # navegador: acervo do musicavideo + analisevideo"""
 
@@ -102,6 +103,11 @@ def _cmd_reprova(args):
     return cmd_reprova(args)
 
 
+def _cmd_pacote(args):
+    from src.executor import cmd_pacote
+    return cmd_pacote(args)
+
+
 def _cmd_custo(args):
     from src.executor import cmd_custo
     return cmd_custo(args)
@@ -155,7 +161,7 @@ COMANDOS.update({"lista": _cmd_lista, "busca": _cmd_busca, "reindex": _cmd_reind
                  "faz": _cmd_faz, "custo": _cmd_custo, "tudo": _cmd_tudo,
                  "monta": _cmd_monta, "revisa": _cmd_revisa,
                  "aprova": _cmd_aprova, "reprova": _cmd_reprova,
-                 "painel": _cmd_painel})
+                 "pacote": _cmd_pacote, "painel": _cmd_painel})
 
 
 def main(argv: list[str]) -> int:

@@ -130,7 +130,8 @@ sem chave nenhuma — com duas abas: os pacotes do musicavideo (capa, as duas ve
 faixa aprovada, PACOTE.md, estado por parte) e as análises do
 [analisevideo](https://github.com/inematds/analisevideo) (paleta, look, ritmo,
 tags, analise.md). Busca em tudo, na hora — a página é montada a cada request,
-então nunca fica velha. Por padrão só em `127.0.0.1`; `--lan` publica na rede.
+então nunca fica velha. Por padrão só em `127.0.0.1`; `--lan` publica na rede local (sem senha — quem
+alcançar a porta vê o acervo inteiro).
 
 ---
 

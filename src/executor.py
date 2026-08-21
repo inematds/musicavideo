@@ -97,7 +97,7 @@ def _montar_com_a_faixa(w: Path, r, plano: dict):
 
 
 def faz(outdir, slug, partes=None, sim=False, telegram=False,
-        motor_override=None, reg=None, sem_revisao=False) -> int:
+        motor_override=None, reg=None, sem_revisao=False, aprovar=False) -> int:
     outdir = Path(outdir)
     w = outdir / slug
     if not (w / "plano.json").exists():
@@ -111,6 +111,21 @@ def faz(outdir, slug, partes=None, sim=False, telegram=False,
         plano[parte]["motor"] = motor
     reg = reg or carregar_registry()
     revisao = not sem_revisao
+    # `--aprovar`: promove `planejado → aprovado` nas partes que vão rodar.
+    #
+    # Existe para o fluxo do BOT, onde o portão humano já aconteceu no chat:
+    # quem abriu aquele portão aprovou o PLANO inteiro, as três partes. Manter
+    # um segundo portão aqui dentro, invisível para quem está no Telegram, foi
+    # o que travou o MVD#89 com a faixa paga e nada gerado.
+    #
+    # Idempotente de propósito: parte que já está `aprovado` (ou adiante) é
+    # deixada em paz, senão uma retentativa morreria em TransicaoInvalida.
+    if aprovar:
+        alvo_aprovar = partes if partes is not None else list(PARTES)
+        for p in alvo_aprovar:
+            if estado["partes"][p]["estado"] == "planejado":
+                transicao(estado, p, "aprova")
+        salvar_estado(w, estado)
     if partes is None:
         prontas = [p for p in PARTES if estado["partes"][p]["estado"] in ("aprovado", "erro")]
         if not prontas:
@@ -220,6 +235,16 @@ def faz(outdir, slug, partes=None, sim=False, telegram=False,
     if all(x["estado"] == "pronto" for x in estado["partes"].values()):
         from src.entrega import entregar
         entregar(outdir, slug)
+    # RECIBO em `campo: valor`: é o que o bot lê da saída da fase (o portão
+    # mostra, e a fase seguinte usa `{{anterior:slug}}`). Uma linha por parte
+    # que ficou pronta, com o caminho REAL do artefato — nome de arquivo é
+    # decisão do provider (`faixa-1.mp3`, não `faixa.mp3`), e adivinhar isso já
+    # entregou o arquivo errado antes.
+    print(f"\nslug: {slug}")
+    for p in PARTES:
+        d = estado["partes"][p]
+        if d["estado"] == "pronto" and d.get("artefato"):
+            print(f"{p}: {w / d['artefato']}")
     return 3 if houve_teto else (2 if houve_erro else 0)
 
 
@@ -246,7 +271,36 @@ def cmd_faz(args) -> int:
         partes = [livres[1]]
     return faz(out_dir(), livres[0], partes, sim=bool(opts.get("sim")),
                telegram=bool(opts.get("telegram")), motor_override=opts.get("motor"),
-               sem_revisao=bool(opts.get("sem_revisao")))
+               sem_revisao=bool(opts.get("sem_revisao")),
+               aprovar=bool(opts.get("aprovar")))
+
+
+def cmd_pacote(args) -> int:
+    """`pacote <slug>` — gera o PACOTE.md sob demanda, e imprime o recibo.
+
+    A entrega já roda sozinha quando as três partes ficam `pronto` (no fim do
+    `faz`). Este comando existe para a fase de ENTREGA do fluxo do bot ter o que
+    invocar: até 2026-08-21 o prompt daquela fase mandava um agente chamar
+    `entregar(outdir, slug)` em Python, porque não havia subcomando. Fase que
+    precisa de um agente para chamar uma função é fase sem CLI.
+    """
+    import sys
+    from src.main import out_dir
+    from src.planner import _parse_opts
+    from src.entrega import entregar
+    livres, _ = _parse_opts(args)
+    if not livres:
+        print("uso: pacote <slug>", file=sys.stderr)
+        return 1
+    slug = livres[0]
+    try:
+        alvo = entregar(out_dir(), slug)
+    except FileNotFoundError as e:
+        print(f"erro: {e}", file=sys.stderr)
+        return 1
+    print(f"\nslug: {slug}")
+    print(f"pacote: {alvo}")
+    return 0
 
 
 def cmd_custo(args) -> int:

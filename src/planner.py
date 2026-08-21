@@ -496,6 +496,10 @@ def _parse_opts(args: list[str]) -> tuple[list[str], dict]:
             opts.setdefault("motor", {})[parte] = motor
         elif a == "--autorizo-pago":
             opts["autorizo_pago"] = True
+        elif a == "--bruto":
+            opts["bruto"] = True
+        elif a == "--aprovar":
+            opts["aprovar"] = True
         else:
             livres.append(a)
         i += 1
@@ -513,6 +517,21 @@ def cmd_plano(args) -> int:
         return 1
     solicitacao = livres[0]
     slug = livres[1] if len(livres) > 1 else None
+    # `--bruto`: o texto que a pessoa digitou no chat, INTEIRO, num argumento só.
+    # Quem interpreta flags é o domínio — o bot não conhece `--estilo` nem
+    # `--idioma`, e aspar tudo num argumento é o que impede texto de virar
+    # comando. Sem isto, um `/musicavideo ... --idioma en-US` chegaria com o
+    # `--idioma` DENTRO da solicitação, virando letra de música.
+    if opts.get("bruto"):
+        import shlex
+        try:
+            partes = shlex.split(solicitacao)
+        except ValueError:
+            partes = solicitacao.split()
+        livres2, opts2 = _parse_opts(partes)
+        if livres2:
+            solicitacao = " ".join(livres2)
+        opts = {**opts2, **{k: v for k, v in opts.items() if k != "bruto"}}
     try:
         exigir_autorizacao_de_motor(opts)
     except ValueError as e:
@@ -531,7 +550,14 @@ def cmd_plano(args) -> int:
     if opts.get("pesquisa_md"):
         (w / "pesquisa.md").write_text(opts["pesquisa_md"], encoding="utf-8")
     print((w / "PLANO.md").read_text(encoding="utf-8"))
-    print(f"\nplano em {w}/PLANO.md — aprove com: musicavideo ok {plano['slug']} <parte>")
+    # RECIBO em `campo: valor`, nas últimas linhas: é o contrato que o bot lê
+    # (`portao.mostrar: ["{{artefato:plano}}"]` e `{{anterior:slug}}` na fase
+    # seguinte). Antes disto o formato era coincidência — um agente escrevia
+    # três linhas de memória, e o slug real, com o `-2` da desambiguação, se
+    # perdia entre uma fase e outra.
+    print(f"\nslug: {plano['slug']}")
+    print(f"titulo: {plano.get('titulo', '')}")
+    print(f"plano: {w}/PLANO.md")
     return 0
 
 

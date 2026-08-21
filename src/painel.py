@@ -249,6 +249,19 @@ fetch("__dados.json").then(r=>r.json()).then(d=>{DADOS=d;pinta()});
 </script></body></html>"""
 
 
+def _ip_da_rede() -> str:
+    """O IP que o resto da rede enxerga. `gethostname` costuma cair no loopback
+    (é o que o /etc/hosts diz), e aí o link impresso não abre em lugar nenhum."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("8.8.8.8", 80))          # não manda pacote: só resolve a rota
+        return s.getsockname()[0]
+    except OSError:
+        return socket.gethostbyname(socket.gethostname())
+    finally:
+        s.close()
+
+
 class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):  # noqa: N802
         if self.path in ("/", "/index.html"):
@@ -359,7 +372,7 @@ def cmd_painel(args: list[str]) -> int:
         return 1
     if porta != pedida:
         print(f"{pedida} ocupada — subindo na {porta}")
-    visivel = host if host != "0.0.0.0" else (socket.gethostbyname(socket.gethostname()))
+    visivel = host if host != "0.0.0.0" else _ip_da_rede()
     print(f"painel em http://{visivel}:{porta}   "
           f"({len(d['musicavideo'])} pacotes · {len(d['analisevideo'])} análises)")
     if host == "0.0.0.0":
