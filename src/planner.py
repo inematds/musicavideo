@@ -67,6 +67,11 @@ def montar_contexto(solicitacao: str, opts: dict, outdir: Path) -> str:
         "principal. No alt: sem rostos em close, sem violência, sem marcas, sem texto "
         "legível; prefira objeto, ambiente, silhueta, luz e sombra. O alt tem que "
         "cumprir o MESMO papel narrativo no mesmo instante da música.",
+        "PROIBIDO citar artista, banda, compositor ou obra em QUALQUER prompt de provedor "
+        "(prompt_estilo, prompt_imagem, prompt_negativo, decupagem[].prompt/prompt_alt) — nem por "
+        "nome, nem por comparação (\"X meets Y\", \"in the style of\", \"sounds like\", \"à la\"). "
+        "O provedor RECUSA a geração, e a recusa só aparece na hora de gastar. Descreva o som e a "
+        "imagem por características: instrumentação, timbre, técnica vocal, andamento, textura, luz.",
         "REGRA: os campos musica.estilo.prompt_estilo, capa.prompt_imagem, capa.prompt_negativo e "
         "clipe.decupagem[].prompt DEVEM ser em INGLÊS (a API Agnes bloqueia português). "
         "conceito/descricao/letra/mood podem ser em português.",

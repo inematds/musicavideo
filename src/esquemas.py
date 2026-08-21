@@ -65,6 +65,41 @@ def validar_plano(plano: dict) -> list[str]:
     return erros
 
 
+# Comparar com artista é o jeito mais natural de descrever som — e é recusado
+# pelo provedor. No MVD#89 (2026-08-21) o `prompt_estilo` terminava com
+# "Wardruna meets anthem rock": o plano validou, o portão abriu, a fase custou
+# uma vaga na fila de IO e o Suno recusou na hora de gerar. O erro só aparecia
+# onde ele custa.
+#
+# Duas famílias, e nenhuma tenta ser um catálogo de música: a construção
+# comparativa (que é o que o filtro do provedor procura) e uma lista curta de
+# nomes vistos em recusa real, que cresce por evidência, não por palpite.
+_COMPARACAO = re.compile(
+    r"\b(?:meets|in the style of|style of|sounds? like|similar to|inspired by|"
+    r"reminiscent of|à la|a la|tribute to|cover of|vibes? of)\b",
+    re.IGNORECASE,
+)
+_ARTISTAS = re.compile(
+    r"\b(?:wardruna|heilung|danheim|hans zimmer|ludovico einaudi|beyonc[ée]|"
+    r"taylor swift|drake|the weeknd|billie eilish|adele|coldplay|radiohead|"
+    r"pink floyd|metallica|nirvana|queen|beatles|rolling stones)\b",
+    re.IGNORECASE,
+)
+
+
+def referencias_a_artista(txt: str) -> list[str]:
+    """Trechos do prompt que o provedor tende a recusar. Vazio = limpo."""
+    achados = [m.group(0) for m in _ARTISTAS.finditer(txt)]
+    achados += [m.group(0) for m in _COMPARACAO.finditer(txt)]
+    vistos, unicos = set(), []
+    for a in achados:
+        if a.lower() in vistos:
+            continue
+        vistos.add(a.lower())
+        unicos.append(a)
+    return unicos
+
+
 def campos_prompt_en(plano: dict) -> list[str]:
     """Prompts que vão pro provedor DEVEM ser EN (Agnes 400 em PT legítimo)."""
     erros = []
@@ -78,6 +113,11 @@ def campos_prompt_en(plano: dict) -> list[str]:
     for nome, txt in alvos:
         if _ACENTOS.search(txt or ""):
             erros.append(f"{nome}: prompt de provedor deve ser em INGLÊS (achei acento)")
+        for achado in referencias_a_artista(txt or ""):
+            erros.append(
+                f"{nome}: prompt cita artista/comparação ('{achado}') — provedor recusa. "
+                "Descreva o som ou a imagem por características, nunca por comparação"
+            )
     return erros
 
 

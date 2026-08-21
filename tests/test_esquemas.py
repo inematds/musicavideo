@@ -36,6 +36,31 @@ def test_conceito_em_pt_e_permitido(plano_ok):
     assert campos_prompt_en(plano_ok) == []
 
 
+# O MVD#89 (2026-08-21): o prompt_estilo terminava com "Wardruna meets anthem
+# rock". O plano validou, o portão abriu, a fase entrou na fila — e o Suno
+# recusou na hora de gerar. Erro que só aparece onde custa é o pior tipo.
+def test_artista_no_prompt_de_estilo_e_rejeitado(plano_ok):
+    plano_ok["musica"]["estilo"]["prompt_estilo"] = (
+        "Nordic folk anthem rock, 118 BPM, D minor, Wardruna meets anthem rock."
+    )
+    erros = campos_prompt_en(plano_ok)
+    assert any("Wardruna" in e for e in erros)
+
+
+def test_comparacao_sem_nome_tambem_e_rejeitada(plano_ok):
+    plano_ok["capa"]["prompt_imagem"] = "album cover, in the style of a famous painter"
+    assert any("prompt_imagem" in e for e in campos_prompt_en(plano_ok))
+
+
+# E o conserto não pode virar um novo bug: descrição por característica passa.
+def test_descricao_por_caracteristica_passa(plano_ok):
+    plano_ok["musica"]["estilo"]["prompt_estilo"] = (
+        "Nordic ritual folk anthem, tagelharpa drone, bone flute, throat-singing "
+        "choir, war drums, male tenor with grit. Lyrics in Brazilian Portuguese."
+    )
+    assert campos_prompt_en(plano_ok) == []
+
+
 def test_estado_valido():
     e = {"schema_version": "1", "slug": "x", "atualizado_em": "2026-08-20T14:00:00-03:00",
          "fase": "plano", "telegram": False, "teto_usd": None,
