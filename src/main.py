@@ -23,7 +23,8 @@ USO = """uso: musicavideo <comando> ...
   reprova <slug> <parte> ["4,17,23"]  # descarta e devolve pro faz
   tudo "<solicitação>" [--teto N] [demais flags de plano] [--sim] [--telegram]
   monta <slug> [--completo]      # casa o clipe com a faixa (não gasta)
-  custo <slug> | lista [N] | busca "<termo>" | reindex"""
+  custo <slug> | lista [N] | busca "<termo>" | reindex
+  painel [--porta N] [--lan]     # navegador: acervo do musicavideo + analisevideo"""
 
 COMANDOS = {}   # nome -> callable(argv) -> int; preenchido pelas próximas tasks
 
@@ -43,6 +44,11 @@ def _cmd_busca(args):
     for l in busca(out_dir(), args[0]):
         print(f"{l['slug']:40s} {l['titulo']}")
     return 0
+
+
+def _cmd_painel(args):
+    from src.painel import cmd_painel
+    return cmd_painel(args)
 
 
 def _cmd_reindex(args):
@@ -148,7 +154,8 @@ COMANDOS.update({"lista": _cmd_lista, "busca": _cmd_busca, "reindex": _cmd_reind
                  "plano": _cmd_plano, "ver": _cmd_ver, "ok": _cmd_ok, "ajusta": _cmd_ajusta,
                  "faz": _cmd_faz, "custo": _cmd_custo, "tudo": _cmd_tudo,
                  "monta": _cmd_monta, "revisa": _cmd_revisa,
-                 "aprova": _cmd_aprova, "reprova": _cmd_reprova})
+                 "aprova": _cmd_aprova, "reprova": _cmd_reprova,
+                 "painel": _cmd_painel})
 
 
 def main(argv: list[str]) -> int:

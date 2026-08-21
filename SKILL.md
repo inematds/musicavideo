@@ -30,6 +30,8 @@ bash $S tudo "<solicitação>" [--teto 2] [--sim] [--telegram]
 bash $S custo <slug>        # estimado vs gasto, por parte
 bash $S lista [N]           # últimos slugs
 bash $S busca "<termo>"     # acervo (slug, título, solicitação, gênero, tags)
+bash $S painel [--porta N] [--lan]   # painel no navegador (:5300): acervo do
+                                     # musicavideo + as análises do analisevideo
 ```
 
 ## Fases

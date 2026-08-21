@@ -117,7 +117,15 @@ bash $S plano "sertanejo" --letra final.txt --letra-final   # lei: ninguém mexe
 bash $S lista 10
 bash $S busca "rock"
 bash $S custo recomeco
+bash $S painel                  # abre o acervo no navegador (:5300)
 ```
+
+**O painel** (`painel [--porta N] [--lan]`) sobe um servidor local — só leitura,
+sem chave nenhuma — com duas abas: os pacotes do musicavideo (capa, clipe,
+faixa aprovada, PACOTE.md, estado por parte) e as análises do
+[analisevideo](https://github.com/inematds/analisevideo) (paleta, look, ritmo,
+tags, analise.md). Busca em tudo, na hora — a página é montada a cada request,
+então nunca fica velha. Por padrão só em `127.0.0.1`; `--lan` publica na rede.
 
 ---
 
