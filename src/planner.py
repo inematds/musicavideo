@@ -97,6 +97,16 @@ def montar_contexto(solicitacao: str, opts: dict, outdir: Path) -> str:
             "não copie o conteúdo, copie a LINGUAGEM visual:\n" + refs)
     if opts.get("estilo"):
         partes.append(f"ESTILO PEDIDO: {opts['estilo']}")
+    if opts.get("idioma"):
+        # Nos DOIS lugares, e por isso é explícito: a letra que vai ser cantada
+        # e a frase final do prompt de estilo ("Lyrics in <idioma>"), que é o que
+        # o Suno lê. Declarar só um dos dois produz faixa cantada num idioma e
+        # pedida em outro.
+        partes.append(
+            f"IDIOMA DA LETRA: {opts['idioma']}. Escreva musica.letra.texto NESTE idioma, "
+            f"declare musica.letra.idioma = \"{opts['idioma']}\", e termine o prompt_estilo "
+            f"com \"Lyrics in {opts['idioma']}\" (o prompt_estilo continua em INGLÊS)."
+        )
     if opts.get("pesquisa_md"):
         partes.append("PESQUISA:\n" + opts["pesquisa_md"])
     if opts.get("letra"):
@@ -147,18 +157,25 @@ def _impor_deterministicos(plano: dict, slug: str, solicitacao: str, opts: dict)
         plano.setdefault(parte, {}).setdefault("motor", motor)
     for parte, motor in (opts.get("motor") or {}).items():
         plano[parte]["motor"] = motor
+    # IDIOMA PEDIDO manda, e manda por último: o `setdefault` de pt-BR abaixo
+    # existe para o caso de o modelo não declarar nada, não para vencer um
+    # pedido explícito. Antes de 2026-08-21 não havia como pedir: pt-BR era
+    # chumbado nos dois lugares (aqui e no prompt de estilo, em inglês).
+    idioma = (opts.get("idioma") or "").strip()
+    if idioma:
+        plano.setdefault("musica", {}).setdefault("letra", {})["idioma"] = idioma
     if opts.get("letra"):
         original = Path(opts["letra"]).read_text(encoding="utf-8")
         le = plano.setdefault("musica", {}).setdefault("letra", {})
         if opts.get("letra_final"):        # a letra é lei
             plano["musica"]["letra"] = {"origem": "final_usuario", "texto": original,
                                         "texto_original": None,
-                                        "idioma": le.get("idioma", "pt-BR")}
+                                        "idioma": idioma or le.get("idioma", "pt-BR")}
         else:                              # rascunho: origem e diff não dependem do LLM
             le["origem"] = "rascunho_usuario"
             le["texto_original"] = original
             le.setdefault("texto", original)
-            le.setdefault("idioma", "pt-BR")
+            le["idioma"] = idioma or le.get("idioma") or "pt-BR"
     return plano
 
 
@@ -442,7 +459,7 @@ def _parse_opts(args: list[str]) -> tuple[list[str], dict]:
         elif a == "--faixa":
             i += 1
             opts["faixa"] = int(args[i])
-        elif a in ("--estilo", "--letra", "--teto"):
+        elif a in ("--estilo", "--letra", "--teto", "--idioma"):
             i += 1
             opts[a[2:]] = args[i]
         elif a == "--motor":

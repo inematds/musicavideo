@@ -42,6 +42,40 @@ def test_letra_final_e_lei(outdir, plano_ok, tmp_path):
     assert p["musica"]["letra"]["texto"] == arq.read_text(encoding="utf-8")
 
 
+# Até 2026-08-21 não havia como pedir outro idioma: pt-BR era chumbado no
+# `setdefault` e repetido em inglês no prompt de estilo. Quem quisesse música em
+# inglês só podia escrever isso no texto livre e torcer.
+def test_idioma_pedido_manda(outdir, plano_ok):
+    p = gerar_plano("x", "s-idioma", {"idioma": "en-US"}, outdir,
+                    chamar_llm=_fake_llm(plano_ok))
+    assert p["musica"]["letra"]["idioma"] == "en-US"
+
+
+def test_sem_idioma_continua_pt_br(outdir, plano_ok):
+    p = gerar_plano("x", "s-default", {}, outdir, chamar_llm=_fake_llm(plano_ok))
+    assert p["musica"]["letra"]["idioma"] == "pt-BR"
+
+
+# O idioma pedido vence até com letra do usuário: a letra é dele, o rótulo do
+# idioma tem que ser o que ele pediu — é ele que vai para o prompt do Suno.
+def test_idioma_pedido_vence_com_letra_do_usuario(outdir, plano_ok, tmp_path):
+    arq = tmp_path / "letra.txt"
+    arq.write_text("[Verse 1]\nmy own lyrics\n", encoding="utf-8")
+    p = gerar_plano("x", "s-idioma-letra",
+                    {"idioma": "en-US", "letra": str(arq)}, outdir,
+                    chamar_llm=_fake_llm(plano_ok))
+    assert p["musica"]["letra"]["idioma"] == "en-US"
+
+
+# O planejador tem que RECEBER o pedido, senão escreve a letra em português e
+# termina o prompt de estilo com "Lyrics in Brazilian Portuguese".
+def test_contexto_leva_o_idioma_ao_planejador(outdir):
+    from src.planner import montar_contexto
+    ctx = montar_contexto("uma música", {"idioma": "en-US"}, outdir)
+    assert "IDIOMA DA LETRA: en-US" in ctx
+    assert "Lyrics in en-US" in ctx
+
+
 def test_motor_override(outdir, plano_ok):
     p = gerar_plano("x", "s4", {"motor": {"clipe": "kling:kling-v2_5"}},
                     outdir, chamar_llm=_fake_llm(plano_ok))

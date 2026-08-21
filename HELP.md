@@ -24,11 +24,61 @@ Os valores que valem quando você não diz nada:
 | motor do clipe | `agnes:agnes-video-v2.0` (**US$ 0**) | `--motor clipe=kling:kling-2.5` ou `fal:kling-video-v2.5-turbo-pro` |
 | pesquisa prévia | **desligada** (opt-in) | `--pesquisa` |
 | letra | o planejador escreve | `--letra <arq>`, e `--letra-final` para ela virar lei |
+| idioma da letra | **pt-BR** | `--idioma en-US` |
 | pasta de saída | `~/projetos/output/musicavideo/<slug>/` | `MUSICAVIDEO_OUT` |
 | slug | derivado da solicitação, com `-2`, `-3` se repetir | 2º argumento do `plano` |
 
 O plano é sempre de graça: quem gasta é só a fase `musica`, e o custo estimado
 aparece antes.
+
+## ESTILOS
+
+O planejador escolhe um sozinho a partir da sua descrição. Para forçar, use
+`--estilo <id>` (o id, não o nome do gênero):
+
+| id | gênero | BPM | tom |
+|---|---|---|---|
+| `uplifting-ambient-electronic` | uplifting ambient electronic, corporate instrumental, chill tech | 103 | C maior |
+| `corporate-tech-electro-pop` | corporate tech electro pop, ambient house, synthwave | 118 | F maior |
+| `uplifting-progressive-trance` | uplifting progressive trance, tech house, melodic techno | 132 | — |
+| `anthem-pop-rock` | anthem pop rock | — | — |
+| `female-anthem-rock` | anthem rock, pop rock (voz feminina) | — | — |
+
+O estilo é ponto de PARTIDA, não camisa de força: o plano final traz o gênero, o
+BPM, o tom, a instrumentação e a voz decididos para a sua música — e tudo isso
+aparece no `PLANO.md`, que é o que o portão manda no chat.
+
+**Idioma da letra:** default `pt-BR`. Para outro, `--idioma en-US` (ou o que for)
+— o pedido vai para a letra E para o prompt do Suno, que são dois lugares
+diferentes e precisam concordar.
+
+## TEMPLATES
+
+Também escolhidos pelo planejador, e visíveis no `PLANO.md`.
+
+Capa:
+
+| id | o que é |
+|---|---|
+| `tipografia-dominante` | título enorme ocupa 60%+ do quadro; fundo texturizado simples |
+| `retrato-centralizado` | persona no centro, luz dramática, espaço pro título |
+| `paisagem-simbolica` | cena que simboliza o tema, sem figura humana em destaque |
+| `minimal-abstrato` | formas geométricas em 2-3 cores; lê bem em miniatura |
+
+Clipe:
+
+| id | o que é |
+|---|---|
+| `performance` | persona "cantando" em cenário; câmera orbita e alterna planos |
+| `narrativo` | mini-história em 6-12 shots seguindo o arco da letra |
+| `lyric-video` | letra em tipografia animada, um fundo por seção |
+| `abstrato-loop` | visuais que respiram com o BPM; loops curtos por seção |
+
+Para mudar depois do plano pronto, fale em português:
+
+```
+bash musicavideo.sh ajusta <slug> clipe "usa narrativo, menos close em rosto, mais mar e gelo"
+```
 
 ## CAMPOS
 
