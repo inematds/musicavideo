@@ -17,7 +17,12 @@
       "tarefa": "fluxo-agente",
       "prompt": "prompts/fase-plano.md",
       "max_tentativas": 2,
-      "pausa_apos": true
+      "pausa_apos": true,
+      "portao": {
+        "mostrar": [
+          "{{artefato:plano}}"
+        ]
+      }
     },
     {
       "id": "musica",
@@ -27,7 +32,12 @@
       "tarefa": "fluxo-agente",
       "prompt": "prompts/fase-musica.md",
       "max_tentativas": 2,
-      "pausa_apos": true
+      "pausa_apos": true,
+      "portao": {
+        "mostrar": [
+          "{{artefato}}"
+        ]
+      }
     },
     {
       "id": "capa-clipe",
@@ -37,7 +47,12 @@
       "tarefa": "fluxo-agente",
       "prompt": "prompts/fase-capa-clipe.md",
       "max_tentativas": 2,
-      "pausa_apos": true
+      "pausa_apos": true,
+      "portao": {
+        "mostrar": [
+          "{{artefato}}"
+        ]
+      }
     },
     {
       "id": "entrega",

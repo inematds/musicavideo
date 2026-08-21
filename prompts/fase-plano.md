@@ -27,7 +27,13 @@ Execute os passos a seguir, em ordem, de forma autônoma — sem pedir confirma�
 
 ## RESULT / ERRO
 
-- Sucesso: grave em `{{saida}}` um resumo curto — o slug efetivo, o título e o caminho real do `PLANO.md` confirmado no passo 5 — e então a última linha da sua resposta deve ser **exatamente** isto, com o caminho que já está escrito acima, sem substituir por nenhum outro:
+- Sucesso: grave em `{{saida}}` EXATAMENTE três linhas, nesta forma `campo: valor` (o portão do bot lê a linha `plano:` para mandar o plano no chat — sem ela, quem tem que aprovar não recebe nada para ler):
+  ```
+  slug: <o slug efetivo>
+  titulo: <o título do plano>
+  plano: <caminho absoluto do PLANO.md confirmado no passo 5>
+  ```
+  E então a última linha da sua resposta deve ser **exatamente** isto, com o caminho que já está escrito acima, sem substituir por nenhum outro:
   ```
   RESULT: {{saida}}
   ```
