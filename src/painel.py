@@ -68,6 +68,13 @@ def coletar(raiz: Path) -> dict:
         if not w.is_dir():
             continue
         faixa = _faixa(w)
+        versoes = []
+        for v in sorted(w.glob("clipe-*.mp4")):
+            n = v.stem.split("-")[-1]
+            trilha = w / f"faixa-{n}.mp3"
+            versoes.append({"n": n, "clipe": f"musicavideo/{l['slug']}/{v.name}",
+                            "faixa": f"musicavideo/{l['slug']}/{trilha.name}" if trilha.exists() else None,
+                            "aprovada": bool(faixa) and faixa == trilha.name})
         mv.append({
             "fonte": "musicavideo",
             "slug": l.get("slug"),
@@ -84,6 +91,7 @@ def coletar(raiz: Path) -> dict:
             "capa": f"musicavideo/{l['slug']}/capa.png" if (w / "capa.png").exists() else None,
             "clipe": f"musicavideo/{l['slug']}/clipe.mp4" if (w / "clipe.mp4").exists() else None,
             "faixa": f"musicavideo/{l['slug']}/{faixa}" if faixa else None,
+            "versoes": versoes,
             "doc": _texto(w / "PACOTE.md") or _texto(w / "PLANO.md"),
         })
 
@@ -189,7 +197,7 @@ function cardMV(x){const t=x.capa?`<img class=thumb loading=lazy src="${E(x.capa
   `<span class="pill ${v==="pronto"?"ok":(v==="erro"?"err":"")}">${E(k)}: ${E(v)}</span>`).join("");
  return `${t}<div class=b><h3>${E(x.titulo)}</h3>
  <div class=meta>${E(x.genero)}${x.bpm?" · "+E(x.bpm)+" bpm":""}${x.tom?" · "+E(x.tom):""}</div>
- <div>${st}</div></div>`}
+ <div>${st}${(x.versoes||[]).length>1?`<span class=pill>${x.versoes.length} versões</span>`:""}</div></div>`}
 function cardAV(x){const g=(x.paleta||[]).slice(0,5);
  const t=x.video?`<video class=thumb src="${E(x.video)}#t=1" preload=metadata muted></video>`
   :`<div class=thumb style="background:linear-gradient(120deg,${g.length?g.map(E).join(","):"#1a1512,#2b241d"})"></div>`;
@@ -204,10 +212,19 @@ function pinta(){const l=alvo();
   d.innerHTML=aba==="musicavideo"?cardMV(x):cardAV(x);d.onclick=()=>abre(x);grade.appendChild(d)})}
 function abre(x){document.getElementById("dt").textContent=x.titulo||x.slug;
  let h="";
- if(x.clipe)h+=`<video src="${E(x.clipe)}" controls playsinline></video>`;
+ const vs=x.versoes||[];
+ if(vs.length>1){   // o Suno entrega duas faixas: mesmo video, trilhas diferentes
+  h+=`<div class=tabs style="margin-bottom:10px">`+vs.map((v,i)=>
+   `<button class=tab data-v="${i}" aria-selected="${v.aprovada}">faixa ${E(v.n)}${v.aprovada?" ✓":""}</button>`).join("")+`</div>`;
+  vs.forEach((v,i)=>{h+=`<div class=versao data-v="${i}" hidden>
+   <video src="${E(v.clipe)}" controls playsinline preload=none></video>
+   ${v.faixa?`<audio src="${E(v.faixa)}" controls preload=none></audio>`:""}
+   <p class=meta>${E(v.clipe.split("/").pop())} · trilha ${E(v.n)}${v.aprovada?" · aprovada (é o clipe.mp4)":""}</p></div>`});
+ }
+ else if(x.clipe)h+=`<video src="${E(x.clipe)}" controls playsinline></video>`;
  else if(x.video)h+=`<video src="${E(x.video)}" controls playsinline></video>`;
  else if(x.capa)h+=`<img src="${E(x.capa)}">`;
- if(x.faixa)h+=`<audio src="${E(x.faixa)}" controls></audio>`;
+ if(x.faixa&&vs.length<2)h+=`<audio src="${E(x.faixa)}" controls></audio>`;
  if(x.url)h+=`<p><a href="${E(x.url)}" target=_blank rel=noopener>fonte original</a></p>`;
  if(x.resumo)h+=`<p>${E(x.resumo)}</p>`;
  if(x.solicitacao)h+=`<p class=meta>“${E(x.solicitacao)}”</p>`;
@@ -216,7 +233,13 @@ function abre(x){document.getElementById("dt").textContent=x.titulo||x.slug;
  if((x.tags||[]).length)h+=`<div>`+x.tags.map(g=>`<span class=pill>${E(g)}</span>`).join("")+`</div>`;
  h+=`<p class=meta style="margin-top:12px">${E(x.slug)}${x.custo!==undefined?" · US$ "+E(x.custo):""}</p>`;
  if(x.doc)h+=`<pre>${E(x.doc)}</pre>`;
- document.getElementById("dc").innerHTML=h;dlg.showModal()}
+ document.getElementById("dc").innerHTML=h;
+ const dc=document.getElementById("dc"),bts=[...dc.querySelectorAll(".tab")],pns=[...dc.querySelectorAll(".versao")];
+ const mostra=i=>{pns.forEach((p,j)=>{p.hidden=j!==i;if(j!==i){const v=p.querySelector("video");if(v)v.pause()}});
+  bts.forEach((b,j)=>b.setAttribute("aria-selected",j===i))};
+ if(pns.length){bts.forEach((b,i)=>b.onclick=()=>mostra(i));
+  mostra(Math.max(0,vs.findIndex(v=>v.aprovada)))}
+ dlg.showModal()}
 document.getElementById("fecha").onclick=()=>{document.getElementById("dc").innerHTML="";dlg.close()};
 dlg.addEventListener("close",()=>document.getElementById("dc").innerHTML="");
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{

@@ -126,7 +126,7 @@ bash $S painel                  # abre o acervo no navegador (:5400)
 ```
 
 **O painel** (`painel [--porta N] [--lan]`) sobe um servidor local em :5400 — só leitura,
-sem chave nenhuma — com duas abas: os pacotes do musicavideo (capa, clipe,
+sem chave nenhuma — com duas abas: os pacotes do musicavideo (capa, as duas versões do clipe lado a lado,
 faixa aprovada, PACOTE.md, estado por parte) e as análises do
 [analisevideo](https://github.com/inematds/analisevideo) (paleta, look, ritmo,
 tags, analise.md). Busca em tudo, na hora — a página é montada a cada request,
