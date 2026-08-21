@@ -308,6 +308,14 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(corpo)
 
+    def handle_one_request(self):
+        """Fechar o modal aborta o download do vídeo — isso é o navegador
+        trabalhando, não erro. Sem isto o terminal vira um muro de traceback."""
+        try:
+            super().handle_one_request()
+        except (BrokenPipeError, ConnectionResetError):
+            self.close_connection = True
+
     def log_message(self, *a):  # silêncio: o terminal é do usuário
         pass
 
