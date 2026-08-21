@@ -22,6 +22,8 @@ bash $S ver    <slug> [musica|capa|clipe]     # lê o plano
 bash $S ajusta <slug> <parte> "<instrução>"   # replaneja só a parte, mostra diff
 bash $S ok     <slug> <parte>                 # aprova (abre o portão)
 bash $S faz    <slug> [parte] [--sim]         # executa o aprovado (GASTA)
+bash $S monta  <slug> [--completo]           # casa o clipe com CADA faixa (grátis)
+bash $S aprova <slug> musica --faixa 2       # troca a faixa: reaponta o clipe.mp4
 
 # SEM PORTÃO
 bash $S tudo "<solicitação>" [--teto 2] [--sim] [--telegram]
