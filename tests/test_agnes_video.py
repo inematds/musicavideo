@@ -47,6 +47,62 @@ def test_gerar_video_shots_poll_concat(tmp_path, monkeypatch):
     assert len(list((tmp_path / "raw").glob("agnes-shot-*.json"))) == 2
 
 
+# O MVD#89 (2026-08-21): o POST devolve o id, mas o endpoint de status ainda não
+# conhece a task e responde `404 task not found`. O adaptador tratava isso como
+# falha fatal e abortava o shot — quando as tasks abortadas COMPLETARAM em 73s.
+# Vídeo gerado e jogado fora, duas vezes, e o diagnóstico virou "a Agnes caiu",
+# o que levou a trocar de motor e gastar crédito de outro provedor à toa.
+def test_404_no_poll_e_task_ainda_nao_visivel_nao_falha(tmp_path, monkeypatch):
+    from providers.base import ProviderError
+    chamadas = {"polls": 0}
+
+    def fake_http(url, metodo="GET", corpo=None, headers=None, **kw):
+        if metodo == "POST":
+            return {"video_id": "V1"}
+        chamadas["polls"] += 1
+        if chamadas["polls"] <= 3:          # a janela em que a task não existe
+            raise ProviderError('HTTP 404 em .../agnesapi: {"error":{"code":404}}')
+        return {"status": "completed", "video_url": "http://tmp/shot.mp4"}
+
+    monkeypatch.setattr(agnes_mod, "http_json", fake_http)
+    monkeypatch.setattr(agnes_mod, "baixar",
+                        lambda url, destino, **kw: (destino.parent.mkdir(parents=True, exist_ok=True),
+                                                    destino.write_bytes(b"mp4"), destino)[-1])
+    monkeypatch.setattr(agnes_mod, "ler_env_chave", lambda n: "k")
+    monkeypatch.setattr(agnes_mod.time, "sleep", lambda s: None)
+    monkeypatch.setattr(agnes_mod, "concat_ffmpeg",
+                        lambda shots, alvo: (alvo.write_bytes(b"final"), alvo)[-1])
+    decup = [{"n": 1, "secao": "intro", "duracao_s": 5, "camera": "dolly",
+              "descricao": "x", "prompt": "slow dolly-in, 5s"}]
+    r = agnes_mod.criar(DECL).gerar("agnes-video-v2.0",
+                                    {"resolucao": "1312x736", "duracao_shot_s": 5,
+                                     "decupagem": decup}, tmp_path)
+    assert r.meta["shots"] == 1
+    assert chamadas["polls"] == 4      # insistiu nos três 404 e pegou o completed
+
+
+# Erro que NÃO é 404 continua abortando o shot: 401 é chave errada, e insistir
+# nele seria esconder o problema atrás de um timeout de 15 minutos.
+def test_erro_que_nao_e_404_continua_abortando(tmp_path, monkeypatch):
+    import pytest
+    from providers.base import ProviderError
+
+    def fake_http(url, metodo="GET", corpo=None, headers=None, **kw):
+        if metodo == "POST":
+            return {"video_id": "V1"}
+        raise ProviderError("HTTP 401 em .../agnesapi: unauthorized")
+
+    monkeypatch.setattr(agnes_mod, "http_json", fake_http)
+    monkeypatch.setattr(agnes_mod, "ler_env_chave", lambda n: "k")
+    monkeypatch.setattr(agnes_mod.time, "sleep", lambda s: None)
+    decup = [{"n": 1, "secao": "intro", "duracao_s": 5, "camera": "dolly",
+              "descricao": "x", "prompt": "slow dolly-in, 5s"}]
+    with pytest.raises(ProviderError):
+        agnes_mod.criar(DECL).gerar("agnes-video-v2.0",
+                                    {"resolucao": "1312x736", "duracao_shot_s": 5,
+                                     "decupagem": decup}, tmp_path)
+
+
 def test_todos_os_shots_falhando_vira_provider_error(tmp_path, monkeypatch):
     """Um shot falho é pulado; TODOS falhando não dá clipe nenhum."""
     import pytest

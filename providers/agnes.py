@@ -118,7 +118,26 @@ class Agnes(Provider):
         while True:
             if time.time() - inicio > TIMEOUT_POLL_S:
                 raise ProviderError(f"agnes: timeout de polling (15 min) no shot {shot['n']}")
-            st = http_json(f"{AGNES_BASE}/agnesapi?video_id={vid}", headers=self._headers())
+            # 404 NO POLL NÃO É FALHA — é a task ainda não visível no endpoint de
+            # status. O POST já devolveu o id; o backend só registra a task com
+            # algum atraso, e nesse intervalo o status responde
+            # `404 task not found`.
+            #
+            # Custou o MVD#89 (2026-08-21): o shot 9 foi abortado por esse 404
+            # em duas tentativas seguidas, e o diagnóstico virou "a Agnes está
+            # fora do ar" — quando as duas tasks tinham COMPLETADO em 73s. O
+            # vídeo foi gerado e jogado fora, e a conclusão errada levou a uma
+            # troca de motor que gastou crédito de outro provedor.
+            #
+            # Só antes do primeiro `completed`: task que some DEPOIS de ter
+            # aparecido é outra história, e aí o timeout de 15 min fecha.
+            try:
+                st = http_json(f"{AGNES_BASE}/agnesapi?video_id={vid}", headers=self._headers())
+            except ProviderError as e:
+                if "404" in str(e):
+                    time.sleep(10)
+                    continue
+                raise
             if st.get("status") == "completed":
                 url = st.get("video_url") or st.get("url")
                 return baixar(url, workdir / "raw" / f"shot-{shot['n']:02d}.mp4")
