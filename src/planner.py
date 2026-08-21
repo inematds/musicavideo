@@ -468,6 +468,16 @@ def _parse_opts(args: list[str]) -> tuple[list[str], dict]:
     i = 0
     while i < len(args):
         a = args[i]
+        # `--flag=valor` e `--flag valor` são a MESMA coisa. As duas formas são
+        # digitadas, e antes só a segunda funcionava: `--idioma=en-US` não casava
+        # com nada, sobrava nos argumentos livres e virava parte da SOLICITAÇÃO —
+        # ou seja, pedido de idioma virava letra de música, em silêncio. Pior
+        # ainda vindo do chat do bot, onde os campos DELE usam `=` e a mão vai
+        # sozinha (2026-08-21).
+        if a.startswith("--") and "=" in a:
+            nome, _, valor = a.partition("=")
+            args = args[:i] + [nome, valor] + args[i + 1:]
+            a = nome
         if a == "--pesquisa":
             opts["pesquisa"] = True
         elif a == "--forca":

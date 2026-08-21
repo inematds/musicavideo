@@ -79,6 +79,27 @@ def test_contexto_leva_o_idioma_ao_planejador(outdir):
 # Portão, não aviso. Em 2026-08-21, com a Agnes fora do ar no meio de um clipe,
 # um `--motor clipe=kling:...` "óbvio" queimou 105 créditos da conta do dono
 # antes de alguém perceber. Trocar para provedor que gasta é decisão dele.
+# `--flag=valor` e `--flag valor` são a mesma coisa. Antes só a segunda
+# funcionava: `--idioma=en-US` sobrava nos argumentos livres e virava parte da
+# SOLICITAÇÃO — pedido de idioma virando letra de música, em silêncio.
+def test_flag_com_igual_e_com_espaco_sao_iguais():
+    import shlex
+    from src.planner import _parse_opts
+    com_igual = _parse_opts(shlex.split('balada --idioma=en-US --estilo=anthem-pop-rock'))
+    com_espaco = _parse_opts(shlex.split('balada --idioma en-US --estilo anthem-pop-rock'))
+    assert com_igual == com_espaco
+    assert com_igual == (['balada'], {'idioma': 'en-US', 'estilo': 'anthem-pop-rock'})
+
+
+# O `--motor` tem `=` no PRÓPRIO valor (`parte=provedor:modelo`): a divisão é no
+# primeiro `=`, senão a forma com igual comeria a parte.
+def test_motor_com_igual_nao_perde_a_parte():
+    import shlex
+    from src.planner import _parse_opts
+    _, opts = _parse_opts(shlex.split('x --motor=clipe=kling:kling-v2_5'))
+    assert opts['motor'] == {'clipe': 'kling:kling-v2_5'}
+
+
 def test_motor_pago_exige_autorizacao():
     from src.planner import exigir_autorizacao_de_motor
     import pytest as _p

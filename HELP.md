@@ -1,6 +1,8 @@
 /musicavideo — uma frase vira música + capa + clipe, planejados juntos.
 
 Uso: /musicavideo balada pop sobre recomeço
+     /musicavideo <descrição> [--idioma en-US] [--estilo <id>] [--letra <arq>]
+     (todos os parâmetros: /musicavideo help campos)
 
 Fases (cada uma para e espera /aprovar, menos a última):
   1. plano       (fila texto)  → PLANO.md no chat · NÃO gasta nada
@@ -100,13 +102,33 @@ musica --faixa 2`, que só reaponta, sem re-render e sem custo.
 
 ## CAMPOS
 
-Escreva depois de um `|` no fim da mensagem (ou `--campo=valor` em qualquer
-lugar):
+São dois conjuntos, e os dois podem ir na mesma mensagem.
 
-  | de=<fase>    começa nessa fase — plano, musica, capa-clipe, entrega
-  | sem-portao   não para para você aprovar (vai até o fim de uma vez)
-  | versao=N     versão do assunto
-  | sombra       mostra o plano de execução sem enfileirar nada
+**1. Parâmetros da MÚSICA** (deste projeto) — escreva junto com a descrição, em
+qualquer lugar. Aceitam `--flag valor` e `--flag=valor`:
+
+```
+/musicavideo balada sobre recomeço --idioma en-US --estilo anthem-pop-rock
+```
+
+| parâmetro | o que faz |
+|---|---|
+| `--idioma X` | idioma da letra (default `pt-BR`) — ex.: `en-US`, `es-ES` |
+| `--estilo X` | força um estilo do `data/estilos.json` (ver `/musicavideo help estilos`) |
+| `--letra <arq>` | usa a sua letra como RASCUNHO; o `PLANO.md` mostra o diff do que mudou |
+| `--letra-final` | com `--letra`, a letra vira LEI: nem o `ajusta` mexe |
+| `--pesquisa` | pesquisa antes de planejar (custa tempo; desligado por default) |
+| `--motor parte=prov:modelo` | troca o motor de uma parte (ver `/musicavideo help padroes`) |
+| `--autorizo-pago` | obrigatório junto com `--motor` para `kie`, `kling` ou `fal` — eles gastam crédito ou dinheiro |
+
+**2. Campos do BOT** — depois de um `|` no fim da mensagem, ou `--campo=valor`:
+
+| campo | o que faz |
+|---|---|
+| `\| de=<fase>` | começa nessa fase — `plano`, `musica`, `capa-clipe`, `entrega` |
+| `\| sem-portao` | não para para você aprovar (vai até o fim de uma vez) |
+| `\| versao=N` | versão do assunto |
+| `\| sombra` | mostra o plano de execução sem enfileirar nada |
 
 Não existem aqui: `| alvos=` (o fluxo tem um público só, `unico`) e
 `| legenda=` (é campo de reel do promoavatar; nada nesta definição usa).
