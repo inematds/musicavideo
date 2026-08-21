@@ -59,6 +59,27 @@ def test_render_md_mostra_indisponivel(plano_ok):
     assert "indisponível" in md and "KIE_API_KEY" in md
 
 
+# O PLANO.md tem que sair mesmo quando `musica.estrutura` vem como lista de
+# dicts. O esquema só exige lista, e o planejador é livre para detalhar a seção
+# com tempos — foi o que o Fable devolveu no MVD#87 (2026-08-21), e o
+# `' · '.join` estourou TypeError DEPOIS de gravar o plano.json: trabalho caro
+# feito, fase falhada na formatação, duas tentativas queimadas.
+def test_render_md_aceita_estrutura_detalhada(plano_ok):
+    plano = dict(plano_ok)
+    plano["musica"] = dict(plano_ok["musica"])
+    plano["musica"]["estrutura"] = [
+        {"secao": "intro", "inicio_s": 0, "duracao_s": 15},
+        {"secao": "verso1", "inicio_s": 15, "duracao_s": 25},
+    ]
+    md = render_plano_md(plano, {})
+    assert "intro (15s)" in md and "verso1 (25s)" in md
+
+
+def test_render_md_continua_aceitando_estrutura_simples(plano_ok):
+    md = render_plano_md(plano_ok, {})
+    assert "intro · verso 1" in md
+
+
 def test_clipe_mais_curto_que_a_musica_e_rejeitado(outdir, plano_ok):
     """Clipe que não cobre a faixa vira vídeo em loop — não é um clipe."""
     from src.planner import cobertura_do_clipe

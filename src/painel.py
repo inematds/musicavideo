@@ -290,7 +290,7 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 def cmd_painel(args: list[str]) -> int:
-    porta, host = 5300, "127.0.0.1"
+    porta, host = int(os.environ.get("MUSICAVIDEO_PAINEL_PORTA", 5400)), "127.0.0.1"
     resto = []
     i = 0
     while i < len(args):
@@ -315,7 +315,19 @@ def cmd_painel(args: list[str]) -> int:
         print(f"não achei a pasta de acervo: {raiz}", file=sys.stderr)
         return 1
     d = coletar(raiz)
-    srv = ThreadingHTTPServer((host, porta), partial(Handler, directory=str(raiz)))
+    srv, pedida = None, porta
+    for tentativa in range(porta, porta + 12):     # porta ocupada nao e motivo pra falhar
+        try:
+            srv = ThreadingHTTPServer((host, tentativa), partial(Handler, directory=str(raiz)))
+            porta = tentativa
+            break
+        except OSError:
+            continue
+    if srv is None:
+        print(f"portas {pedida}..{pedida + 11} ocupadas — use --porta N", file=sys.stderr)
+        return 1
+    if porta != pedida:
+        print(f"{pedida} ocupada — subindo na {porta}")
     visivel = host if host != "0.0.0.0" else (socket.gethostbyname(socket.gethostname()))
     print(f"painel em http://{visivel}:{porta}   "
           f"({len(d['musicavideo'])} pacotes · {len(d['analisevideo'])} análises)")

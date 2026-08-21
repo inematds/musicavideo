@@ -117,10 +117,10 @@ bash $S plano "sertanejo" --letra final.txt --letra-final   # lei: ninguém mexe
 bash $S lista 10
 bash $S busca "rock"
 bash $S custo recomeco
-bash $S painel                  # abre o acervo no navegador (:5300)
+bash $S painel                  # abre o acervo no navegador (:5400)
 ```
 
-**O painel** (`painel [--porta N] [--lan]`) sobe um servidor local — só leitura,
+**O painel** (`painel [--porta N] [--lan]`) sobe um servidor local em :5400 — só leitura,
 sem chave nenhuma — com duas abas: os pacotes do musicavideo (capa, clipe,
 faixa aprovada, PACOTE.md, estado por parte) e as análises do
 [analisevideo](https://github.com/inematds/analisevideo) (paleta, look, ritmo,

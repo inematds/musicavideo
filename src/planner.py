@@ -59,7 +59,7 @@ def montar_contexto(solicitacao: str, opts: dict, outdir: Path) -> str:
         "Você é o planejador do musicavideo. Responda APENAS um JSON no schema plano.json v1 "
         "(schema_version, slug, criado_em, solicitacao, pesquisa, estilo_ref, titulo, musica, capa, clipe).",
         "Estrutura exata: musica{motor,params,estilo{genero,bpm,tom,mood,instrumentacao,voz,prompt_estilo},"
-        "estrutura,letra{origem,texto,texto_original,idioma}}; capa{motor,params,template,conceito,"
+        "estrutura[{secao,inicio_s,duracao_s}],letra{origem,texto,texto_original,idioma}}; capa{motor,params,template,conceito,"
         "prompt_imagem,prompt_negativo,paleta}; clipe{motor,params,template,sincronia,"
         "decupagem[{n,secao,duracao_s,camera,descricao,prompt,prompt_alt}]}. NENHUM campo a mais.",
         "PLANO B: cada shot leva também `prompt_alt` — a MESMA cena e a mesma duração "
@@ -222,7 +222,7 @@ def render_secao(plano: dict, parte: str) -> str:
                   f"- **Voz:** {json.dumps(e['voz'], ensure_ascii=False)}",
                   f"- **Params:** `{json.dumps(m['params'], ensure_ascii=False)}`", "",
                   "**Prompt de estilo (EN, vai pro Suno):**", "", f"> {e['prompt_estilo']}", "",
-                  f"**Estrutura:** {' · '.join(m['estrutura'])}", "",
+                  f"**Estrutura:** {_estrutura_txt(m['estrutura'])}", "",
                   f"**Letra** (origem: `{m['letra']['origem']}`, {m['letra']['idioma']}):", "",
                   "```", m["letra"]["texto"], "```"]
         d = diff_letra(plano)
@@ -250,6 +250,29 @@ def render_secao(plano: dict, parte: str) -> str:
     for s in v["decupagem"]:
         linhas.append(f"{s['n']}. {s['prompt']}")
     return "\n".join(linhas)
+
+
+def _estrutura_txt(estrutura: list) -> str:
+    """`musica.estrutura` aceita string ou dict — e o PLANO.md tem que sair dos dois.
+
+    O esquema só exige que seja LISTA (`_listas`), e o schema mandado ao
+    planejador não diz a forma dos itens. Em 2026-08-21 o Fable devolveu
+    `[{"secao": "intro", "inicio_s": 0, "duracao_s": 15}, ...]` — plano válido,
+    plano.json gravado, e o `' · '.join` estourou `TypeError` na hora de
+    escrever o PLANO.md. O fluxo MVD#87 queimou as duas tentativas nisso.
+
+    Falhar aqui é o pior lugar possível: o trabalho caro (a chamada ao modelo,
+    a validação, o plano em disco) já aconteceu, e o que quebra é a formatação.
+    """
+    partes = []
+    for item in estrutura:
+        if isinstance(item, dict):
+            nome = item.get("secao") or item.get("nome") or item.get("id") or "?"
+            dur = item.get("duracao_s") or item.get("duracao")
+            partes.append(f"{nome} ({dur}s)" if dur else str(nome))
+        else:
+            partes.append(str(item))
+    return " · ".join(partes)
 
 
 def render_plano_md(plano: dict, disp: dict) -> str:
