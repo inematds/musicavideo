@@ -53,6 +53,11 @@ câmera, descrição e prompt próprio para cada um. Mais shots nos refrões. E 
 **Gera de verdade** — faixa no Suno, capa e vídeo no Agnes, shots concatenados e
 **casados com a música** por ffmpeg. Sai um clipe, não três arquivos soltos.
 
+**Faz o clipe com as duas músicas** — o Suno entrega duas faixas pelo mesmo
+preço, então o mesmo vídeo é casado com cada uma: `clipe-1.mp4` e `clipe-2.mp4`.
+`clipe.mp4` é a versão da faixa aprovada — trocar de faixa depois (`aprova
+<slug> musica --faixa 2`) só reaponta, sem re-render e sem custo.
+
 **Deixa você aprovar duas vezes** — o plano, e depois o artefato gerado. Escolhe
 entre as duas faixas que o Suno produz, reprova shots pelo número numa folha de
 contato, regenera só o que não prestou.

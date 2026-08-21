@@ -71,23 +71,26 @@ def faixa_aprovada(w: Path, estado: dict | None = None) -> Path | None:
 
 
 def _montar_com_a_faixa(w: Path, r, plano: dict):
-    """Um clipe sem a música é só um vídeo. Se a faixa já existe, ela entra."""
-    from src.montagem import montar, MontagemError
-    faixa = faixa_aprovada(w)
-    if faixa is None or not faixa.exists():
-        print("clipe: faixa.mp3 ainda não existe — clipe fica com o áudio dos shots. "
+    """Um clipe sem a música é só um vídeo. Cada faixa vira uma versão do MESMO
+    vídeo — o Suno entrega duas e você só descobre qual serve ouvindo as duas."""
+    from src.montagem import montar_todas, faixas_existentes, MontagemError
+    if not faixas_existentes(w):
+        print("clipe: nenhuma faixa ainda — clipe fica com o áudio dos shots. "
               "Depois de `faz <slug> musica`, rode `musicavideo monta <slug>`.")
         return r
+    estado = carregar_estado(w)
     bruto = w / "raw" / "clipe-sem-musica.mp4"
     r.arquivo.replace(bruto)
     try:
-        meta = montar(bruto, faixa, w / "clipe.mp4",
-                      cobrir_musica=bool(plano["clipe"].get("params", {}).get("cobrir_musica")))
-    except MontagemError as e:
+        meta = montar_todas(w, bruto,
+                            cobrir_musica=bool(plano["clipe"].get("params", {}).get("cobrir_musica")),
+                            aprovada=estado["partes"]["musica"].get("artefato"))
+    except MontagemError:
         bruto.replace(r.arquivo)
         raise
+    versoes = ", ".join(meta["versoes"].values())
     print(f"clipe: música casada ({meta['duracao_final_s']}s"
-          f"{', vídeo em loop' if meta['video_em_loop'] else ''})")
+          f"{', vídeo em loop' if meta['video_em_loop'] else ''}) — versões: {versoes}")
     r.arquivo = w / "clipe.mp4"
     r.meta.update(meta)
     return r
@@ -268,22 +271,32 @@ def cmd_monta(args) -> int:
               file=sys.stderr)
         return 1
     w = out_dir() / livres[0]
-    faixa, clipe = faixa_aprovada(w), w / "clipe.mp4"
-    if not (faixa and faixa.exists() and clipe.exists()):
-        faltam = [n for n, f in (("a faixa", faixa), ("clipe.mp4", clipe))
-                  if not (f and f.exists())]
+    from src.montagem import faixas_existentes, montar_todas
+    faixas, clipe = faixas_existentes(w), w / "clipe.mp4"
+    bruto = w / "raw" / "clipe-sem-musica.mp4"
+    if not faixas or not (clipe.exists() or bruto.exists()):
+        faltam = [n for n, ok in (("a faixa", bool(faixas)),
+                                  ("o clipe", clipe.exists() or bruto.exists())) if not ok]
         print(f"erro: falta {', '.join(faltam)} em {w}", file=sys.stderr)
         return 1
-    bruto = w / "raw" / "clipe-sem-musica.mp4"
     if not bruto.exists():
         clipe.replace(bruto)
     try:
-        meta = montar(bruto, faixa, clipe, cobrir_musica=bool(opts.get("completo")))
+        estado = carregar_estado(w)
+        aprovada = estado["partes"]["musica"].get("artefato")
+    except (OSError, ValueError, KeyError):
+        aprovada = None
+    try:
+        meta = montar_todas(w, bruto, cobrir_musica=bool(opts.get("completo")),
+                            aprovada=aprovada)
     except MontagemError as err:
         print(f"erro: {err}", file=sys.stderr)
         return 1
-    print(f"clipe montado com a música: {clipe} "
-          f"({meta['duracao_final_s']}s{', vídeo em loop' if meta['video_em_loop'] else ''})")
+    for faixa, versao in meta["versoes"].items():
+        print(f"  {faixa} -> {versao}")
+    print(f"clipe montado com a música ({meta['duracao_final_s']}s"
+          f"{', vídeo em loop' if meta['video_em_loop'] else ''}); "
+          f"clipe.mp4 = {meta.get('faixa_principal', 'faixa.mp3')}")
     return 0
 
 
@@ -357,6 +370,11 @@ def cmd_aprova(args) -> int:
             return 1
         estado["partes"]["musica"]["artefato"] = escolhida.name
         estado["partes"]["musica"]["meta"]["escolhida"] = escolhida.name
+        versao = w / f"clipe-{int(opts['faixa'])}.mp4"
+        if versao.exists():          # o clipe dessa faixa já existe: só reaponta
+            from src.montagem import apontar_clipe
+            apontar_clipe(w, versao)
+            print(f"clipe.mp4 agora é o {versao.name} (sem re-render, sem custo)")
     try:
         transicao(estado, parte, "aprova")
     except TransicaoInvalida as e:
@@ -401,10 +419,14 @@ def cmd_reprova(args) -> int:
         if parte == "clipe":     # reprovou o clipe todo: fora com os shots
             for s_ in (w / "raw").glob("shot-*.mp4"):
                 s_.unlink()
+            for v in w.glob("clipe-*.mp4"):
+                v.unlink()
             (w / "raw" / "clipe-sem-musica.mp4").unlink(missing_ok=True)
         if parte == "musica":    # nova geração custa: avisa
             for f in w.glob("faixa-*.mp3"):
                 f.unlink()
+            for v in list(w.glob("clipe-*.mp4")) + [w / "clipe.mp4"]:
+                v.unlink(missing_ok=True)      # carregam o áudio reprovado
             print("as faixas foram descartadas — o próximo `faz` gera de novo (~US$ 0,08)")
     try:
         transicao(estado, parte, "reprova")

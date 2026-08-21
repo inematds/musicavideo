@@ -80,3 +80,61 @@ def test_faixa_de_slug_antigo_ainda_e_encontrada(tmp_path):
 def test_sem_faixa_nenhuma_devolve_none(tmp_path):
     from src.executor import faixa_aprovada
     assert faixa_aprovada(tmp_path, None) is None
+
+
+# --------------------------------------------------- uma versão do clipe por faixa
+
+def test_monta_uma_versao_por_faixa_e_aponta_pra_aprovada(tmp_path):
+    """O Suno entrega duas faixas: o mesmo vídeo vira duas versões, e `clipe.mp4`
+    é a da faixa aprovada — sem re-render, sem custo."""
+    from src.montagem import montar_todas
+    _video_mudo(tmp_path / "bruto.mp4", 4)
+    _audio(tmp_path / "faixa-1.mp3", 6)
+    _audio(tmp_path / "faixa-2.mp3", 10)
+    meta = montar_todas(tmp_path, tmp_path / "bruto.mp4", cobrir_musica=True,
+                        aprovada="faixa-2.mp3")
+    assert meta["versoes"] == {"faixa-1.mp3": "clipe-1.mp4", "faixa-2.mp3": "clipe-2.mp4"}
+    assert (tmp_path / "clipe-1.mp4").exists() and (tmp_path / "clipe-2.mp4").exists()
+    # cada faixa tem a sua duração: são passadas de ffmpeg diferentes, não cópia
+    assert _ffprobe_duracao(tmp_path / "clipe-1.mp4") == pytest.approx(6, abs=0.5)
+    assert _ffprobe_duracao(tmp_path / "clipe-2.mp4") == pytest.approx(10, abs=0.5)
+    assert meta["faixa_principal"] == "faixa-2.mp3"
+    assert _ffprobe_duracao(tmp_path / "clipe.mp4") == pytest.approx(10, abs=0.5)
+
+
+def test_faixa_unica_do_first_success_nao_e_erro(tmp_path):
+    """Status FIRST_SUCCESS entrega só a faixa 1 — sai um clipe, sem estourar."""
+    from src.montagem import montar_todas
+    _video_mudo(tmp_path / "bruto.mp4", 3)
+    _audio(tmp_path / "faixa-1.mp3", 5)
+    meta = montar_todas(tmp_path, tmp_path / "bruto.mp4")
+    assert meta["versoes"] == {"faixa-1.mp3": "clipe-1.mp4"}
+    assert meta["principal"] == "clipe.mp4" and (tmp_path / "clipe.mp4").exists()
+
+
+def test_slug_antigo_com_faixa_mp3_continua_saindo_em_clipe_mp4(tmp_path):
+    from src.montagem import montar_todas
+    _video_mudo(tmp_path / "bruto.mp4", 3)
+    _audio(tmp_path / "faixa.mp3", 4)
+    meta = montar_todas(tmp_path, tmp_path / "bruto.mp4")
+    assert meta["versoes"] == {"faixa.mp3": "clipe.mp4"}
+    assert not list(tmp_path.glob("clipe-*.mp4"))
+
+
+def test_trocar_a_faixa_aprovada_reaponta_sem_novo_render(tmp_path):
+    from src.montagem import montar_todas, apontar_clipe
+    _video_mudo(tmp_path / "bruto.mp4", 4)
+    _audio(tmp_path / "faixa-1.mp3", 6)
+    _audio(tmp_path / "faixa-2.mp3", 10)
+    montar_todas(tmp_path, tmp_path / "bruto.mp4", cobrir_musica=True, aprovada="faixa-1.mp3")
+    antes = (tmp_path / "clipe-2.mp4").stat().st_mtime_ns
+    apontar_clipe(tmp_path, tmp_path / "clipe-2.mp4")
+    assert (tmp_path / "clipe-2.mp4").stat().st_mtime_ns == antes      # não re-renderizou
+    assert _ffprobe_duracao(tmp_path / "clipe.mp4") == pytest.approx(10, abs=0.5)
+
+
+def test_sem_faixa_nenhuma_estoura_montagem_error(tmp_path):
+    from src.montagem import montar_todas
+    _video_mudo(tmp_path / "bruto.mp4", 2)
+    with pytest.raises(MontagemError):
+        montar_todas(tmp_path, tmp_path / "bruto.mp4")

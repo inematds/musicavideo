@@ -22,7 +22,7 @@ USO = """uso: musicavideo <comando> ...
   aprova  <slug> <parte> [--faixa N]  # fecha a parte
   reprova <slug> <parte> ["4,17,23"]  # descarta e devolve pro faz
   tudo "<solicitação>" [--teto N] [demais flags de plano] [--sim] [--telegram]
-  monta <slug> [--completo]      # casa o clipe com a faixa (não gasta)
+  monta <slug> [--completo]      # casa o clipe com CADA faixa (não gasta)
   custo <slug> | lista [N] | busca "<termo>" | reindex
   painel [--porta N] [--lan]     # navegador: acervo do musicavideo + analisevideo"""
 
