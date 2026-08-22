@@ -7,6 +7,8 @@ cada parte, e sem gastar nada até você mandar gastar.
 bash musicavideo.sh plano "música de virada, rock feminino, sobre quem constrói em silêncio e agora cobra"
 ```
 
+Melhorias pedidas e ainda não feitas: [`docs/MELHORIAS.md`](docs/MELHORIAS.md).
+
 ## 📖 Documentação
 
 | | |
