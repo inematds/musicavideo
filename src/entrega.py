@@ -87,9 +87,14 @@ def montar_publicacao(outdir: Path, slug: str) -> Path | None:
     plano = json.loads((w / "plano.json").read_text(encoding="utf-8"))
     descricao = ((plano.get("publicacao") or {}).get("descricao") or "").strip()
     if not descricao:
+        # NÃO aponta para `ajusta`: ele só conhece musica|capa|clipe (partes com
+        # máquina de estados), e mandar para lá seria mandar para um "parte
+        # inválida". O bloco é editável no plano.json, ou vem de um replanejamento.
         print("publicação: o plano não tem `publicacao.descricao` — sem pacote de "
               "canal (o destino teria que inventar a descrição). "
-              f"Ajuste com: musicavideo ajusta {slug} ...")
+              f"Escreva o bloco em {w / 'plano.json'} "
+              '(publicacao: {"descricao": "..."}) e rode `musicavideo pacote '
+              f"{slug}`, ou replaneje.")
         return None
     clipe = w / "clipe.mp4"
     if not clipe.exists():
