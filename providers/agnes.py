@@ -239,7 +239,11 @@ class Agnes(Provider):
         total = len(decupagem)
 
         def _progresso() -> None:
-            print(f"progresso: {len(feitos)}/{total} shots", flush=True)
+            # "quantos já foram" E "quantos faltam": o segundo é o que decide se
+            # vale retomar, e obrigar quem lê a subtrair de cabeça no celular é
+            # pedir demais.
+            falta = total - len(feitos)
+            print(f"progresso: {len(feitos)}/{total} · faltam {falta}", flush=True)
 
         for i, shot in enumerate(decupagem):
             n = shot["n"]
