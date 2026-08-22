@@ -187,6 +187,33 @@ No fim: falha se sobrarem menos de 80% dos shots; senão `ffmpeg concat -c copy`
 
 ---
 
+## Fase 2.4 — arte da capa
+
+**Comando:** automático no `faz capa`, ou `musicavideo arte <slug> ["<título>"]`
+**Custo:** zero.
+
+O gerador de imagem entrega o **fundo**; o título é escrito por cima aqui, por
+função — nada de modelo decidindo onde o texto cai.
+
+**Passos:**
+
+1. Guarda a imagem paga em `raw/capa-crua.png`. A composição sempre parte dela, então recompor não empilha texto sobre texto.
+2. Lê a `tipografia` do template escolhido em `data/templates-capa.json` — fonte, posição (topo/centro/base), quanto da largura ocupar, caixa, entrelinha, tracking e tratamento de contraste. **É o domínio que declara**; a função obedece.
+3. Quebra o título em até N linhas minimizando a linha mais larga (é ela que define o corpo da fonte), e acha o corpo por busca binária até bater a largura-alvo.
+4. Escolhe a cor no meio da paleta do plano — mas só se ela render pelo menos 4.5:1 contra o pedaço de imagem onde o texto vai cair. Senão, branco ou preto, o que ler melhor.
+5. Aplica o contraste declarado: `scrim` (faixa escura atrás), `gradiente` (degradê no topo ou na base), `sombra` ou `nenhum`.
+6. Falhou a composição? A capa **paga** não se perde: entrega a crua com o aviso.
+
+As fontes viajam com o repo (`data/fontes/`) — Anton, Bebas Neue, Montserrat
+Black e DejaVu Sans Bold como último recurso; nada de depender das fontes da
+máquina.
+
+> `tipografia-dominante` não pede mais texto ao gerador (e proíbe no negativo):
+> quem escreve o título de 60%+ do quadro é esta fase. Antes, o gerador desenhava
+> garatuja de letra e a composição brigava com ela.
+
+---
+
 ## Fase 2.5 — montagem
 
 **Comando:** automático no `faz clipe`, ou `musicavideo monta <slug> [--completo]`

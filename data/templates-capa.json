@@ -1,41 +1,104 @@
 {
-  "schema_version": "1",
-  "templates": [
-    {
-      "id": "tipografia-dominante",
-      "nome": "Tipografia dominante",
-      "descricao": "título enorme ocupa 60%+ do quadro; fundo texturizado simples",
-      "composicao": "título centralizado, fundo gradiente/textura, sem figura humana",
-      "quando_usar": ["música conceitual", "eletrônica", "sem persona"],
-      "prompt_base": "album cover, massive bold typography as the main subject, textured gradient background, {paleta}, minimal, 1:1",
-      "negativo_base": "faces, photo, watermark"
-    },
-    {
-      "id": "retrato-centralizado",
-      "nome": "Retrato centralizado",
-      "descricao": "artista/persona no centro do quadro, luz dramática, espaço pro título em cima ou embaixo",
-      "composicao": "retrato frontal ou 3/4 centralizado, fundo desfocado ou sólido, título fora do rosto",
-      "quando_usar": ["música com persona forte", "voz lead marcante", "pop", "MPB"],
-      "prompt_base": "album cover, centered dramatic portrait of {persona}, {luz}, shallow depth of field, {paleta}, space for bold title, cinematic, 1:1",
-      "negativo_base": "text, watermark, logo, extra limbs"
-    },
-    {
-      "id": "paisagem-simbolica",
-      "nome": "Paisagem simbólica",
-      "descricao": "cena ou paisagem que simboliza o tema central da letra, sem figura humana em destaque",
-      "composicao": "paisagem/cena em plano aberto, horizonte na regra dos terços, título integrado ao céu ou área vazia",
-      "quando_usar": ["letra temática/narrativa", "instrumental", "ambient", "trilha"],
-      "prompt_base": "album cover, wide symbolic landscape of {simbolo}, {clima}, {paleta}, cinematic lighting, negative space for title, 1:1",
-      "negativo_base": "text, watermark, logo, people in foreground"
-    },
-    {
-      "id": "minimal-abstrato",
-      "nome": "Minimal abstrato",
-      "descricao": "formas geométricas ou abstratas em 2-3 cores; leitura instantânea em thumbnail",
-      "composicao": "1 forma dominante no centro ou em terço, fundo chapado, máximo 3 cores",
-      "quando_usar": ["eletrônica", "lo-fi", "conceitual", "séries/coleções de faixas"],
-      "prompt_base": "album cover, minimal abstract geometric composition, {formas}, flat background, exactly {paleta}, high contrast, 1:1",
-      "negativo_base": "text, watermark, photo, gradient noise, clutter"
-    }
-  ]
+ "schema_version": "1",
+ "templates": [
+  {
+   "id": "tipografia-dominante",
+   "nome": "Tipografia dominante",
+   "descricao": "título enorme ocupa 60%+ do quadro; fundo texturizado simples",
+   "composicao": "fundo texturizado sem nenhum texto gerado; o título é composto depois pelo próprio musicavideo e ocupa 60%+ do quadro",
+   "quando_usar": [
+    "música conceitual",
+    "eletrônica",
+    "sem persona"
+   ],
+   "prompt_base": "album cover background only, rich textured gradient surface, grain and subtle geometry, {paleta}, minimal, large empty center for a title, 1:1",
+   "negativo_base": "text, letters, typography, words, faces, photo, watermark, logo",
+   "tipografia": {
+    "fonte": "Anton-Regular.ttf",
+    "posicao": "centro",
+    "largura_alvo": 0.82,
+    "alinhamento": "centro",
+    "caixa_alta": true,
+    "max_linhas": 3,
+    "entrelinha": 0.92,
+    "tracking": 0.0,
+    "contraste": "scrim"
+   }
+  },
+  {
+   "id": "retrato-centralizado",
+   "nome": "Retrato centralizado",
+   "descricao": "artista/persona no centro do quadro, luz dramática, espaço pro título em cima ou embaixo",
+   "composicao": "retrato frontal ou 3/4 centralizado, fundo desfocado ou sólido, título fora do rosto",
+   "quando_usar": [
+    "música com persona forte",
+    "voz lead marcante",
+    "pop",
+    "MPB"
+   ],
+   "prompt_base": "album cover, centered dramatic portrait of {persona}, {luz}, shallow depth of field, {paleta}, space for bold title, cinematic, 1:1",
+   "negativo_base": "text, watermark, logo, extra limbs",
+   "tipografia": {
+    "fonte": "BebasNeue-Regular.ttf",
+    "posicao": "base",
+    "largura_alvo": 0.72,
+    "alinhamento": "centro",
+    "caixa_alta": true,
+    "max_linhas": 2,
+    "entrelinha": 0.95,
+    "tracking": 0.04,
+    "contraste": "gradiente"
+   }
+  },
+  {
+   "id": "paisagem-simbolica",
+   "nome": "Paisagem simbólica",
+   "descricao": "cena ou paisagem que simboliza o tema central da letra, sem figura humana em destaque",
+   "composicao": "paisagem/cena em plano aberto, horizonte na regra dos terços, título integrado ao céu ou área vazia",
+   "quando_usar": [
+    "letra temática/narrativa",
+    "instrumental",
+    "ambient",
+    "trilha"
+   ],
+   "prompt_base": "album cover, wide symbolic landscape of {simbolo}, {clima}, {paleta}, cinematic lighting, negative space for title, 1:1",
+   "negativo_base": "text, watermark, logo, people in foreground",
+   "tipografia": {
+    "fonte": "Montserrat-Black.ttf",
+    "posicao": "topo",
+    "largura_alvo": 0.66,
+    "alinhamento": "centro",
+    "caixa_alta": true,
+    "max_linhas": 2,
+    "entrelinha": 1.05,
+    "tracking": 0.02,
+    "contraste": "sombra"
+   }
+  },
+  {
+   "id": "minimal-abstrato",
+   "nome": "Minimal abstrato",
+   "descricao": "formas geométricas ou abstratas em 2-3 cores; leitura instantânea em thumbnail",
+   "composicao": "1 forma dominante no centro ou em terço, fundo chapado, máximo 3 cores",
+   "quando_usar": [
+    "eletrônica",
+    "lo-fi",
+    "conceitual",
+    "séries/coleções de faixas"
+   ],
+   "prompt_base": "album cover, minimal abstract geometric composition, {formas}, flat background, exactly {paleta}, high contrast, 1:1",
+   "negativo_base": "text, watermark, photo, gradient noise, clutter",
+   "tipografia": {
+    "fonte": "Montserrat-Black.ttf",
+    "posicao": "base",
+    "largura_alvo": 0.55,
+    "alinhamento": "esquerda",
+    "caixa_alta": true,
+    "max_linhas": 2,
+    "entrelinha": 1.05,
+    "tracking": 0.08,
+    "contraste": "nenhum"
+   }
+  }
+ ]
 }

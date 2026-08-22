@@ -12,7 +12,8 @@ def test_templates_capa():
                    "paisagem-simbolica", "minimal-abstrato"}
     for t in d["templates"]:
         assert set(t) == {"id", "nome", "descricao", "composicao",
-                          "quando_usar", "prompt_base", "negativo_base"}
+                          "quando_usar", "prompt_base", "negativo_base",
+                          "tipografia"}
 
 
 def test_templates_clipe():

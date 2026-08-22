@@ -19,6 +19,7 @@ atuar e refazer**, **como a busca funciona**, **como o planejamento decide**, e
 | — | portão | `ok <slug> <parte>` | não | destrava a execução |
 | 2 | execução | `faz <slug> [parte]` | **sim** (só a música) | sim, com `--refaz` |
 | 2.2 | **revisão do artefato** | `revisa` / `aprova` / `reprova` | não | sim, sempre |
+| 2.4 | arte da capa | automática, ou `arte <slug>` | não | sim, sempre |
 | 2.5 | montagem | automática, ou `monta <slug>` | não | sim, sempre |
 | 3 | entrega | automática | não | — |
 

@@ -96,6 +96,35 @@ def _montar_com_a_faixa(w: Path, r, plano: dict):
     return r
 
 
+def _compor_arte_da_capa(w: Path, r, plano: dict):
+    """A imagem do gerador é o FUNDO; a capa é ela com o título escrito por cima.
+
+    A crua fica guardada em `raw/capa-crua.png` — recompor a arte é de graça,
+    gerar imagem de novo não é. Se a composição falhar, a capa paga continua
+    valendo: entrega-se a crua com o aviso, em vez de perder a geração."""
+    from src.arte import compor_capa, ArteError
+    bruta = w / "raw" / "capa-crua.png"
+    bruta.parent.mkdir(parents=True, exist_ok=True)
+    origem = r.arquivo
+    destino = w / "capa.png"
+    try:
+        bruta.write_bytes(origem.read_bytes())
+        compor_capa(bruta, plano.get("titulo", ""), plano["capa"].get("paleta"),
+                    plano["capa"].get("template", ""), destino)
+    except (ArteError, OSError, ValueError) as e:
+        print(f"capa: sem a camada de tipografia ({e}) — entregando a imagem crua")
+        if origem != destino:
+            origem.replace(destino)
+        r.arquivo = destino
+        return r
+    print(f"capa: título composto sobre a imagem (crua em {bruta.name})")
+    if origem != destino and origem.exists():
+        origem.unlink()
+    r.arquivo = destino
+    r.meta["arte_composta"] = True
+    return r
+
+
 def faz(outdir, slug, partes=None, sim=False, telegram=False,
         motor_override=None, reg=None, sem_revisao=False, aprovar=False) -> int:
     outdir = Path(outdir)
@@ -208,6 +237,8 @@ def faz(outdir, slug, partes=None, sim=False, telegram=False,
             r = prov.gerar(modelo["id"], pars, w)
             if p == "clipe":
                 r = _montar_com_a_faixa(w, r, plano)
+            elif p == "capa":
+                r = _compor_arte_da_capa(w, r, plano)
             evento = "pronto" if sem_revisao else "revisar"
             transicao(estado, p, evento, artefato=r.arquivo.name,
                       custo_real=r.custo_real, meta=r.meta)

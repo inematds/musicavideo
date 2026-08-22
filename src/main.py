@@ -24,6 +24,7 @@ USO = """uso: musicavideo <comando> ...
   reprova <slug> <parte> ["4,17,23"]  # descarta e devolve pro faz
   tudo "<solicitação>" [--teto N] [demais flags de plano] [--sim] [--telegram]
   monta <slug> [--completo]      # casa o clipe com CADA faixa (não gasta)
+  arte  <slug> ["<título>"]      # recompõe a tipografia da capa (não gasta)
   pacote <slug>                  # gera o PACOTE.md sob demanda
   custo <slug> | lista [N] | busca "<termo>" | reindex
   painel [--porta N] [--lan]     # navegador: acervo do musicavideo + analisevideo"""
@@ -157,12 +158,42 @@ def _cmd_tudo(args):
                sem_revisao=True)
 
 
+def _cmd_arte(args):
+    """Recompõe o título sobre a capa CRUA. Não chama provedor, não gasta nada —
+    é o comando pra ajustar a arte sem pagar a imagem de novo."""
+    import json
+    from src.arte import compor_capa, ArteError
+    if not args:
+        print('uso: arte <slug> ["<título>"]', file=sys.stderr)
+        return 1
+    w = out_dir() / args[0]
+    plano_arq = w / "plano.json"
+    if not plano_arq.exists():
+        print(f"erro: slug '{args[0]}' não encontrado em {out_dir()}", file=sys.stderr)
+        return 1
+    plano = json.loads(plano_arq.read_text(encoding="utf-8"))
+    bruta = w / "raw" / "capa-crua.png"
+    if not bruta.exists():
+        print("erro: não há capa crua (raw/capa-crua.png) — gere a capa antes "
+              "com `musicavideo faz <slug> capa`", file=sys.stderr)
+        return 1
+    titulo = args[1] if len(args) > 1 else plano.get("titulo", "")
+    try:
+        destino = compor_capa(bruta, titulo, plano["capa"].get("paleta"),
+                              plano["capa"].get("template", ""), w / "capa.png")
+    except ArteError as e:
+        print(f"erro: {e}", file=sys.stderr)
+        return 1
+    print(f"capa: {destino}")
+    return 0
+
+
 COMANDOS.update({"lista": _cmd_lista, "busca": _cmd_busca, "reindex": _cmd_reindex,
                  "plano": _cmd_plano, "ver": _cmd_ver, "ok": _cmd_ok, "ajusta": _cmd_ajusta,
                  "faz": _cmd_faz, "custo": _cmd_custo, "tudo": _cmd_tudo,
                  "monta": _cmd_monta, "revisa": _cmd_revisa,
                  "aprova": _cmd_aprova, "reprova": _cmd_reprova,
-                 "pacote": _cmd_pacote, "painel": _cmd_painel})
+                 "pacote": _cmd_pacote, "arte": _cmd_arte, "painel": _cmd_painel})
 
 
 def main(argv: list[str]) -> int:
