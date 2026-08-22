@@ -34,7 +34,8 @@
       "pausa_apos": true,
       "portao": {
         "mostrar": [
-          "{{artefato:musica}}"
+          "{{artefato:musica}}",
+          "{{artefato:musica_alt}}?"
         ]
       },
       "comando": "bash {{repo}}/musicavideo.sh faz {{anterior:slug}} musica --sim --sem-revisao --aprovar"

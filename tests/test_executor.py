@@ -82,3 +82,33 @@ def test_teto_pula_parte_exit_3(outdir, slug):
     rc = faz(outdir, slug, ["musica"], sim=True, reg=_reg_fake(ProvFake()))
     assert rc == 3
     assert carregar_estado(w)["partes"]["musica"]["estado"] == "aprovado"
+
+
+class ProvDuasFaixas(ProvFake):
+    """O Suno entrega DUAS: as duas ficam no disco, pagas no mesmo custo."""
+
+    def gerar(self, modelo, params, workdir):
+        a = workdir / "faixa-1.mp3"
+        a.write_bytes(b"x")
+        (workdir / "faixa-2.mp3").write_bytes(b"y")
+        return Resultado(a, 0.08, {"kie_task_id": "T1"})
+
+
+def test_recibo_declara_a_segunda_faixa(outdir, slug, capsys):
+    """A faixa-2 existia e nunca era ouvida — o recibo só declarava a escolhida.
+
+    O bot entrega o que o recibo declara (MVD#96, 2026-08-22): sem a linha
+    `musica_alt:`, a segunda variação fica no disco, paga, e ninguém sabe.
+    """
+    aprovar_parte(outdir, slug, "musica")
+    faz(outdir, slug, ["musica"], sim=True, sem_revisao=True, reg=_reg_fake(ProvDuasFaixas()))
+    linhas = capsys.readouterr().out.splitlines()
+    assert f"musica: {outdir / slug / 'faixa-1.mp3'}" in linhas
+    assert f"musica_alt: {outdir / slug / 'faixa-2.mp3'}" in linhas
+
+
+def test_uma_faixa_so_nao_inventa_alternativa(outdir, slug, capsys):
+    aprovar_parte(outdir, slug, "musica")
+    faz(outdir, slug, ["musica"], sim=True, sem_revisao=True, reg=_reg_fake(ProvFake()))
+    saida = capsys.readouterr().out
+    assert "musica_alt:" not in saida

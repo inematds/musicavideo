@@ -308,6 +308,16 @@ def faz(outdir, slug, partes=None, sim=False, telegram=False,
         d = estado["partes"][p]
         if d["estado"] == "pronto" and d.get("artefato"):
             print(f"{p}: {w / d['artefato']}")
+            # O Suno entrega DUAS faixas e as duas ficam no disco, pagas no
+            # mesmo custo. O recibo declarava só a escolhida, e a outra nunca
+            # era ouvida — nem no portao do bot, nem no `/dados` (MVD#96,
+            # 2026-08-22). Campo PROPRIO (`musica_alt`) e nao uma segunda linha
+            # `musica:`: quem le o recibo pega a ULTIMA ocorrencia do campo, e
+            # repetir o nome trocaria a faixa escolhida pela alternativa.
+            if p == "musica":
+                for alt in sorted(w.glob("faixa-*.mp3")):
+                    if alt.name != d["artefato"]:
+                        print(f"musica_alt: {alt}")
     return 3 if houve_teto else (2 if houve_erro else 0)
 
 
