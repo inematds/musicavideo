@@ -120,6 +120,7 @@ qualquer lugar. Aceitam `--flag valor` e `--flag=valor`:
 |---|---|
 | `--idioma X` | idioma da letra (default `pt-BR`) — ex.: `en-US`, `es-ES` |
 | `--estilo X` | força um estilo do `data/estilos.json` (ver `/musicavideo help estilos`) |
+| `--faixa-pronta <arq>` | **você traz a música**: o pipeline faz só capa e clipe, e a duração real do arquivo ancora a decupagem. Nada é gasto na parte paga |
 | `--letra <arq>` | usa a sua letra como RASCUNHO; o `PLANO.md` mostra o diff do que mudou |
 | `--letra-final` | com `--letra`, a letra vira LEI: nem o `ajusta` mexe |
 | `--pesquisa` | pesquisa antes de planejar (custa tempo; desligado por default) |

@@ -58,6 +58,10 @@ Solicitação em texto livre. Opcionais:
 - `--estilo X` — estilo/gênero (livre ou id do `data/estilos.json`)
 - `--idioma X` — idioma da letra (default `pt-BR`). Vai para a letra E para o
   prompt do Suno, que são dois lugares e precisam concordar
+- `--faixa-pronta <arq>` — a MÚSICA já existe. A faixa é copiada para dentro do
+  slug e nasce `pronto` (custo zero), a duração real do arquivo ancora a
+  decupagem do clipe, e o planejador é avisado para descrever a música como ela
+  é em vez de inventar estrutura e letra. Sobra o trabalho de US$ 0: capa e clipe
 - `--bruto` — a solicitação vem com as flags DENTRO dela, num argumento só
   (é como o bot chama; ver "Fluxo no bot")
 - `--letra arq` — letra **rascunho**: o planejador termina/ajusta e o `PLANO.md`

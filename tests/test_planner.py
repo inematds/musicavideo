@@ -100,6 +100,45 @@ def test_motor_com_igual_nao_perde_a_parte():
     assert opts['motor'] == {'clipe': 'kling:kling-v2_5'}
 
 
+# MÚSICA PRONTA: o usuário traz a faixa e o pipeline faz só capa e clipe. Sem
+# isto, a parte PAGA (~US$ 0,08) era obrigatória mesmo quando ela já existia.
+def test_faixa_pronta_nasce_pronta_e_ancora_a_duracao(outdir, plano_ok, tmp_path, monkeypatch):
+    from src.estado import carregar_estado
+    faixa = tmp_path / "minha.mp3"
+    faixa.write_bytes(b"audio")
+    # 10s: a duração REAL da fixture, para a validação de cobertura (o clipe
+    # tem que cobrir a música) continuar valendo — é ela que o `--faixa-pronta`
+    # passa a ancorar no arquivo em vez de num palpite de 180s.
+    monkeypatch.setattr("src.planner.duracao_de", lambda a: 10)
+
+    p = gerar_plano("uma música minha", "s-pronta", {"faixa_pronta": str(faixa)},
+                    outdir, chamar_llm=_fake_llm(plano_ok))
+    assert p["musica"]["params"]["duracao_s"] == 10
+    e = carregar_estado(outdir / "s-pronta")
+    assert e["partes"]["musica"]["estado"] == "pronto"
+    assert e["partes"]["musica"]["artefato"] == "faixa-1.mp3"
+    assert e["partes"]["musica"]["custo_real_usd"] == 0.0
+    # O arquivo é COPIADO para dentro do slug — o original do usuário fica onde
+    # está, e o pacote/montagem não precisam saber de onde ele veio.
+    assert (outdir / "s-pronta" / "faixa-1.mp3").exists()
+    assert faixa.exists()
+
+
+def test_faixa_pronta_inexistente_erra_claro(outdir, plano_ok):
+    import pytest as _p
+    with _p.raises(ValueError, match="não encontrada"):
+        gerar_plano("x", "s-sem-faixa", {"faixa_pronta": "/nao/existe.mp3"},
+                    outdir, chamar_llm=_fake_llm(plano_ok))
+
+
+def test_contexto_avisa_que_a_musica_ja_existe(outdir, monkeypatch):
+    from src.planner import montar_contexto
+    monkeypatch.setattr("src.planner.duracao_de", lambda a: 200)
+    ctx = montar_contexto("x", {"faixa_pronta": "/tmp/a.mp3"}, outdir)
+    assert "MÚSICA JÁ EXISTE" in ctx
+    assert "200s" in ctx
+
+
 def test_motor_pago_exige_autorizacao():
     from src.planner import exigir_autorizacao_de_motor
     import pytest as _p

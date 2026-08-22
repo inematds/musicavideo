@@ -97,6 +97,14 @@ def montar_contexto(solicitacao: str, opts: dict, outdir: Path) -> str:
             "não copie o conteúdo, copie a LINGUAGEM visual:\n" + refs)
     if opts.get("estilo"):
         partes.append(f"ESTILO PEDIDO: {opts['estilo']}")
+    if opts.get("faixa_pronta"):
+        partes.append(
+            f"MÚSICA JÁ EXISTE: o usuário trouxe a faixa pronta "
+            f"({_dur_alvo(opts)}s). NÃO invente estrutura nem letra que contrariem "
+            "o áudio: descreva a música como ela é (gênero, mood, instrumentação) "
+            "e concentre o trabalho na CAPA e na DECUPAGEM DO CLIPE, que precisam "
+            "cobrir a duração real. `musica.params.duracao_s` tem que ser essa."
+        )
     if opts.get("idioma"):
         # Nos DOIS lugares, e por isso é explícito: a letra que vai ser cantada
         # e a frase final do prompt de estilo ("Lyrics in <idioma>"), que é o que
@@ -119,7 +127,23 @@ def montar_contexto(solicitacao: str, opts: dict, outdir: Path) -> str:
     return "\n\n".join(partes)
 
 
+def duracao_de(arq) -> int:
+    """Segundos de um arquivo de áudio/vídeo, pelo ffprobe."""
+    import subprocess
+    r = subprocess.run(["ffprobe", "-v", "quiet", "-show_entries", "format=duration",
+                        "-of", "csv=p=0", str(arq)], capture_output=True, text=True)
+    try:
+        return int(round(float(r.stdout.strip())))
+    except (TypeError, ValueError):
+        raise ValueError(f"ffprobe não leu a duração de {arq}")
+
+
 def _dur_alvo(opts: dict) -> int:
+    # FAIXA PRONTA manda na duração: o clipe é decupado sobre a música REAL, não
+    # sobre um palpite de 180s. Sem isto, a validação de cobertura compararia o
+    # clipe com uma duração inventada e aprovaria um clipe curto demais.
+    if opts.get("faixa_pronta"):
+        return duracao_de(opts["faixa_pronta"])
     return int(opts.get("duracao_s") or 180)
 
 
@@ -162,6 +186,10 @@ def _impor_deterministicos(plano: dict, slug: str, solicitacao: str, opts: dict)
     # pedido explícito. Antes de 2026-08-21 não havia como pedir: pt-BR era
     # chumbado nos dois lugares (aqui e no prompt de estilo, em inglês).
     idioma = (opts.get("idioma") or "").strip()
+    if opts.get("faixa_pronta"):
+        # A duração REAL manda sobre o que o modelo escreveu: ela é medida, não
+        # opinada, e é ela que ancora o clipe.
+        plano.setdefault("musica", {}).setdefault("params", {})["duracao_s"] = _dur_alvo(opts)
     if idioma:
         plano.setdefault("musica", {}).setdefault("letra", {})["idioma"] = idioma
     if opts.get("letra"):
@@ -181,6 +209,11 @@ def _impor_deterministicos(plano: dict, slug: str, solicitacao: str, opts: dict)
 
 def gerar_plano(solicitacao, slug, opts, outdir, chamar_llm=None) -> dict:
     chamar_llm = chamar_llm or chamar_fable
+    # A FAIXA é conferida ANTES de qualquer coisa: caminho errado tem que
+    # aparecer agora, e não depois de uma chamada de modelo — que custa tempo e
+    # devolveria um erro do ffprobe, que não diz o que fazer.
+    if opts.get("faixa_pronta") and not Path(opts["faixa_pronta"]).exists():
+        raise ValueError(f"faixa pronta não encontrada: {opts['faixa_pronta']}")
     outdir = Path(outdir)
     outdir.mkdir(parents=True, exist_ok=True)
     slug = slug or derivar_slug(solicitacao, outdir)
@@ -213,6 +246,22 @@ def gerar_plano(solicitacao, slug, opts, outdir, chamar_llm=None) -> dict:
     w.mkdir(parents=True, exist_ok=True)
     gravar_plano(w, plano, reg)
     estado = novo_estado(slug)
+    if opts.get("faixa_pronta"):
+        # A FAIXA JÁ EXISTE: copiada para dentro do slug e marcada `pronto`, com
+        # custo zero. Copiar (e não referenciar) é o que faz o pacote e a
+        # montagem continuarem funcionando sem saber de onde ela veio — e o
+        # arquivo do usuário não é movido nem alterado.
+        import shutil
+        origem = Path(opts["faixa_pronta"])
+        if not origem.exists():
+            raise ValueError(f"faixa pronta não encontrada: {origem}")
+        destino = w / f"faixa-1{origem.suffix.lower() or '.mp3'}"
+        shutil.copy2(origem, destino)
+        m = estado["partes"]["musica"]
+        m.update({"estado": "pronto", "artefato": destino.name, "aprovado_em": _agora(),
+                  "meta": {"origem": "usuario", "arquivo_original": str(origem)}})
+        estado["historico"].append(
+            {"quando": _agora(), "evento": "musica", "detalhe": f"faixa do usuário: {origem.name}"})
     salvar_estado(w, estado)
     gravar_linha(outdir, linha_de(plano, estado))
     return plano
@@ -510,6 +559,9 @@ def _parse_opts(args: list[str]) -> tuple[list[str], dict]:
             opts["bruto"] = True
         elif a == "--aprovar":
             opts["aprovar"] = True
+        elif a in ("--faixa-pronta", "--musica-pronta"):
+            i += 1
+            opts["faixa_pronta"] = args[i]
         else:
             livres.append(a)
         i += 1
