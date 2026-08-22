@@ -5,10 +5,14 @@ Uso: /musicavideo balada pop sobre recomeço
      (todos os parâmetros: /musicavideo help campos)
 
 Fases (cada uma para e espera /aprovar, menos a última):
-  1. plano       (fila texto)  → PLANO.md no chat · NÃO gasta nada
-  2. musica      (fila io)     → a faixa, como arquivo · ÚNICA parte paga (~US$ 0,08)
-  3. capa-clipe  (fila render) → a capa (arquivo) e o clipe (link) · US$ 0 no default
-  4. entrega     (fila io)     → PACOTE.md
+  1. plano    (fila texto)  → PLANO.md no chat · NÃO gasta nada
+  2. musica   (fila io)     → a faixa, como arquivo · ÚNICA parte paga (~US$ 0,08)
+  3. capa     (fila io)     → a capa, como arquivo · US$ 0 · sai em segundos
+  4. clipe    (fila render) → o clipe, como link · US$ 0 · leva de 30 min a horas
+  5. entrega  (fila io)     → PACOTE.md
+
+A capa tem portão PRÓPRIO desde 2026-08-22: ela é o frame 0 no feed e sai em
+segundos — esperar o clipe para revisá-la era revisar tarde.
 
 Acompanhar: /status MVD#N · /aprovar MVD#N · /refazer MVD#N · /cancelar MVD#N
 
@@ -90,7 +94,8 @@ O que chega no chat quando cada portão abre:
 |---|---|
 | plano | o `PLANO.md` inteiro, para ler e decidir |
 | musica | `faixa-1.mp3` como **arquivo** |
-| capa-clipe | `capa.png` como **arquivo**, e o clipe como **link** |
+| capa | `capa.png` como **arquivo** |
+| clipe | o clipe como **link** |
 
 O clipe vai por link e não anexado porque mp4 de música passa dos 50 MB que o
 Telegram aceita como documento. Tudo também fica em
@@ -125,7 +130,7 @@ qualquer lugar. Aceitam `--flag valor` e `--flag=valor`:
 
 | campo | o que faz |
 |---|---|
-| `\| de=<fase>` | começa nessa fase — `plano`, `musica`, `capa-clipe`, `entrega` |
+| `\| de=<fase>` | começa nessa fase — `plano`, `musica`, `capa`, `clipe`, `entrega` |
 | `\| sem-portao` | não para para você aprovar (vai até o fim de uma vez) |
 | `\| versao=N` | versão do assunto |
 | `\| sombra` | mostra o plano de execução sem enfileirar nada |
