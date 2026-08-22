@@ -51,7 +51,7 @@ def validar_plano(plano: dict) -> list[str]:
         erros.append("musica.letra: origem final_usuario exige texto não vazio")
     c = plano.get("capa", {})
     _chaves(c, {"motor", "params", "template", "conceito", "prompt_imagem",
-                "prompt_negativo", "paleta"}, set(), "capa", erros)
+                "prompt_negativo", "paleta"}, {"tagline"}, "capa", erros)
     if "motor" in c:
         _motor_ok(c["motor"], "capa", erros)
     _listas(c, ("paleta",), "capa", erros)

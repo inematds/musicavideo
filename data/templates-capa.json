@@ -22,7 +22,8 @@
     "max_linhas": 3,
     "entrelinha": 0.92,
     "tracking": 0.0,
-    "contraste": "scrim"
+    "contraste": "scrim",
+    "estilo": "simples"
    }
   },
   {
@@ -47,7 +48,8 @@
     "max_linhas": 2,
     "entrelinha": 0.95,
     "tracking": 0.04,
-    "contraste": "gradiente"
+    "contraste": "gradiente",
+    "estilo": "poster"
    }
   },
   {
@@ -72,7 +74,8 @@
     "max_linhas": 2,
     "entrelinha": 1.05,
     "tracking": 0.02,
-    "contraste": "sombra"
+    "contraste": "sombra",
+    "estilo": "poster"
    }
   },
   {
@@ -97,7 +100,8 @@
     "max_linhas": 2,
     "entrelinha": 1.05,
     "tracking": 0.08,
-    "contraste": "nenhum"
+    "contraste": "nenhum",
+    "estilo": "simples"
    }
   }
  ]

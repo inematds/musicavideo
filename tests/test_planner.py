@@ -252,3 +252,15 @@ def test_contexto_pede_o_plano_b_de_cada_shot(outdir):
     from src.planner import montar_contexto
     ctx = montar_contexto("rock", {}, outdir)
     assert "prompt_alt" in ctx and "PLANO B" in ctx
+
+
+def test_parse_opts_le_versao_e_tagline():
+    """Flag com VALOR que o parser não conhece vira argumento LIVRE em silêncio —
+    e no `arte` o valor caía na posição do título: `--versao 1` renomeava a
+    música para "1". Mesmo defeito que o `--idioma=en-US` teve em 2026-08-21."""
+    from src.planner import _parse_opts
+    livres, opts = _parse_opts(["slug", "--versao", "2", "--tagline", "o mar não espera"])
+    assert livres == ["slug"]
+    assert opts["versao"] == "2"
+    assert opts["tagline"] == "o mar não espera"
+    assert _parse_opts(["slug", "--versao=2"])[1]["versao"] == "2"

@@ -29,28 +29,19 @@ Pontos a decidir antes de codar:
   título fica nas laterais ou no terço inferior, não em cima.
 - `templates-capa.json` teria de declarar composição por proporção, não uma só.
 
-### 2. Tipografia com cara de PÔSTER DE FILME
+### 2. ~~Tipografia com cara de PÔSTER DE FILME~~ — FEITO em 2026-08-22
 
-**Hoje:** `arte.py` compõe só o **título**, em Anton/Bebas/Montserrat, com
-posição e contraste declarados pelo template. É legível, mas é "título sobre
-imagem", não pôster.
+Saiu: `arte.compor_poster` (degradê na base, tagline, título no terço inferior,
+filete, billing block) + **selo de VERSÃO** grande, porque o Suno entrega duas
+faixas e capa sem marca faz escolher no chute. O template declara `estilo`
+(`poster` nos de cena, `simples` onde a imagem já É o título), e a tagline vem
+de `capa.tagline`, escrita pelo planejador.
 
-**Pedido:** estilo de capa de filme. Da referência que o dono passou (grade de
-pôsteres de filmes de viking), o que caracteriza o formato:
-
-- **Título no terço inferior**, não no topo — e ocupando a largura quase toda.
-- **Serifada ou condensada em caixa alta**, com textura (metal desgastado,
-  pedra, arranhado), não fonte chapada.
-- **Tagline curta** acima ou abaixo do título — uma linha, menor, com tracking
-  largo ("THE BATTLE HAS BEGUN", "YOU CAN'T ESCAPE YOUR FATE").
-- **Bloco de créditos** no topo (nomes) e/ou *billing block* na base, em
-  condensada pequena — é o que "faz o olho ler pôster".
-- Paleta fria dessaturada com um ponto quente (fogo, pôr do sol).
-
-Decisões abertas: de onde sai a **tagline** (o planner escreveria, como faz com
-a descrição?), o que entra no bloco de créditos num projeto sem elenco, e se a
-textura da fonte vem de arquivo (fonte já texturizada) ou de composição
-(máscara sobre o texto).
+**O que ficou de fora, e é o próximo passo natural:** a fonte. Usamos Bebas Neue
+porque é a condensada que existe na máquina — não há serifada de cartaz (Cinzel,
+Trajan) instalada, e instalar exige o dono. Com uma serifada texturizada isso
+sobe bastante. Também ficou fixa a posição da tagline (na 16:9 ela pode encostar
+no sujeito) — o certo é escolher a faixa mais vazia.
 
 ### 3. O clipe termina com uma MENSAGEM
 

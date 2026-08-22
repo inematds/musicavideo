@@ -110,7 +110,8 @@ def montar_publicacao(outdir: Path, slug: str) -> Path | None:
         from src.arte import compor_capa_yt, ArteError
         try:
             compor_capa_yt(crua, plano["titulo"], plano["capa"].get("paleta"),
-                           plano["capa"].get("template", ""), tmp / "capa-yt.jpg")
+                           plano["capa"].get("template", ""), tmp / "capa-yt.jpg",
+                           tagline=plano["capa"].get("tagline", ""))
             thumb = "capa-yt.jpg"
         except (ArteError, OSError, ValueError) as e:
             print(f"publicação: sem capa 16:9 ({e}) — o pacote vai sem thumbnail")

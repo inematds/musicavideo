@@ -61,9 +61,14 @@ def montar_contexto(solicitacao: str, opts: dict, outdir: Path) -> str:
         "capa, clipe, publicacao).",
         "Estrutura exata: musica{motor,params,estilo{genero,bpm,tom,mood,instrumentacao,voz,prompt_estilo},"
         "estrutura[{secao,inicio_s,duracao_s}],letra{origem,texto,texto_original,idioma}}; capa{motor,params,template,conceito,"
-        "prompt_imagem,prompt_negativo,paleta}; clipe{motor,params,template,sincronia,"
+        "prompt_imagem,prompt_negativo,paleta,tagline}; clipe{motor,params,template,sincronia,"
         "decupagem[{n,secao,duracao_s,camera,descricao,prompt,prompt_alt}]}; "
         "publicacao{descricao}. NENHUM campo a mais.",
+        "capa.tagline é a frase de CARTAZ que vai acima do título na capa: UMA linha, "
+        "no máximo 8 palavras, em português, sem ponto final e sem aspas. Não é resumo "
+        "nem slogan de marca — é a promessa do filme (\"o frio não perdoa · o mar não "
+        "espera\"). Pode sair da própria letra. Só aparece nos templates de cena; nos "
+        "de tipografia e abstrato ela é ignorada.",
         "publicacao.descricao é a DESCRIÇÃO do vídeo no YouTube, em português: 2 a 4 "
         "parágrafos curtos dizendo o que a peça É — do que a música fala, que som ela "
         "tem, o que se vê no clipe. Escreva para quem chegou pelo vídeo, não para quem "
@@ -564,7 +569,7 @@ def _parse_opts(args: list[str]) -> tuple[list[str], dict]:
         elif a == "--faixa":
             i += 1
             opts["faixa"] = int(args[i])
-        elif a in ("--estilo", "--letra", "--teto", "--idioma"):
+        elif a in ("--estilo", "--letra", "--teto", "--idioma", "--versao", "--tagline"):
             i += 1
             opts[a[2:]] = args[i]
         elif a == "--motor":

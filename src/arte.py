@@ -22,6 +22,9 @@ TIPOGRAFIA_PADRAO = {
     "fonte": FONTE_FALLBACK, "posicao": "base", "largura_alvo": 0.7,
     "alinhamento": "centro", "caixa_alta": True, "max_linhas": 2,
     "entrelinha": 1.0, "tracking": 0.02, "contraste": "sombra",
+    # `simples` = título sobre a imagem; `poster` = cartaz de cinema (tagline,
+    # título no terço inferior, filete, billing block). Ver compor_poster.
+    "estilo": "simples",
 }
 
 MARGEM = 0.07          # respiro nas bordas, em fração do lado
@@ -300,7 +303,7 @@ def _fundo_16x9(crua: Image.Image) -> Image.Image:
 
 
 def compor_capa_yt(bruta: Path, titulo: str, paleta: list[str] | None,
-                   template_id: str, destino: Path) -> Path:
+                   template_id: str, destino: Path, tagline: str = "") -> Path:
     """A MESMA crua, na proporção que o YouTube quer. Não gera imagem nova:
     recompor a thumbnail é de graça, gerar é que custa."""
     bruta, destino = Path(bruta), Path(destino)
@@ -310,7 +313,7 @@ def compor_capa_yt(bruta: Path, titulo: str, paleta: list[str] | None,
     tmp = destino.with_suffix(".base.png")
     base.save(tmp)
     try:
-        compor_capa(tmp, titulo, paleta, template_id, destino)
+        compor(tmp, titulo, paleta, template_id, destino, tagline=tagline)
         # A composição salva no formato da extensão; para JPG o teto de 2 MB
         # manda, então cai a qualidade até caber em vez de o upload dar 400.
         q = 92
@@ -320,3 +323,154 @@ def compor_capa_yt(bruta: Path, titulo: str, paleta: list[str] | None,
     finally:
         tmp.unlink(missing_ok=True)
     return destino
+
+
+# ------------------------------------------------------------------- PÔSTER
+#
+# O que separa "título sobre imagem" de CARTAZ, e por que cada peça está aqui:
+#
+#   degradê na base  dá CHÃO ao texto. Sem ele o bloco flutua sobre a cena.
+#   tagline          uma linha, pequena, tracking largo, na cor de acento.
+#   título           terço inferior, quase toda a largura, sombra dura.
+#   filete           risco curto separando título e créditos.
+#   billing block    linha condensada minúscula — é o que o olho lê como cinema.
+#
+# Tudo determinístico: recompor não custa nada, e a decisão de posição é do
+# TEMPLATE, não de um modelo.
+
+ACENTO_PADRAO = (214, 158, 114)
+CREDITOS_PADRAO = "MUSICAVIDEO  ·  INEMA.CLUB  ·  TRILHA ORIGINAL"
+
+
+def _base_escura(img: Image.Image, altura=0.52, forca=0.88) -> Image.Image:
+    W, H = img.size
+    h = max(int(H * altura), 1)
+    faixa = Image.new("L", (1, h))
+    for i in range(h):
+        faixa.putpixel((0, i), int(255 * forca * ((i / max(h - 1, 1)) ** 1.7)))
+    alpha = Image.new("L", (W, H), 0)
+    alpha.paste(faixa.resize((W, h)), (0, H - h))
+    escuro = Image.new("RGBA", (W, H), (8, 10, 14, 255))
+    escuro.putalpha(alpha)
+    return Image.alpha_composite(img.convert("RGBA"), escuro)
+
+
+def _corpo_que_cabe(draw, texto: str, arq: str, alvo_px: float,
+                    tracking: float, teto: int):
+    """Maior corpo cujo texto ainda cabe em `alvo_px`. Devolve (corpo, fonte, tracking_px)."""
+    lo, hi, melhor = 8, max(teto, 9), None
+    while lo <= hi:
+        m = (lo + hi) // 2
+        f = _fonte(arq, m)
+        if _largura(draw, texto, f, tracking * m) <= alvo_px:
+            melhor, lo = (m, f, tracking * m), m + 1
+        else:
+            hi = m - 1
+    if melhor is None:
+        f = _fonte(arq, 8)
+        melhor = (8, f, 0.0)
+    return melhor
+
+
+def marcar_versao(img: Image.Image, versao: int, acento=ACENTO_PADRAO) -> Image.Image:
+    """O selo de VERSÃO, grande, no alto à direita.
+
+    O Suno entrega DUAS faixas por música e cada uma vira um clipe. Sem marca,
+    as duas capas ficam idênticas e escolher vira adivinhação — no thumbnail do
+    celular tem que dar para ver qual é qual de longe.
+    """
+    W, H = img.size
+    draw = ImageDraw.Draw(img)
+    corpo = int(H * 0.20)
+    f = _fonte(TIPOGRAFIA_POSTER["titulo"], corpo)
+    txt = str(versao)
+    lw = int(draw.textlength(txt, font=f))
+    cx = W - int(W * 0.075) - lw
+    cy = int(H * 0.055)
+    frot = _fonte(TIPOGRAFIA_POSTER["tagline"], max(int(corpo * 0.13), 11))
+    tr = frot.size * 0.3
+    lr = _largura(draw, "VERSÃO", frot, tr)
+    _escrever(draw, cx + (lw - lr) // 2, cy, "VERSÃO", frot, tr, acento)
+    y = cy + int(corpo * 0.22)
+    d = max(corpo // 40, 3)
+    draw.text((cx + d, y + d), txt, font=f, fill=PRETO)
+    draw.text((cx, y), txt, font=f, fill=acento)
+    return img
+
+
+TIPOGRAFIA_POSTER = {
+    "titulo": "BebasNeue-Regular.ttf",     # condensada: o mais perto de cartaz que temos
+    "tagline": "Montserrat-Black.ttf",
+    "creditos": "DejaVuSans-Bold.ttf",
+}
+
+
+def compor_poster(bruta: Path, titulo: str, destino: Path, *,
+                  tagline: str = "", creditos: str = CREDITOS_PADRAO,
+                  versao: int | None = None, acento=ACENTO_PADRAO) -> Path:
+    """Capa em estilo cartaz de cinema. Sempre parte da imagem CRUA."""
+    bruta, destino = Path(bruta), Path(destino)
+    if not bruta.exists():
+        raise ArteError(f"imagem crua não encontrada: {bruta}")
+    img = _base_escura(Image.open(bruta).convert("RGB"))
+    W, H = img.size
+    draw = ImageDraw.Draw(img)
+    margem = int(W * 0.075)
+    util = W - 2 * margem
+
+    alto = (titulo or "").strip().upper()
+    if not alto:
+        img.convert("RGB").save(destino, quality=95)
+        return destino
+    linhas = [alto]
+    corpo, ftit, trk = _corpo_que_cabe(draw, alto, TIPOGRAFIA_POSTER["titulo"],
+                                       util, 0.03, int(H * 0.30))
+    palavras = alto.split()
+    if corpo < H * 0.075 and len(palavras) > 1:      # ficou miúdo: quebra em duas
+        meio = len(palavras) // 2 + len(palavras) % 2
+        linhas = [" ".join(palavras[:meio]), " ".join(palavras[meio:])]
+        corpo, ftit, trk = _corpo_que_cabe(draw, max(linhas, key=len),
+                                           TIPOGRAFIA_POSTER["titulo"], util, 0.03,
+                                           int(H * 0.22))
+    passo = int(corpo * 0.92)
+    base_y = H - int(H * 0.135) - passo * len(linhas)
+
+    if tagline.strip():
+        ctag, ftag, ttag = _corpo_que_cabe(draw, tagline.upper(),
+                                           TIPOGRAFIA_POSTER["tagline"], util * 0.8,
+                                           0.28, max(int(corpo * 0.16), 12))
+        lt = _largura(draw, tagline.upper(), ftag, ttag)
+        _escrever(draw, (W - lt) // 2, base_y - int(ctag * 2.6), tagline.upper(),
+                  ftag, ttag, acento)
+
+    for i, linha in enumerate(linhas):
+        lw = _largura(draw, linha, ftit, trk)
+        x, y = (W - lw) // 2, base_y + i * passo
+        d = max(corpo // 40, 2)
+        _escrever(draw, x + d, y + d, linha, ftit, trk, (0, 0, 0))
+        _escrever(draw, x, y, linha, ftit, trk, (242, 240, 236))
+
+    if creditos.strip():
+        fio_y = H - int(H * 0.105)
+        draw.line([(W // 2 - util // 6, fio_y), (W // 2 + util // 6, fio_y)],
+                  fill=acento, width=max(H // 700, 1))
+        ccr, fcr, tcr = _corpo_que_cabe(draw, creditos, TIPOGRAFIA_POSTER["creditos"],
+                                        util * 0.92, 0.14, max(int(H * 0.022), 10))
+        lc = _largura(draw, creditos, fcr, tcr)
+        _escrever(draw, (W - lc) // 2, fio_y + int(ccr * 0.9), creditos,
+                  fcr, tcr, (170, 172, 176))
+
+    if versao is not None:
+        img = marcar_versao(img, versao, acento)
+    img.convert("RGB").save(destino, quality=95)
+    return destino
+
+
+def compor(bruta: Path, titulo: str, paleta, template_id: str, destino: Path, *,
+           tagline: str = "", creditos: str = CREDITOS_PADRAO,
+           versao: int | None = None) -> Path:
+    """Porta única: o TEMPLATE decide se a capa é `simples` ou `poster`."""
+    if tipografia_de(template_id).get("estilo") == "poster":
+        return compor_poster(bruta, titulo, destino, tagline=tagline,
+                             creditos=creditos, versao=versao)
+    return compor_capa(bruta, titulo, paleta, template_id, destino)

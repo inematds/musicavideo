@@ -96,21 +96,49 @@ def _montar_com_a_faixa(w: Path, r, plano: dict):
     return r
 
 
+def _capas_por_versao(w: Path, plano: dict, bruta: Path, tagline: str) -> None:
+    """Uma capa marcada por FAIXA existente.
+
+    O Suno entrega duas, e as duas viram clipe. Capa sem marca deixa as duas
+    idênticas — e escolher qual subir vira adivinhação no thumbnail do celular.
+    Falhar aqui não derruba nada: a capa principal já está pronta.
+    """
+    from src.arte import compor, ArteError
+    faixas = sorted(w.glob("faixa-*.mp3"))
+    if len(faixas) < 2:
+        return                      # uma faixa só não precisa de selo
+    for f in faixas:
+        try:
+            n = int(f.stem.split("-")[-1])
+        except ValueError:
+            continue
+        try:
+            compor(bruta, plano.get("titulo", ""), plano["capa"].get("paleta"),
+                   plano["capa"].get("template", ""), w / f"capa-v{n}.png",
+                   tagline=tagline, versao=n)
+        except (ArteError, OSError, ValueError) as e:
+            print(f"capa: sem a capa da versão {n} ({e})")
+            return
+    print(f"capa: {len(faixas)} versões marcadas (capa-v1.png…)")
+
+
 def _compor_arte_da_capa(w: Path, r, plano: dict):
     """A imagem do gerador é o FUNDO; a capa é ela com o título escrito por cima.
 
     A crua fica guardada em `raw/capa-crua.png` — recompor a arte é de graça,
     gerar imagem de novo não é. Se a composição falhar, a capa paga continua
     valendo: entrega-se a crua com o aviso, em vez de perder a geração."""
-    from src.arte import compor_capa, ArteError
+    from src.arte import compor, ArteError
     bruta = w / "raw" / "capa-crua.png"
     bruta.parent.mkdir(parents=True, exist_ok=True)
     origem = r.arquivo
     destino = w / "capa.png"
     try:
         bruta.write_bytes(origem.read_bytes())
-        compor_capa(bruta, plano.get("titulo", ""), plano["capa"].get("paleta"),
-                    plano["capa"].get("template", ""), destino)
+        tagline = plano["capa"].get("tagline", "")
+        compor(bruta, plano.get("titulo", ""), plano["capa"].get("paleta"),
+               plano["capa"].get("template", ""), destino, tagline=tagline)
+        _capas_por_versao(w, plano, bruta, tagline)
     except (ArteError, OSError, ValueError) as e:
         print(f"capa: sem a camada de tipografia ({e}) — entregando a imagem crua")
         if origem != destino:

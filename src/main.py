@@ -24,7 +24,7 @@ USO = """uso: musicavideo <comando> ...
   reprova <slug> <parte> ["4,17,23"]  # descarta e devolve pro faz
   tudo "<solicitação>" [--teto N] [demais flags de plano] [--sim] [--telegram]
   monta <slug> [--completo]      # casa o clipe com CADA faixa (não gasta)
-  arte  <slug> ["<título>"]      # recompõe a tipografia da capa (não gasta)
+  arte  <slug> ["<título>"] [--versao N] [--tagline "..."]   # recompõe (não gasta)
   pacote <slug>                  # gera o PACOTE.md sob demanda
   custo <slug> | lista [N] | busca "<termo>" | reindex
   painel [--porta N] [--lan]     # navegador: acervo do musicavideo + analisevideo"""
@@ -162,14 +162,16 @@ def _cmd_arte(args):
     """Recompõe o título sobre a capa CRUA. Não chama provedor, não gasta nada —
     é o comando pra ajustar a arte sem pagar a imagem de novo."""
     import json
-    from src.arte import compor_capa, ArteError
+    from src.arte import compor, ArteError
+    from src.planner import _parse_opts
     if not args:
-        print('uso: arte <slug> ["<título>"]', file=sys.stderr)
+        print('uso: arte <slug> ["<título>"] [--versao N] [--tagline "..."]', file=sys.stderr)
         return 1
-    w = out_dir() / args[0]
+    livres, opts = _parse_opts(args)
+    w = out_dir() / livres[0]
     plano_arq = w / "plano.json"
     if not plano_arq.exists():
-        print(f"erro: slug '{args[0]}' não encontrado em {out_dir()}", file=sys.stderr)
+        print(f"erro: slug '{livres[0]}' não encontrado em {out_dir()}", file=sys.stderr)
         return 1
     plano = json.loads(plano_arq.read_text(encoding="utf-8"))
     bruta = w / "raw" / "capa-crua.png"
@@ -177,10 +179,18 @@ def _cmd_arte(args):
         print("erro: não há capa crua (raw/capa-crua.png) — gere a capa antes "
               "com `musicavideo faz <slug> capa`", file=sys.stderr)
         return 1
-    titulo = args[1] if len(args) > 1 else plano.get("titulo", "")
+    titulo = livres[1] if len(livres) > 1 else plano.get("titulo", "")
+    # A TAGLINE vem do plano quando existe (o planejador escreve), e a linha de
+    # comando vence — é assim que se experimenta sem replanejar.
+    tagline = opts.get("tagline") or plano["capa"].get("tagline", "")
+    versao = int(opts["versao"]) if str(opts.get("versao", "")).isdigit() else None
+    # UMA capa por versão quando o selo é pedido: as duas faixas do Suno viram
+    # dois clipes, e capa sem marca faz escolher no chute.
+    saida = w / (f"capa-v{versao}.png" if versao else "capa.png")
     try:
-        destino = compor_capa(bruta, titulo, plano["capa"].get("paleta"),
-                              plano["capa"].get("template", ""), w / "capa.png")
+        destino = compor(bruta, titulo, plano["capa"].get("paleta"),
+                         plano["capa"].get("template", ""), saida,
+                         tagline=tagline, versao=versao)
     except ArteError as e:
         print(f"erro: {e}", file=sys.stderr)
         return 1

@@ -115,3 +115,53 @@ def test_imagem_crua_faltando_e_erro_claro(tmp_path):
     with pytest.raises(ArteError):
         compor_capa(tmp_path / "nao-existe.png", "X", [], "minimal-abstrato",
                     tmp_path / "capa.png")
+
+
+# ------------------------------------------------------- estilo CARTAZ
+
+def test_template_de_cena_e_poster_e_o_de_texto_nao():
+    """Cartaz brigaria com um template cuja imagem JÁ é o título."""
+    assert tipografia_de("paisagem-simbolica")["estilo"] == "poster"
+    assert tipografia_de("retrato-centralizado")["estilo"] == "poster"
+    assert tipografia_de("tipografia-dominante")["estilo"] == "simples"
+    assert tipografia_de("minimal-abstrato")["estilo"] == "simples"
+
+
+def test_compor_roteia_pelo_estilo_do_template(tmp_path):
+    from src.arte import compor
+    bruta = _fundo(tmp_path)
+    a, b = tmp_path / "poster.png", tmp_path / "simples.png"
+    compor(bruta, "Chuva de Verão", ["#ffcc00"], "paisagem-simbolica", a)
+    compor(bruta, "Chuva de Verão", ["#ffcc00"], "minimal-abstrato", b)
+    # o cartaz escurece a base inteira; o simples só escreve o título
+    assert _difere(Image.open(bruta), Image.open(a)) > _difere(Image.open(bruta), Image.open(b))
+
+
+def test_poster_escreve_tagline_e_creditos(tmp_path):
+    from src.arte import compor_poster
+    bruta = _fundo(tmp_path)
+    com = tmp_path / "com.png"
+    sem = tmp_path / "sem.png"
+    compor_poster(bruta, "Chuva de Verão", com, tagline="o frio não perdoa")
+    compor_poster(bruta, "Chuva de Verão", sem, tagline="", creditos="")
+    assert _difere(Image.open(sem), Image.open(com)) > 1000
+
+
+def test_selo_de_versao_muda_o_alto_da_imagem(tmp_path):
+    """O selo tem que ser visível de longe: ele marca o TOPO, não o rodapé."""
+    from src.arte import compor_poster
+    bruta = _fundo(tmp_path)
+    v1, v2 = tmp_path / "v1.png", tmp_path / "v2.png"
+    compor_poster(bruta, "Chuva de Verão", v1, versao=1)
+    compor_poster(bruta, "Chuva de Verão", v2, versao=2)
+    a, b = Image.open(v1).convert("RGB"), Image.open(v2).convert("RGB")
+    ys = [i // a.width for i, (x, y) in enumerate(zip(a.getdata(), b.getdata())) if x != y]
+    assert ys, "as duas versões saíram idênticas — o selo não apareceu"
+    assert sum(ys) / len(ys) / a.height < 0.35      # a diferença está no alto
+
+
+def test_poster_sem_titulo_nao_quebra(tmp_path):
+    from src.arte import compor_poster
+    destino = tmp_path / "x.png"
+    compor_poster(_fundo(tmp_path), "  ", destino, versao=1)
+    assert destino.exists()
