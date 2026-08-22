@@ -1,5 +1,7 @@
-"""Fase 3: PACOTE.md + envio opcional no Telegram (desligado por default)."""
+"""Fase 3: PACOTE.md, pacote de publicação e envio opcional no Telegram."""
 import json
+import shutil
+import unicodedata
 import urllib.request
 import uuid
 from pathlib import Path
@@ -38,6 +40,90 @@ def gerar_pacote(outdir: Path, slug: str) -> Path:
     alvo = w / "PACOTE.md"
     alvo.write_text("\n".join(linhas) + "\n", encoding="utf-8")
     return alvo
+
+
+# ------------------------------------------------------- pacote de publicação
+#
+# O destino (yt-pub) NÃO deve refazer nada: sai daqui vídeo, título, descrição e
+# capa prontos. Onde o pacote entra no canal é assunto do bot — este módulo só
+# monta a pasta e diz onde ela está; o domínio não conhece caminho de disco de
+# canal nenhum.
+
+TAGS_MAX = 15
+
+
+def _tag(t: str) -> str:
+    t = unicodedata.normalize("NFD", str(t)).encode("ascii", "ignore").decode()
+    return " ".join(t.lower().split())
+
+
+def tags_de(plano: dict) -> list[str]:
+    """Determinístico: gênero + mood + instrumentação. Sem modelo — tag é
+    rótulo, não texto, e um modelo aqui só traria variação sem ganho."""
+    e = (plano.get("musica") or {}).get("estilo") or {}
+    cru = []
+    g = e.get("genero")
+    cru += (g if isinstance(g, list) else [g]) if g else []
+    cru += list(e.get("mood") or [])[:4]
+    cru += list(e.get("instrumentacao") or [])[:3]
+    if plano.get("estilo_ref"):
+        cru.append(str(plano["estilo_ref"]).replace("-", " "))
+    vistas, saida = set(), []
+    for t in cru:
+        n = _tag(t)
+        if n and n not in vistas and len(n) <= 30:
+            vistas.add(n)
+            saida.append(n)
+    return saida[:TAGS_MAX]
+
+
+def montar_publicacao(outdir: Path, slug: str) -> Path | None:
+    """Monta `<slug>/publicacao/` com o mp4, a capa 16:9 e o manifest.
+
+    Devolve None (com o motivo impresso) quando falta peça — pacote pela metade
+    faria o destino inventar o que falta, que é exatamente o que não queremos."""
+    outdir = Path(outdir)
+    w = outdir / slug
+    plano = json.loads((w / "plano.json").read_text(encoding="utf-8"))
+    descricao = ((plano.get("publicacao") or {}).get("descricao") or "").strip()
+    if not descricao:
+        print("publicação: o plano não tem `publicacao.descricao` — sem pacote de "
+              "canal (o destino teria que inventar a descrição). "
+              f"Ajuste com: musicavideo ajusta {slug} ...")
+        return None
+    clipe = w / "clipe.mp4"
+    if not clipe.exists():
+        print("publicação: clipe.mp4 ainda não existe — sem pacote de canal")
+        return None
+    crua = w / "raw" / "capa-crua.png"
+    destino = w / "publicacao"
+    tmp = w / ".publicacao-tmp"
+    shutil.rmtree(tmp, ignore_errors=True)
+    tmp.mkdir(parents=True)
+    thumb = None
+    if crua.exists():
+        from src.arte import compor_capa_yt, ArteError
+        try:
+            compor_capa_yt(crua, plano["titulo"], plano["capa"].get("paleta"),
+                           plano["capa"].get("template", ""), tmp / "capa-yt.jpg")
+            thumb = "capa-yt.jpg"
+        except (ArteError, OSError, ValueError) as e:
+            print(f"publicação: sem capa 16:9 ({e}) — o pacote vai sem thumbnail")
+    else:
+        print("publicação: não há raw/capa-crua.png — o pacote vai sem thumbnail")
+    shutil.copy2(clipe, tmp / f"{slug}.mp4")
+    clip = {"filename": f"{slug}.mp4", "title": plano["titulo"],
+            "description": descricao, "tags": tags_de(plano)}
+    if thumb:
+        clip["thumbnail"] = thumb
+    # Sem `privacy` e sem `publish_at` de propósito: agendamento e visibilidade
+    # são decisão do canal, não da peça.
+    manifesto = {"titulo": plano["titulo"], "clips": [clip]}
+    (tmp / "manifest.json").write_text(
+        json.dumps(manifesto, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    shutil.rmtree(destino, ignore_errors=True)
+    tmp.rename(destino)       # troca atômica: ninguém lê pasta pela metade
+    return destino
 
 
 def _post_multipart(url: str, campos: dict, arquivo_campo: str, arquivo: Path) -> dict:
@@ -83,6 +169,12 @@ def entregar(outdir: Path, slug: str) -> Path:
     plano = json.loads((w / "plano.json").read_text(encoding="utf-8"))
     estado = carregar_estado(w)
     enviar_telegram(w, estado, plano)
+    if all(estado["partes"][p]["estado"] == "pronto" for p in PARTES):
+        pacote_canal = montar_publicacao(outdir, slug)
+        if pacote_canal:
+            # RECIBO: é por esta linha que o bot acha o pacote e o leva ao canal
+            # declarado no alvo. Mesmo idioma `campo: valor` do executor.
+            print(f"publicacao: {pacote_canal}")
     if all(estado["partes"][p]["estado"] == "pronto" for p in PARTES):
         estado["fase"] = "entregue"
         registrar(estado, "entrega", detalhe="pacote completo")

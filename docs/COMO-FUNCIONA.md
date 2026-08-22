@@ -22,6 +22,7 @@ atuar e refazer**, **como a busca funciona**, **como o planejamento decide**, e
 | 2.4 | arte da capa | automática, ou `arte <slug>` | não | sim, sempre |
 | 2.5 | montagem | automática, ou `monta <slug>` | não | sim, sempre |
 | 3 | entrega | automática | não | — |
+| 3.5 | pacote de publicação | automática | não | sim, sempre |
 
 **A fase onde você deve atuar é a 1.** Enquanto nada foi gerado, mexer é grátis
 e ilimitado. Depois da fase 2, refazer custa (na música) ou custa tempo (no

@@ -30,7 +30,8 @@ def _listas(d: dict, campos: tuple, ctx: str, erros: list):
 def validar_plano(plano: dict) -> list[str]:
     erros: list[str] = []
     _chaves(plano, {"schema_version", "slug", "criado_em", "solicitacao", "pesquisa",
-                    "estilo_ref", "titulo", "musica", "capa", "clipe"}, set(), "plano", erros)
+                    "estilo_ref", "titulo", "musica", "capa", "clipe"},
+            {"publicacao"}, "plano", erros)
     if plano.get("schema_version") != "1":
         erros.append('plano: schema_version deve ser "1"')
     m = plano.get("musica", {})
@@ -54,6 +55,13 @@ def validar_plano(plano: dict) -> list[str]:
     if "motor" in c:
         _motor_ok(c["motor"], "capa", erros)
     _listas(c, ("paleta",), "capa", erros)
+    # OPCIONAL de propósito: plano feito antes deste bloco continua válido — o
+    # que ele perde é o pacote de canal, não a geração. Ver entrega.montar_publicacao.
+    if "publicacao" in plano:
+        pub = plano["publicacao"] or {}
+        _chaves(pub, {"descricao"}, set(), "publicacao", erros)
+        if "descricao" in pub and not (isinstance(pub["descricao"], str) and pub["descricao"].strip()):
+            erros.append("publicacao.descricao: texto não vazio")
     v = plano.get("clipe", {})
     _chaves(v, {"motor", "params", "template", "sincronia", "decupagem"}, set(), "clipe", erros)
     if "motor" in v:

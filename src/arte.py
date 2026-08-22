@@ -137,6 +137,13 @@ def cor_do_texto(fundo_medio, paleta: list[str]):
 
 # ------------------------------------------------------------------ desenho
 
+def _passo(fonte, corpo: int, tipo: dict) -> int:
+    """Entrelinha nunca menor que a altura REAL da fonte: com `entrelinha` justa,
+    o til de VERÃO batia na linha de cima (Montserrat Black tem acento alto)."""
+    a, d = fonte.getmetrics()
+    return max(int(corpo * float(tipo.get("entrelinha", 1.0))), int((a + d) * 0.98))
+
+
 def _largura(draw, texto, fonte, tracking_px) -> int:
     if not texto:
         return 0
@@ -209,8 +216,7 @@ def compor_capa(bruta: Path, titulo: str, paleta: list[str] | None,
         f = _fonte(tipo["fonte"], meio)
         tr = tracking_frac * meio
         larg = max(_largura(draw, l, f, tr) for l in linhas)
-        entre = float(tipo.get("entrelinha", 1.0))
-        alt = int(meio * entre * len(linhas))
+        alt = int(_passo(f, meio, tipo) * len(linhas))
         if larg <= alvo_px and alt <= H * (1 - 2 * MARGEM):
             escolhido, lo = (meio, f, tr, larg, alt), meio + 1
         else:
@@ -220,7 +226,7 @@ def compor_capa(bruta: Path, titulo: str, paleta: list[str] | None,
         escolhido = (8, f, 0.0, max(_largura(draw, l, f, 0) for l in linhas),
                      int(8 * len(linhas)))
     corpo, fonte, tracking_px, larg_bloco, alt_bloco = escolhido
-    passo = int(corpo * float(tipo.get("entrelinha", 1.0)))
+    passo = _passo(fonte, corpo, tipo)
 
     posicao = tipo.get("posicao", "base")
     margem = int(min(W, H) * MARGEM)
@@ -266,4 +272,51 @@ def compor_capa(bruta: Path, titulo: str, paleta: list[str] | None,
         _escrever(draw, x, y, linha, fonte, tracking_px, cor)
         y += passo
     img.convert("RGB").save(destino)
+    return destino
+
+
+# --------------------------------------------------------- capa 16:9 (YouTube)
+
+# `thumbnails.set` do YouTube: 1280x720 e teto de 2 MB — por isso JPG, e por
+# isso a quadrada não serve (subir 1:1 dá letterbox no player).
+YT_LARGURA, YT_ALTURA = 1280, 720
+YT_TETO_BYTES = 2 * 1024 * 1024
+
+
+def _fundo_16x9(crua: Image.Image) -> Image.Image:
+    """A crua é 1:1. Em vez de cortar (perde metade da arte) ou deixar barra
+    preta, o quadrado vai inteiro no centro e as laterais são ele mesmo,
+    ampliado e borrado — o truque de capa de álbum em player widescreen."""
+    from PIL import ImageFilter
+    lado = min(crua.size)
+    quadro = crua.crop(((crua.width - lado) // 2, (crua.height - lado) // 2,
+                        (crua.width + lado) // 2, (crua.height + lado) // 2))
+    fundo = quadro.resize((YT_LARGURA, YT_LARGURA)).crop(
+        (0, (YT_LARGURA - YT_ALTURA) // 2, YT_LARGURA, (YT_LARGURA + YT_ALTURA) // 2))
+    fundo = fundo.filter(ImageFilter.GaussianBlur(28))
+    centro = quadro.resize((YT_ALTURA, YT_ALTURA))
+    fundo.paste(centro, ((YT_LARGURA - YT_ALTURA) // 2, 0))
+    return fundo
+
+
+def compor_capa_yt(bruta: Path, titulo: str, paleta: list[str] | None,
+                   template_id: str, destino: Path) -> Path:
+    """A MESMA crua, na proporção que o YouTube quer. Não gera imagem nova:
+    recompor a thumbnail é de graça, gerar é que custa."""
+    bruta, destino = Path(bruta), Path(destino)
+    if not bruta.exists():
+        raise ArteError(f"imagem crua não encontrada: {bruta}")
+    base = _fundo_16x9(Image.open(bruta).convert("RGB"))
+    tmp = destino.with_suffix(".base.png")
+    base.save(tmp)
+    try:
+        compor_capa(tmp, titulo, paleta, template_id, destino)
+        # A composição salva no formato da extensão; para JPG o teto de 2 MB
+        # manda, então cai a qualidade até caber em vez de o upload dar 400.
+        q = 92
+        while destino.stat().st_size > YT_TETO_BYTES and q > 55:
+            q -= 10
+            Image.open(destino).convert("RGB").save(destino, "JPEG", quality=q)
+    finally:
+        tmp.unlink(missing_ok=True)
     return destino

@@ -57,11 +57,18 @@ def _arquivo_estilos() -> Path:
 def montar_contexto(solicitacao: str, opts: dict, outdir: Path) -> str:
     partes = [
         "Você é o planejador do musicavideo. Responda APENAS um JSON no schema plano.json v1 "
-        "(schema_version, slug, criado_em, solicitacao, pesquisa, estilo_ref, titulo, musica, capa, clipe).",
+        "(schema_version, slug, criado_em, solicitacao, pesquisa, estilo_ref, titulo, musica, "
+        "capa, clipe, publicacao).",
         "Estrutura exata: musica{motor,params,estilo{genero,bpm,tom,mood,instrumentacao,voz,prompt_estilo},"
         "estrutura[{secao,inicio_s,duracao_s}],letra{origem,texto,texto_original,idioma}}; capa{motor,params,template,conceito,"
         "prompt_imagem,prompt_negativo,paleta}; clipe{motor,params,template,sincronia,"
-        "decupagem[{n,secao,duracao_s,camera,descricao,prompt,prompt_alt}]}. NENHUM campo a mais.",
+        "decupagem[{n,secao,duracao_s,camera,descricao,prompt,prompt_alt}]}; "
+        "publicacao{descricao}. NENHUM campo a mais.",
+        "publicacao.descricao é a DESCRIÇÃO do vídeo no YouTube, em português: 2 a 4 "
+        "parágrafos curtos dizendo o que a peça É — do que a música fala, que som ela "
+        "tem, o que se vê no clipe. Escreva para quem chegou pelo vídeo, não para quem "
+        "leu o plano. Sem hashtag, sem CTA, sem link, sem emoji, sem citar artista ou "
+        "obra, e sem repetir o título na primeira linha.",
         "PLANO B: cada shot leva também `prompt_alt` — a MESMA cena e a mesma duração "
         "contada pelo lado seguro, para quando o filtro de conteúdo barrar o prompt "
         "principal. No alt: sem rostos em close, sem violência, sem marcas, sem texto "
@@ -353,6 +360,17 @@ def render_plano_md(plano: dict, disp: dict) -> str:
            f"**estilo de referência:** {plano['estilo_ref']}  ·  "
            f"**pesquisa:** {'sim' if plano['pesquisa'] else 'não'}", ""]
     corpo = [render_secao(plano, p) for p in PARTES]
+    # A descrição do YouTube entra no PLANO.md porque é AQUI que mexer é de
+    # graça — depois do render ela seria só um texto que ninguém releu.
+    from src.entrega import tags_de
+    pub = (plano.get("publicacao") or {}).get("descricao", "").strip()
+    corpo.append("\n".join(
+        ["## Publicação (YouTube)", "",
+         f"- **Título:** {plano['titulo']}",
+         f"- **Tags:** {', '.join(tags_de(plano)) or '—'}", "",
+         "**Descrição:**", "", pub or
+         "_(sem descrição no plano — a entrega não monta o pacote de canal; "
+         "use `ajusta` ou replaneje)_"]))
     prov = ["## Disponibilidade dos provedores", ""]
     for nome, (ok, motivo) in sorted(disp.items()):
         prov.append(f"- **{nome}:** {'ok' if ok else motivo}")

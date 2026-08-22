@@ -229,6 +229,37 @@ máquina.
 
 ---
 
+## Fase 3.5 — pacote de publicação
+
+**Comando:** automático no fim da entrega, quando as três partes estão prontas.
+**Custo:** zero.
+
+Monta `<slug>/publicacao/` para que o **destino não precise refazer nada**:
+
+```
+publicacao/
+  <slug>.mp4        cópia do clipe
+  capa-yt.jpg       1280x720, composta da MESMA crua (teto de 2 MB do YouTube)
+  manifest.json     {titulo, clips:[{filename, title, description, tags, thumbnail}]}
+```
+
+- **título** — `plano.titulo`.
+- **descrição** — `plano.publicacao.descricao`, escrita pelo planner e revisável de graça no portão do plano (aparece no `PLANO.md`). **Sem ela não sai pacote**: entregar sem descrição seria pedir ao destino que inventasse uma.
+- **tags** — determinísticas, de `genero` + `mood` + `instrumentacao` + `estilo_ref`, sem acento e sem repetição. Sem modelo: tag é rótulo, não texto.
+- **thumbnail** — a capa quadrada não serve (dá letterbox), então a 16:9 sai da mesma crua com as laterais borradas. Sem crua, o pacote sai mesmo assim, só sem thumbnail.
+- **sem `privacy` e sem `publish_at`** — visibilidade e agendamento são decisão do canal, não da peça.
+
+A pasta é montada em `.publicacao-tmp` e renomeada no fim: quem varre a pasta
+não pode ler um pacote pela metade. A última linha do recibo diz
+`publicacao: <caminho>` — é por ela que o bot acha o pacote e o leva ao canal
+declarado no `flow.json`. Fora do bot, é só copiar a pasta para
+`imports/<slug>/` do projeto do canal.
+
+> Plano feito antes deste bloco continua válido: `publicacao` é opcional no
+> schema. O que ele perde é o pacote, não a geração.
+
+---
+
 ## Fase 3 — entrega
 
 **Comando:** automática quando as três partes ficam `pronto`; `--telegram` liga o envio.
