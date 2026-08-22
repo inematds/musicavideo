@@ -16,6 +16,17 @@ segundos — esperar o clipe para revisá-la era revisar tarde.
 
 Acompanhar: /status MVD#N · /aprovar MVD#N · /refazer MVD#N · /cancelar MVD#N
 
+## CONSULTAS
+
+Perguntas de leitura, direto no chat — não entram na fila e não gastam nada:
+
+| comando | o que responde |
+|---|---|
+| `/musicavideo lista` | os últimos 10 slugs, com estado de cada parte e custo |
+| `/musicavideo busca <termo>` | procura no acervo (slug, título, solicitação, gênero, tags) |
+| `/musicavideo estilos` | os estilos disponíveis, por id |
+| `/musicavideo custo <slug>` | estimado vs gasto, por parte |
+
 ## PADROES
 
 Os valores que valem quando você não diz nada:
