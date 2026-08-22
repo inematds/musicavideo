@@ -231,11 +231,22 @@ class Agnes(Provider):
         feitos: dict[int, Path] = {}
         barrados, com_alt, reescritos, preenchidos = [], [], [], []
 
+        # PROGRESSO em linha declarada: `progresso: 23/47`. É o contrato que o bot
+        # lê do log para mostrar no /status — sem ele, uma fase de uma hora
+        # aparece como "▶️ rodando" do começo ao fim, e não dá para saber se ela
+        # avançou 2 ou 40 shots (pedido do dono em 2026-08-22). Uma linha por
+        # shot concluído, sempre com o total.
+        total = len(decupagem)
+
+        def _progresso() -> None:
+            print(f"progresso: {len(feitos)}/{total} shots", flush=True)
+
         for i, shot in enumerate(decupagem):
             n = shot["n"]
             pronto = workdir / "raw" / f"shot-{n:02d}.mp4"
             if pronto.exists() and pronto.stat().st_size > 10_000:
                 feitos[n] = pronto            # de corrida anterior: não refaz
+                _progresso()
                 continue
             if i > 0:
                 time.sleep(12)                # rate limit real: 5 req/min
@@ -258,6 +269,7 @@ class Agnes(Provider):
                         raise
                     erro_final = e
             if n in feitos:
+                _progresso()
                 continue
 
             if reescrever:                    # rede de segurança: Fable reescreve na hora
