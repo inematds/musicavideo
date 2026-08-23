@@ -37,6 +37,17 @@ _TRANSICOES = {  # (estado_atual, evento) -> novo_estado
     ("gerando", "erro"): "erro",
     ("revisao", "aprova"): "pronto",
     ("revisao", "reprova"): "aprovado",  # volta pra fila do `faz`
+    # REPROVAR o que já está PRONTO. O portão de verdade mudou de lugar: o bot
+    # roda tudo com `--sem-revisao --aprovar` (o portão interno travou o MVD#89
+    # com a faixa paga e invisível), então quem olha olha no CHAT, com a parte
+    # já em `pronto`. Sem esta linha, reprovar do chat morria com
+    # `TransicaoInvalida` — o estado não previa que o dono revisa DEPOIS.
+    ("pronto", "reprova"): "aprovado",
+    # ESCOLHER a faixa depois de pronto (`aprova <slug> musica --faixa 2`): o
+    # Suno entrega duas, as duas ganham o mesmo vídeo (`montar_todas`) e
+    # escolher é só reapontar `clipe.mp4` — sem re-render e sem custo. Não muda
+    # de estado: já estava pronto e continua pronto.
+    ("pronto", "aprova"): "pronto",
     ("revisao", "ajusta"): "planejado",  # o problema era o plano, não a geração
     ("erro", "faz"): "gerando",
     ("erro", "ajusta"): "planejado",

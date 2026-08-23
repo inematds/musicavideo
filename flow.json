@@ -36,7 +36,19 @@
         "mostrar": [
           "{{artefato:musica}}",
           "{{artefato:musica_alt}}?"
-        ]
+        ],
+        "respostas": {
+          "refaz": "bash {{repo}}/musicavideo.sh reprova {{anterior:slug}} musica",
+          "correcao": "bash {{repo}}/musicavideo.sh ajusta {{anterior:slug}} musica {{resposta}} --refaz",
+          "a": {
+            "comando": "bash {{repo}}/musicavideo.sh aprova {{anterior:slug}} musica --faixa 1",
+            "reabre": false
+          },
+          "b": {
+            "comando": "bash {{repo}}/musicavideo.sh aprova {{anterior:slug}} musica --faixa 2",
+            "reabre": false
+          }
+        }
       },
       "comando": "bash {{repo}}/musicavideo.sh faz {{anterior:slug}} musica --sim --sem-revisao --aprovar"
     },
@@ -52,7 +64,11 @@
       "portao": {
         "mostrar": [
           "{{artefato:capa}}"
-        ]
+        ],
+        "respostas": {
+          "refaz": "bash {{repo}}/musicavideo.sh reprova {{anterior:slug}} capa",
+          "correcao": "bash {{repo}}/musicavideo.sh ajusta {{anterior:slug}} capa {{resposta}} --refaz"
+        }
       }
     },
     {
@@ -71,7 +87,15 @@
       "portao": {
         "mostrar": [
           "{{artefato:clipe}}"
-        ]
+        ],
+        "respostas": {
+          "reprova": "bash {{repo}}/musicavideo.sh reprova {{anterior:slug}} clipe {{resposta}}",
+          "ritmo": {
+            "comando": "bash {{repo}}/musicavideo.sh recorta {{anterior:slug}} --ritmo {{resposta}}",
+            "reabre": false
+          },
+          "correcao": "bash {{repo}}/musicavideo.sh ajusta {{anterior:slug}} clipe {{resposta}} --refaz"
+        }
       }
     },
     {

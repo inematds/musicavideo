@@ -153,6 +153,26 @@ escreveu, e o rótulo cai em `pt-BR` só se ele não declarar nada. Pedir o idio
 em prosa dentro do texto ("language = portuguese or spanish") funciona pela boa
 vontade do modelo — foi assim no MVD#96 e o rótulo virou a frase inteira.
 
+## RESPONDER AO PORTÃO (pelo bot)
+
+Quando o material chega no chat, `/aprovar` segue e estas palavras corrigem —
+cada fase aceita as suas, e o bot as lista junto com o material:
+
+| fase | resposta | o que faz | custo |
+|---|---|---|---|
+| música | `refaz` | descarta a faixa e gera outra, mesma letra e estilo | uma geração |
+| música | `correcao <instrução>` | reescreve a seção `musica` do plano e regera | uma geração |
+| música | `a` / `b` | escolhe a faixa 1 ou 2 como principal | **zero** — as duas já têm clipe |
+| capa | `refaz` | descarta e gera outra com o mesmo plano | uma geração |
+| capa | `correcao <instrução>` | reescreve o conceito da capa e regera | uma geração |
+| clipe | `reprova 4,17,23` | apaga esses shots; só eles são gerados de novo | N shots |
+| clipe | `ritmo variado\|dinamico\|calmo` | recorta o que já existe | **zero**, ~19s |
+| clipe | `correcao <instrução>` | reescreve a decupagem e regera | o clipe inteiro |
+
+`a`/`b` e `ritmo` não refazem nada: as duas faixas já ganharam o MESMO vídeo em
+`montar_todas`, e o `recorta` reusa os shots do disco. As outras devolvem a fase
+para a fila e o portão reabre com o material novo.
+
 ## TEMPLATES
 
 Também escolhidos pelo planejador, e visíveis no `PLANO.md`.

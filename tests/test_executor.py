@@ -112,3 +112,34 @@ def test_uma_faixa_so_nao_inventa_alternativa(outdir, slug, capsys):
     faz(outdir, slug, ["musica"], sim=True, sem_revisao=True, reg=_reg_fake(ProvFake()))
     saida = capsys.readouterr().out
     assert "musica_alt:" not in saida
+
+
+def test_reprova_o_que_ja_esta_pronto(outdir, slug):
+    """O portão de verdade é o chat, e lá a parte já está `pronto`.
+
+    O bot roda com `--sem-revisao --aprovar`, então quando o dono vê o material
+    ele não está mais em `revisao`. Sem a transição (pronto, reprova) o comando
+    morria com TransicaoInvalida — o estado não previa revisão DEPOIS.
+    """
+    from src.executor import cmd_reprova
+    aprovar_parte(outdir, slug, "musica")
+    faz(outdir, slug, ["musica"], sim=True, sem_revisao=True, reg=_reg_fake(ProvFake()))
+    assert carregar_estado(outdir / slug)["partes"]["musica"]["estado"] == "pronto"
+    assert cmd_reprova([slug, "musica"]) == 0
+    assert carregar_estado(outdir / slug)["partes"]["musica"]["estado"] == "aprovado"
+
+
+def test_escolher_a_outra_faixa_depois_de_pronto(outdir, slug):
+    """`aprova <slug> musica --faixa 2` com a parte já pronta.
+
+    As duas faixas ganham o MESMO vídeo em `montar_todas` — escolher é reapontar
+    `clipe.mp4`, sem re-render e sem custo. Só que o estado não previa aprovar
+    algo que já estava pronto, e o comando morria em TransicaoInvalida.
+    """
+    from src.executor import cmd_aprova
+    aprovar_parte(outdir, slug, "musica")
+    faz(outdir, slug, ["musica"], sim=True, sem_revisao=True, reg=_reg_fake(ProvDuasFaixas()))
+    assert cmd_aprova([slug, "musica", "--faixa", "2"]) == 0
+    e = carregar_estado(outdir / slug)
+    assert e["partes"]["musica"]["artefato"] == "faixa-2.mp3"
+    assert e["partes"]["musica"]["estado"] == "pronto"
