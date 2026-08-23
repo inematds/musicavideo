@@ -9,6 +9,7 @@ import json
 import os
 import socket
 import sys
+from datetime import datetime
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -60,6 +61,83 @@ def _texto(p: Path, limite: int = 40000) -> str | None:
         return None
 
 
+LIXEIRA = ".lixo"
+
+
+def _tamanho(w: Path) -> int:
+    """Bytes da pasta. É o número que faz querer apagar: cada recorte são
+    centenas de MB, e eles acumulam sem aparecer em lugar nenhum."""
+    total = 0
+    for f in w.rglob("*"):
+        try:
+            if f.is_file():
+                total += f.stat().st_size
+        except OSError:
+            continue
+    return total
+
+
+def _derivados(base: Path, ja_listados: set) -> list[dict]:
+    """Pasta com clipe que o índice NÃO conhece — recorte, teste, remontagem.
+
+    Elas existem no disco e não apareciam no painel: sem card, não há como ver
+    nem como apagar, e o disco enche em silêncio. O sufixo depois do último `-`
+    vira o rótulo (`-variado` → "variado"), e a pasta de origem, quando existe,
+    agrupa o derivado embaixo do clipe pai.
+    """
+    saida = []
+    for w in sorted(base.iterdir() if base.is_dir() else []):
+        if not w.is_dir() or w.name.startswith(".") or w.name in ja_listados:
+            continue
+        clipes = sorted(w.glob("clipe*.mp4"))
+        if not clipes:
+            continue
+        origem, _, rotulo = w.name.rpartition("-")
+        if not (origem and (base / origem).is_dir()):
+            origem, rotulo = "", "avulso"
+        versoes = [{"n": v.stem.split("-")[-1],
+                    "clipe": f"musicavideo/{w.name}/{v.name}",
+                    "faixa": (f"musicavideo/{w.name}/faixa-{v.stem.split('-')[-1]}.mp3"
+                              if (w / f"faixa-{v.stem.split('-')[-1]}.mp3").exists() else None),
+                    "aprovada": False}
+                   for v in sorted(w.glob("clipe-*.mp4"))]
+        faixa = _faixa(w)
+        saida.append({
+            "fonte": "musicavideo", "slug": w.name, "titulo": w.name,
+            "derivado": rotulo, "origem": origem,
+            "quando": datetime.fromtimestamp(w.stat().st_mtime).isoformat(timespec="seconds"),
+            "solicitacao": "", "genero": "", "bpm": None, "tom": "",
+            "estados": {}, "motores": {}, "custo": 0, "tags": [],
+            "bytes": _tamanho(w),
+            "capa": f"musicavideo/{w.name}/capa.png" if (w / "capa.png").exists() else None,
+            "clipe": f"musicavideo/{w.name}/clipe.mp4" if (w / "clipe.mp4").exists() else None,
+            "faixa": f"musicavideo/{w.name}/{faixa}" if faixa else None,
+            "versoes": versoes, "doc": None,
+        })
+    return saida
+
+
+def para_lixeira(base: Path, slug: str) -> Path:
+    """Apagar do painel MOVE, não destrói: engano tem volta.
+
+    O painel roda na LAN quando sobe com `--lan`, e um clique errado não pode
+    torrar horas de render. Esvaziar a lixeira é decisão de terminal.
+    """
+    base = Path(base).resolve()
+    alvo = (base / slug).resolve()
+    if alvo.parent != base or not alvo.is_dir() or alvo.name.startswith("."):
+        raise ValueError(f"caminho fora do acervo: {slug}")
+    lixo = base / LIXEIRA
+    lixo.mkdir(exist_ok=True)
+    destino = lixo / alvo.name
+    n = 2
+    while destino.exists():
+        destino = lixo / f"{alvo.name}-{n}"
+        n += 1
+    alvo.rename(destino)
+    return destino
+
+
 def coletar(raiz: Path) -> dict:
     mv = []
     base = raiz / "musicavideo"
@@ -92,8 +170,11 @@ def coletar(raiz: Path) -> dict:
             "clipe": f"musicavideo/{l['slug']}/clipe.mp4" if (w / "clipe.mp4").exists() else None,
             "faixa": f"musicavideo/{l['slug']}/{faixa}" if faixa else None,
             "versoes": versoes,
+            "bytes": _tamanho(w),
             "doc": _texto(w / "PACOTE.md") or _texto(w / "PLANO.md"),
         })
+
+    mv += _derivados(base, {x["slug"] for x in mv})
 
     av = []
     base = raiz / "analisevideo"
@@ -160,6 +241,10 @@ overflow:hidden;cursor:pointer}
 .pill{display:inline-block;font-size:11px;border:1px solid var(--linha);border-radius:99px;
 padding:1px 8px;margin:5px 5px 0 0;color:var(--dim)}
 .pill.ok{color:#7fd18a;border-color:#2f5133}.pill.err{color:#e58b7b;border-color:#5a2f28}
+.pill.dv{color:#e0b25c;border-color:#5a4626;margin-right:7px}
+button.perigo{background:transparent;color:#e58b7b;border:1px solid #5a2f28;border-radius:8px;
+padding:5px 12px;font:inherit;font-size:12px;cursor:pointer}
+button.perigo:hover{background:#2a1714}button.perigo:disabled{opacity:.6;cursor:default}
 dialog{background:var(--card);color:var(--txt);border:1px solid var(--linha);border-radius:14px;
 max-width:900px;width:92vw;padding:0}
 dialog::backdrop{background:#000b}
@@ -195,9 +280,11 @@ function alvo(){const q=document.getElementById("q").value.toLowerCase().trim();
 function cardMV(x){const t=x.capa?`<img class=thumb loading=lazy src="${E(x.capa)}">`:`<div class=thumb></div>`;
  const st=Object.entries(x.estados||{}).map(([k,v])=>
   `<span class="pill ${v==="pronto"?"ok":(v==="erro"?"err":"")}">${E(k)}: ${E(v)}</span>`).join("");
- return `${t}<div class=b><h3>${E(x.titulo)}</h3>
- <div class=meta>${E(x.genero)}${x.bpm?" · "+E(x.bpm)+" bpm":""}${x.tom?" · "+E(x.tom):""}</div>
+ const dv=x.derivado?`<span class="pill dv">${E(x.derivado)}</span>`:"";
+ return `${t}<div class=b><h3>${dv}${E(x.titulo)}</h3>
+ <div class=meta>${x.origem?"de "+E(x.origem)+" · ":""}${E(x.genero)}${x.bpm?" · "+E(x.bpm)+" bpm":""}${x.tom?" · "+E(x.tom):""}${x.bytes?" · "+MB(x.bytes):""}</div>
  <div>${st}${(x.versoes||[]).length>1?`<span class=pill>${x.versoes.length} versões</span>`:""}</div></div>`}
+function MB(b){return b>=1073741824?(b/1073741824).toFixed(1)+" GB":Math.round(b/1048576)+" MB"}
 function cardAV(x){const g=(x.paleta||[]).slice(0,5);
  const t=x.video?`<video class=thumb src="${E(x.video)}#t=1" preload=metadata muted></video>`
   :`<div class=thumb style="background:linear-gradient(120deg,${g.length?g.map(E).join(","):"#1a1512,#2b241d"})"></div>`;
@@ -231,7 +318,9 @@ function abre(x){document.getElementById("dt").textContent=x.titulo||x.slug;
  if(x.motores)h+=Object.entries(x.motores).map(([k,v])=>`<span class=pill>${E(k)}: ${E(v)}</span>`).join("");
  if((x.paleta||[]).length)h+=`<div class=pal style="margin-top:10px">`+x.paleta.map(c=>`<i title="${E(c)}" style="background:${E(c)}"></i>`).join("")+`</div>`;
  if((x.tags||[]).length)h+=`<div>`+x.tags.map(g=>`<span class=pill>${E(g)}</span>`).join("")+`</div>`;
- h+=`<p class=meta style="margin-top:12px">${E(x.slug)}${x.custo!==undefined?" · US$ "+E(x.custo):""}</p>`;
+ h+=`<p class=meta style="margin-top:12px">${E(x.slug)}${x.custo!==undefined?" · US$ "+E(x.custo):""}${x.bytes?" · "+MB(x.bytes):""}</p>`;
+ if(x.fonte==="musicavideo")h+=`<p><button id=apagar class=perigo data-slug="${E(x.slug)}">mandar para a lixeira</button>
+  <span class=meta>não apaga: move para <code>.lixo/</code></span></p>`;
  if(x.doc)h+=`<pre>${E(x.doc)}</pre>`;
  document.getElementById("dc").innerHTML=h;
  const dc=document.getElementById("dc"),bts=[...dc.querySelectorAll(".tab")],pns=[...dc.querySelectorAll(".versao")];
@@ -239,6 +328,13 @@ function abre(x){document.getElementById("dt").textContent=x.titulo||x.slug;
   bts.forEach((b,j)=>b.setAttribute("aria-selected",j===i))};
  if(pns.length){bts.forEach((b,i)=>b.onclick=()=>mostra(i));
   mostra(Math.max(0,vs.findIndex(v=>v.aprovada)))}
+ const ap=dc.querySelector("#apagar");
+ if(ap)ap.onclick=()=>{if(!confirm("Mandar "+ap.dataset.slug+" para a lixeira?"))return;
+  ap.disabled=true;ap.textContent="movendo…";
+  fetch("__apagar",{method:"POST",body:JSON.stringify({slug:ap.dataset.slug})})
+   .then(r=>r.json()).then(r=>{if(!r.ok){ap.disabled=false;ap.textContent="falhou: "+r.erro;return}
+    dlg.close();return fetch("__dados.json").then(r=>r.json()).then(d=>{DADOS=d;pinta()})})
+   .catch(e=>{ap.disabled=false;ap.textContent="falhou: "+e})};
  dlg.showModal()}
 document.getElementById("fecha").onclick=()=>{document.getElementById("dc").innerHTML="";dlg.close()};
 dlg.addEventListener("close",()=>document.getElementById("dc").innerHTML="");
@@ -270,6 +366,20 @@ class Handler(SimpleHTTPRequestHandler):
             dados = json.dumps(coletar(Path(self.directory)), ensure_ascii=False)
             return self._envia(dados.encode("utf-8"), "application/json; charset=utf-8")
         return super().do_GET()
+
+    def do_POST(self):  # noqa: N802
+        """Só uma rota, e ela MOVE para a lixeira — nunca apaga de verdade."""
+        if self.path != "/__apagar":
+            return self.send_error(404)
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+            slug = json.loads(self.rfile.read(n) or b"{}").get("slug", "")
+            destino = para_lixeira(Path(self.directory) / "musicavideo", slug)
+        except (ValueError, OSError) as e:
+            corpo = json.dumps({"ok": False, "erro": str(e)})
+            return self._envia(corpo.encode("utf-8"), "application/json; charset=utf-8")
+        corpo = json.dumps({"ok": True, "lixeira": destino.name})
+        return self._envia(corpo.encode("utf-8"), "application/json; charset=utf-8")
 
     def send_head(self):
         """Range mínimo: sem isso o navegador não consegue arrastar o vídeo."""

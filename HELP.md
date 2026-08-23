@@ -127,6 +127,21 @@ música. Medido no MVD gaúcho: **19 segundos**, contra as ~4h de gerar de novo.
 O clipe velho fica intacto: o novo sai em `<slug>-<ritmo>/`, com as faixas e a
 capa, para comparar lado a lado.
 
+## PAINEL
+
+`musicavideo painel [--lan] [--porta N]` sobe o acervo no navegador.
+
+Desde 2026-08-23 ele mostra **tudo que existe no disco**, não só o que está no
+`index.jsonl`: qualquer pasta com clipe entra, inclusive as derivadas de
+`recorta` (`<slug>-variado`, `<slug>-dinamico`), com selo do ritmo, o slug de
+origem e o **tamanho em disco** — que é o número que importa, porque cada
+recorte são centenas de MB.
+
+Cada card tem **"mandar para a lixeira"**: não apaga, MOVE para
+`output/musicavideo/.lixo/`. Engano tem volta, e esvaziar a lixeira é decisão
+de terminal (`rm -rf`), nunca de clique — ainda mais com `--lan`, onde a página
+está aberta pra rede.
+
 ## ESTILOS
 
 O planejador escolhe um sozinho a partir da sua descrição. Para forçar, use
