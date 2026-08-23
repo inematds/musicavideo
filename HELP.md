@@ -14,6 +14,11 @@ Fases (cada uma para e espera /aprovar, menos a última):
 A capa tem portão PRÓPRIO desde 2026-08-22: ela é o frame 0 no feed e sai em
 segundos — esperar o clipe para revisá-la era revisar tarde.
 
+Em cada portão o material chega no chat e o fluxo PARA. Você tem duas saídas:
+`/aprovar MVD#N` segue, e as palavras da tabela RESPONDER AO PORTÃO corrigem —
+o bot lista as da fase junto com o material. Reprovar devolve a fase para a
+fila e o portão REABRE com o material novo, quantas vezes for preciso.
+
 Acompanhar: /status MVD#N · /aprovar MVD#N · /refazer MVD#N · /cancelar MVD#N
 
 ## CONSULTAS
@@ -172,6 +177,23 @@ cada fase aceita as suas, e o bot as lista junto com o material:
 `a`/`b` e `ritmo` não refazem nada: as duas faixas já ganharam o MESMO vídeo em
 `montar_todas`, e o `recorta` reusa os shots do disco. As outras devolvem a fase
 para a fila e o portão reabre com o material novo.
+
+Como o laço funciona, por dentro:
+
+    portão abre  →  você responde  →  o bot roda o comando do domínio
+                                   →  a fase volta para a fila e RODA
+                                   →  o portão REABRE com o material novo
+                                   →  ...até você dar /aprovar
+
+O comando é o mesmo que você rodaria no terminal (`reprova`, `ajusta --refaz`,
+`aprova --faixa N`, `recorta`) — o bot não tem lógica própria de correção, ele
+só sabe que esta fase declarou esta palavra. O que vem depois da palavra vai
+INTEIRO para o domínio, num argumento só: `clipe: MVD#7 correcao menos zoom nos
+rostos` chega como uma instrução, não como flags que o bot tentou entender.
+
+Duas faixas: o Suno entrega duas e as DUAS aparecem no portão da música (a
+segunda vem do campo `musica_alt` do recibo). Escolher entre elas é `a` ou `b`,
+e não custa nada — o clipe das duas é o mesmo vídeo.
 
 ## TEMPLATES
 
