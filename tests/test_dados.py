@@ -107,3 +107,28 @@ def test_lixeira_nao_sobrescreve_apagado_anterior(tmp_path):
         (base / "cancao" / "clipe.mp4").write_bytes(b"z")
         para_lixeira(base, "cancao")
     assert sorted(p.name for p in (base / ".lixo").iterdir()) == ["cancao", "cancao-2"]
+
+
+def test_url_de_artefato_leva_a_data_para_furar_cache(tmp_path):
+    """`capa.png` é sempre `capa.png`: sem carimbo, o navegador serve a versão
+    velha e a capa refeita não aparece."""
+    from src.painel import coletar
+    base = tmp_path / "musicavideo"
+    (base / "cancao").mkdir(parents=True)
+    (base / "cancao" / "clipe.mp4").write_bytes(b"x")
+    (base / "cancao" / "capa.png").write_bytes(b"p")
+    (base / "index.jsonl").write_text(
+        '{"slug": "cancao", "titulo": "C", "criado_em": "2026-08-23"}\n', encoding="utf-8")
+    capa = coletar(tmp_path)["musicavideo"][0]["capa"]
+    assert capa.startswith("musicavideo/cancao/capa.png?v=")
+    assert capa.split("=")[-1].isdigit()
+
+
+def test_artefato_ausente_continua_none(tmp_path):
+    from src.painel import coletar
+    base = tmp_path / "musicavideo"
+    (base / "cancao").mkdir(parents=True)
+    (base / "cancao" / "clipe.mp4").write_bytes(b"x")
+    (base / "index.jsonl").write_text(
+        '{"slug": "cancao", "titulo": "C", "criado_em": "2026-08-23"}\n', encoding="utf-8")
+    assert coletar(tmp_path)["musicavideo"][0]["capa"] is None

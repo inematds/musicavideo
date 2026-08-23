@@ -64,6 +64,20 @@ def _texto(p: Path, limite: int = 40000) -> str | None:
 LIXEIRA = ".lixo"
 
 
+def _url(base: Path, rel: str) -> str | None:
+    """URL do arquivo com a data dele no fim: `capa.png?v=1756...`.
+
+    O caminho de um artefato NUNCA muda — `capa.png` é sempre `capa.png` —, só
+    o conteúdo. Sem isto o navegador serve a versão que já tem em cache e a capa
+    refeita simplesmente não aparece (2026-08-23: as 6 capas foram regeradas e
+    o painel continuou mostrando as antigas).
+    """
+    arq = base / rel
+    if not arq.exists():
+        return None
+    return f"{base.name}/{rel}?v={int(arq.stat().st_mtime)}"
+
+
 def _tamanho(w: Path) -> int:
     """Bytes da pasta. É o número que faz querer apagar: cada recorte são
     centenas de MB, e eles acumulam sem aparecer em lugar nenhum."""
@@ -96,9 +110,8 @@ def _derivados(base: Path, ja_listados: set) -> list[dict]:
         if not (origem and (base / origem).is_dir()):
             origem, rotulo = "", "avulso"
         versoes = [{"n": v.stem.split("-")[-1],
-                    "clipe": f"musicavideo/{w.name}/{v.name}",
-                    "faixa": (f"musicavideo/{w.name}/faixa-{v.stem.split('-')[-1]}.mp3"
-                              if (w / f"faixa-{v.stem.split('-')[-1]}.mp3").exists() else None),
+                    "clipe": _url(base, f"{w.name}/{v.name}"),
+                    "faixa": _url(base, f"{w.name}/faixa-{v.stem.split('-')[-1]}.mp3"),
                     "aprovada": False}
                    for v in sorted(w.glob("clipe-*.mp4"))]
         faixa = _faixa(w)
@@ -109,9 +122,9 @@ def _derivados(base: Path, ja_listados: set) -> list[dict]:
             "solicitacao": "", "genero": "", "bpm": None, "tom": "",
             "estados": {}, "motores": {}, "custo": 0, "tags": [],
             "bytes": _tamanho(w),
-            "capa": f"musicavideo/{w.name}/capa.png" if (w / "capa.png").exists() else None,
-            "clipe": f"musicavideo/{w.name}/clipe.mp4" if (w / "clipe.mp4").exists() else None,
-            "faixa": f"musicavideo/{w.name}/{faixa}" if faixa else None,
+            "capa": _url(base, f"{w.name}/capa.png"),
+            "clipe": _url(base, f"{w.name}/clipe.mp4"),
+            "faixa": _url(base, f"{w.name}/{faixa}") if faixa else None,
             "versoes": versoes, "doc": None,
         })
     return saida
@@ -150,8 +163,8 @@ def coletar(raiz: Path) -> dict:
         for v in sorted(w.glob("clipe-*.mp4")):
             n = v.stem.split("-")[-1]
             trilha = w / f"faixa-{n}.mp3"
-            versoes.append({"n": n, "clipe": f"musicavideo/{l['slug']}/{v.name}",
-                            "faixa": f"musicavideo/{l['slug']}/{trilha.name}" if trilha.exists() else None,
+            versoes.append({"n": n, "clipe": _url(base, f"{l['slug']}/{v.name}"),
+                            "faixa": _url(base, f"{l['slug']}/{trilha.name}") if trilha.exists() else None,
                             "aprovada": bool(faixa) and faixa == trilha.name})
         mv.append({
             "fonte": "musicavideo",
@@ -166,9 +179,9 @@ def coletar(raiz: Path) -> dict:
             "motores": l.get("motores", {}),
             "custo": l.get("custo_gasto_usd", 0),
             "tags": l.get("tags", []),
-            "capa": f"musicavideo/{l['slug']}/capa.png" if (w / "capa.png").exists() else None,
-            "clipe": f"musicavideo/{l['slug']}/clipe.mp4" if (w / "clipe.mp4").exists() else None,
-            "faixa": f"musicavideo/{l['slug']}/{faixa}" if faixa else None,
+            "capa": _url(base, f"{l['slug']}/capa.png"),
+            "clipe": _url(base, f"{l['slug']}/clipe.mp4"),
+            "faixa": _url(base, f"{l['slug']}/{faixa}") if faixa else None,
             "versoes": versoes,
             "bytes": _tamanho(w),
             "doc": _texto(w / "PACOTE.md") or _texto(w / "PLANO.md"),
