@@ -14,7 +14,7 @@ def out_dir() -> Path:
 
 USO = """uso: musicavideo <comando> ...
   plano "<solicitação>" [slug] [--pesquisa] [--estilo X] [--idioma X] [--letra arq [--letra-final]]
-        [--faixa-pronta arq.mp3] [--motor parte=prov:modelo] [--forca]
+        [--faixa-pronta arq.mp3] [--motor parte=prov:modelo] [--ritmo auto|calmo|padrao|variado|dinamico] [--forca]
   ver <slug> [musica|capa|clipe]
   ajusta <slug> <parte> "<instrução>" [--refaz]
   ok <slug> <parte>

@@ -15,6 +15,25 @@ from src.registry import carregar_registry, disponibilidade, resolver_motor, val
 RAIZ = Path(__file__).resolve().parents[1]
 PARTES = ("musica", "capa", "clipe")
 DUR_SHOT_PADRAO = 5          # segundos por shot (limite prático do Agnes)
+PISO_SHOT_S = 1.5            # abaixo disso o gerador não entrega plano legível
+TETO_SHOT_S = 18.0           # 441 frames @24fps é o teto duro da Agnes
+
+# RITMO: quantos cortes por minuto o clipe tem. O default é `auto` — quem
+# decide é o planejador, a partir do bpm/gênero e das referências MEDIDAS (o
+# acervo mostra 22-35 cortes/min nos clipes que performaram e 11-15 nos
+# médios). A flag existe para DISCORDAR do que ele escolheu, e para o caso em
+# que o custo é a parede: mais cortes = mais shots = mais horas de fila.
+#
+# `variado` é o único que compra dinâmica SEM pagar hora: a média fica em 5s
+# (mesmo número de shots que hoje), mas a distribuição é desigual.
+RITMOS = {
+    "auto":     (None, "o planejador decide pelo bpm/gênero e pelas referências medidas"),
+    "calmo":    (8.0,  "~8s por plano, poucos cortes — balada, ambiente"),
+    "padrao":   (5.0,  "5s por plano, o de sempre"),
+    "variado":  (5.0,  "média de 5s, distribuição desigual: refrão pica, verso respira"),
+    "dinamico": (3.0,  "~3s por plano, 20-30 cortes/min — o regime dos virais do acervo"),
+}
+RITMO_PADRAO = "auto"
 COBERTURA_MINIMA = 0.9       # o clipe tem que cobrir ao menos 90% da faixa
 MOTORES_DEFAULT = {"musica": "kie:suno-v4.5",
                    "capa": "agnes:agnes-image-2.1-flash",
@@ -89,10 +108,11 @@ def montar_contexto(solicitacao: str, opts: dict, outdir: Path) -> str:
         "conceito/descricao/letra/mood podem ser em português.",
         "Motores default: " + json.dumps(MOTORES_DEFAULT),
         f"DURAÇÃO: o clipe DEVE cobrir a música INTEIRA. A faixa terá ~{_dur_alvo(opts)}s, "
-        f"então a decupagem precisa de ~{_n_shots_alvo(opts)} shots de {DUR_SHOT_PADRAO}s "
-        f"(soma de duracao_s ≈ duração da faixa). Um clipe mais curto que a música é "
-        f"REJEITADO na validação. Distribua os shots pelas seções da estrutura: mais shots "
-        f"nos refrões, e variação real entre eles (nada de repetir o mesmo plano).",
+        f"então a soma de duracao_s ≈ essa duração (~{_n_shots_alvo(opts)} shots). "
+        f"Um clipe mais curto que a música é REJEITADO na validação. Distribua os shots "
+        f"pelas seções da estrutura, com variação real entre eles (nada de repetir o "
+        f"mesmo plano).",
+        _instrucao_ritmo(opts),
         f"SOLICITAÇÃO: {solicitacao}",
         "ESTILOS: " + _arquivo_estilos().read_text(encoding="utf-8"),
         "TEMPLATES CAPA: " + (RAIZ / "data/templates-capa.json").read_text(encoding="utf-8"),
@@ -162,8 +182,39 @@ def _dur_alvo(opts: dict) -> int:
     return int(opts.get("duracao_s") or 180)
 
 
+def _ritmo(opts: dict) -> str:
+    r = str(opts.get("ritmo") or RITMO_PADRAO).strip().lower()
+    return r if r in RITMOS else RITMO_PADRAO
+
+
+def media_shot_s(opts: dict) -> float:
+    """A média de duração por shot do ritmo pedido. `auto` cai no padrão só
+    para DIMENSIONAR o pedido — quem escolhe o ritmo de verdade é o planejador."""
+    return RITMOS[_ritmo(opts)][0] or DUR_SHOT_PADRAO
+
+
 def _n_shots_alvo(opts: dict) -> int:
-    return max(1, round(_dur_alvo(opts) / DUR_SHOT_PADRAO))
+    return max(1, round(_dur_alvo(opts) / media_shot_s(opts)))
+
+
+def _instrucao_ritmo(opts: dict) -> str:
+    """O parágrafo de RITMO do prompt. É aqui que o clipe deixa de ser slideshow."""
+    nome = _ritmo(opts)
+    comum = ("REGRA FIXA, valha qual for o ritmo: a duração NÃO é parelha entre os shots. "
+             f"Refrão pica (planos curtos), verso respira, intro segura o plano. "
+             f"Nenhum shot abaixo de {PISO_SHOT_S}s nem acima de {TETO_SHOT_S}s. "
+             "Escreva em clipe.sincronia qual ritmo você escolheu, em cortes/min, e POR QUÊ "
+             "(cite a referência medida que embasou).")
+    if nome == "auto":
+        return ("RITMO: você decide, pelo bpm, pelo gênero e pelas REFERÊNCIAS MEDIDAS abaixo "
+                "(elas trazem cortes/min de vídeos reais que funcionaram). Não invente um "
+                "número redondo: ancore no que está medido. " + comum)
+    if nome == "variado":
+        return (f"RITMO pedido: VARIADO — a MÉDIA fica em {DUR_SHOT_PADRAO}s por shot "
+                f"(mantendo ~{_n_shots_alvo(opts)} shots), mas a distribuição é bem desigual: "
+                f"2-3s no refrão pagos com 8-10s no verso. " + comum)
+    return (f"RITMO pedido: {nome.upper()} — média de {media_shot_s(opts):g}s por shot "
+            f"(~{_n_shots_alvo(opts)} shots). " + comum)
 
 
 def cobertura_do_clipe(plano: dict) -> list[str]:
@@ -172,8 +223,10 @@ def cobertura_do_clipe(plano: dict) -> list[str]:
     dur_clipe = sum(s.get("duracao_s", 0) for s in plano.get("clipe", {}).get("decupagem", []) or [])
     if dur_clipe < dur_musica * COBERTURA_MINIMA:
         return [f"clipe.decupagem cobre {dur_clipe}s de uma música de ~{dur_musica}s — "
-                f"decupe a música inteira (~{round(dur_musica / DUR_SHOT_PADRAO)} shots "
-                f"de {DUR_SHOT_PADRAO}s)"]
+                f"decupe a música inteira (a soma de duracao_s tem que chegar lá; "
+                f"com planos de {DUR_SHOT_PADRAO}s isso dá "
+                f"~{round(dur_musica / DUR_SHOT_PADRAO)} shots, mas o número depende "
+                f"do ritmo que você escolheu)"]
     return []
 
 
@@ -400,12 +453,23 @@ def reajustar_decupagem(workdir: Path, duracao_real: float, chamar_llm=None) -> 
     chamar_llm = chamar_llm or chamar_fable
     workdir = Path(workdir)
     plano = json.loads((workdir / "plano.json").read_text(encoding="utf-8"))
-    atual = sum(x.get("duracao_s", 0) for x in plano["clipe"]["decupagem"])
-    alvo_shots = max(1, round(duracao_real / DUR_SHOT_PADRAO))
+    decup = plano["clipe"]["decupagem"]
+    atual = sum(x.get("duracao_s", 0) for x in decup)
+    # O RITMO JÁ FOI DECIDIDO — o reajuste só ESCALA. Até 2026-08-23 esta linha
+    # recalculava `duracao_real / 5` e pedia shots parelhos, o que apagava,
+    # depois da faixa pronta, qualquer ritmo que o plano tivesse: o clipe era
+    # planejado com refrão picado e renderizado como slideshow.
+    media = round(atual / len(decup), 1) if decup else DUR_SHOT_PADRAO
+    alvo_shots = max(1, round(duracao_real / media)) if media else 1
+    curtos = min((x.get("duracao_s", 0) for x in decup), default=DUR_SHOT_PADRAO)
+    longos = max((x.get("duracao_s", 0) for x in decup), default=DUR_SHOT_PADRAO)
     prompt = ("Plano atual:\n" + json.dumps(plano, ensure_ascii=False)
               + f"\n\nA MÚSICA FICOU PRONTA e tem {duracao_real:.0f}s — a decupagem atual "
                 f"cobre {atual}s. Reescreva APENAS a seção 'clipe' para cobrir "
-                f"{duracao_real:.0f}s: {alvo_shots} shots de {DUR_SHOT_PADRAO}s, "
+                f"{duracao_real:.0f}s MANTENDO O RITMO que já está lá: os planos hoje vão "
+                f"de {curtos:g}s a {longos:g}s, média {media:g}s — conserve essa variação "
+                f"(refrão picado, verso respirando), NÃO iguale as durações. Isso dá "
+                f"~{alvo_shots} shots, "
                 f"redistribuídos pelas seções (mais nos refrões), mantendo o arco "
                 f"narrativo e o estilo visual que já estavam lá. Aproveite os shots "
                 f"existentes que continuarem fazendo sentido, com os mesmos prompts. "
@@ -572,7 +636,8 @@ def _parse_opts(args: list[str]) -> tuple[list[str], dict]:
         elif a == "--faixa":
             i += 1
             opts["faixa"] = int(args[i])
-        elif a in ("--estilo", "--letra", "--teto", "--idioma", "--versao", "--tagline"):
+        elif a in ("--estilo", "--letra", "--teto", "--idioma", "--versao", "--tagline",
+                   "--ritmo"):
             i += 1
             opts[a[2:]] = args[i]
         elif a == "--motor":

@@ -264,3 +264,46 @@ def test_parse_opts_le_versao_e_tagline():
     assert opts["versao"] == "2"
     assert opts["tagline"] == "o mar não espera"
     assert _parse_opts(["slug", "--versao=2"])[1]["versao"] == "2"
+
+
+# --- ritmo do clipe (2026-08-23) ---------------------------------------------
+
+def test_ritmo_auto_e_o_default_e_manda_o_planejador_decidir():
+    from src.planner import _instrucao_ritmo, _ritmo, media_shot_s
+    assert _ritmo({}) == "auto"
+    txt = _instrucao_ritmo({})
+    assert "você decide" in txt and "REFERÊNCIAS MEDIDAS" in txt
+    assert media_shot_s({}) == 5          # auto dimensiona pelo padrão
+
+
+def test_ritmo_dinamico_pede_mais_shots_que_o_calmo():
+    from src.planner import _n_shots_alvo
+    calmo = _n_shots_alvo({"duracao_s": 180, "ritmo": "calmo"})
+    padrao = _n_shots_alvo({"duracao_s": 180, "ritmo": "padrao"})
+    dinamico = _n_shots_alvo({"duracao_s": 180, "ritmo": "dinamico"})
+    assert calmo < padrao < dinamico     # mais cortes = mais shots = mais horas
+    assert dinamico == 60 and calmo == 22
+
+
+def test_ritmo_variado_nao_muda_o_numero_de_shots():
+    """É o ponto dele: ritmo sem pagar hora de fila."""
+    from src.planner import _n_shots_alvo
+    assert _n_shots_alvo({"duracao_s": 180, "ritmo": "variado"}) == \
+           _n_shots_alvo({"duracao_s": 180, "ritmo": "padrao"})
+
+
+def test_ritmo_invalido_cai_no_auto_sem_quebrar():
+    from src.planner import _ritmo
+    assert _ritmo({"ritmo": "furioso"}) == "auto"
+
+
+def test_todo_ritmo_proibe_duracao_parelha():
+    from src.planner import _instrucao_ritmo, RITMOS
+    for nome in RITMOS:
+        assert "NÃO é parelha" in _instrucao_ritmo({"ritmo": nome})
+
+
+def test_flag_ritmo_e_lida():
+    from src.planner import _parse_opts
+    assert _parse_opts(["--ritmo", "dinamico"])[1]["ritmo"] == "dinamico"
+    assert _parse_opts(["--ritmo=variado"])[1]["ritmo"] == "variado"

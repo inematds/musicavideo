@@ -39,6 +39,7 @@ Os valores que valem quando você não diz nada:
 | motor da música | `kie:suno-v4.5` (~US$ 0,08, traz 2 faixas) | `--motor musica=...` |
 | motor da capa | `agnes:agnes-image-2.1-flash` (**US$ 0**) | `--motor capa=inemaimg:flux2-klein` |
 | motor do clipe | `agnes:agnes-video-v2.0` (**US$ 0**) | `--motor clipe=kling:kling-v2_5` ou `fal:kling-v3-turbo` |
+| ritmo do clipe | **auto** — o planejador decide pelo bpm/gênero e pelas referências medidas | `--ritmo calmo\|padrao\|variado\|dinamico` |
 | pesquisa prévia | **desligada** (opt-in) | `--pesquisa` |
 | letra | o planejador escreve | `--letra <arq>`, e `--letra-final` para ela virar lei |
 | idioma da letra | **pt-BR** | `--idioma en-US` |
@@ -47,6 +48,38 @@ Os valores que valem quando você não diz nada:
 
 O plano é sempre de graça: quem gasta é só a fase `musica`, e o custo estimado
 aparece antes.
+
+## RITMO
+
+Quantos cortes por minuto o clipe tem. **Você não precisa escolher:** o default
+é `auto` — o planejador decide pelo bpm, pelo gênero e pelas REFERÊNCIAS
+MEDIDAS do `analisevideo` (o acervo mostra 22-35 cortes/min nos clipes que
+performaram, 11-15 nos médios), e escreve em `clipe.sincronia` qual ritmo
+escolheu e por quê. Isso aparece no `PLANO.md`, antes de qualquer gasto.
+
+A flag existe para você DISCORDAR dele, ou para segurar o relógio:
+
+| `--ritmo` | média por plano | ~180s de música | o que é |
+|---|---|---|---|
+| `auto` (default) | o planejador decide | — | ancorado no que foi medido, não no gosto |
+| `calmo` | ~8s | ~22 shots · ~2h30 | balada, ambiente, plano longo |
+| `padrao` | 5s | ~36 shots · ~4h | o de sempre |
+| `variado` | 5s de MÉDIA | ~36 shots · ~4h | **ritmo sem pagar hora**: 2-3s no refrão pagos com 8-10s no verso |
+| `dinamico` | ~3s | ~60 shots · ~6-7h | 20-30 cortes/min, o regime dos virais do acervo |
+
+**As horas são o custo real, não o dólar.** Na Agnes o clipe é US$ 0 em qualquer
+ritmo; o que muda é a fila (5 requisições/min). Em motor pago por segundo o
+dólar também não muda com o ritmo — a metragem total continua sendo a duração
+da música, só o número de chamadas cresce.
+
+Vale para qualquer ritmo, e não se desliga: **a duração nunca é parelha entre os
+shots** — refrão pica, verso respira, intro segura o plano. Piso de 1,5s (abaixo
+disso o gerador não entrega plano legível) e teto de 18s (limite duro da Agnes).
+O reajuste que roda quando a faixa fica pronta **preserva essa variação** em vez
+de reescrever tudo igual.
+
+Sem flag nenhuma, dá para mexer depois: `ajusta <slug> clipe "deixa o refrão
+mais picado"`.
 
 ## ESTILOS
 
@@ -134,6 +167,7 @@ qualquer lugar. Aceitam `--flag valor` e `--flag=valor`:
 | `--faixa-pronta <arq>` | **você traz a música**: o pipeline faz só capa e clipe, e a duração real do arquivo ancora a decupagem. Nada é gasto na parte paga |
 | `--letra <arq>` | usa a sua letra como RASCUNHO; o `PLANO.md` mostra o diff do que mudou |
 | `--letra-final` | com `--letra`, a letra vira LEI: nem o `ajusta` mexe |
+| `--ritmo X` | quão picado é o clipe (ver `/musicavideo help ritmo`). Default `auto`: o planejador escolhe |
 | `--pesquisa` | pesquisa antes de planejar (custa tempo; desligado por default) |
 | `--motor parte=prov:modelo` | troca o motor de uma parte (ver `/musicavideo help padroes`) |
 | `--autorizo-pago` | obrigatório junto com `--motor` para `kie`, `kling` ou `fal` — eles gastam crédito ou dinheiro |
