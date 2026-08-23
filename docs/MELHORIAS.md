@@ -132,3 +132,53 @@ clipe fica mais curto que a faixa e o reajuste refaz a decupagem sozinho.
 Item que sair daqui vira commit e **sai da lista** (não fica marcado como
 feito — o `git log` é que conta essa história). Item que se provar má ideia
 fica, com o motivo: saber o que foi descartado vale tanto quanto a lista.
+
+#### Análise técnica do item 4 (2026-08-22) — o que trava, e em que ordem sai
+
+Levantamento no código, não no palpite. Cada eixo: **o que existe → o que falta
+→ menor mudança → custo.**
+
+**a) Durações variáveis — o contrato já permite; quem achata é o planner.**
+`DUR_SHOT_PADRAO = 5` (planner.py:17) entra em dois lugares: no prompt inicial
+(`~N shots de 5s`, l.92) **e no reajuste pós-faixa** (`_reajustar`, l.388–405),
+que recalcula `alvo_shots = duração/5` depois que a música real chega. Mexer só
+no prompt não resolve: o reajuste re-achata o ritmo. Teto físico por shot:
+441 frames @24fps = **18,4s** (`agnes.num_frames_para`). Invariante a manter:
+`soma(duracao_s) ≈ duração da faixa`. Custo: US$ 0 (prompt + planner).
+
+**b) Transição com efeito — hoje é impossível por construção.**
+`agnes.concat_ffmpeg` junta com `-c copy`. Sem re-encode não existe xfade,
+whip, dissolve — só corte seco. Duas consequências: (1) qualquer efeito exige
+re-encode do trecho; (2) todo overlap **consome duração dos dois planos**, então
+o cross-fade encurta o clipe e desloca a sincronia — a compensação tem de entrar
+no cálculo, não depois. E a validação é FECHADA (`esquemas.py`: campo
+desconhecido = erro): o campo de ligação entre `n` e `n+1` exige tocar
+`validar_plano` junto. Custo: CPU local, minutos.
+
+**c) Corte no beat.** O `bpm` já está no plano e nas referências. Barato:
+quantizar `duracao_s` a múltiplos de `60/bpm` — sem dependência nova, sem custo.
+Caro e certo: detectar o beat do MP3 (librosa/aubio) e ancorar os cortes na
+grade real — dependência nova, US$ 0, e só faz sentido depois de (a).
+
+**d) Ponte de referências.** Endossado o passo 1 já descrito acima (repassar
+`tipos_de_transicao`, `match_cut`, `corte_no_beat`, `slowmo/speedramp`): é a
+mudança menor de maior efeito, porque troca adjetivo por exemplo medido.
+
+**e) CUSTO — dinâmica custa TEMPO, não dinheiro.**
+Na Agnes o dólar é zero; o custo real é parede. Rate limit de 5 req/min (sleep
+de 12s entre shots) + fila: ~36 shots de 5s para 180s ≈ as **4h** já vividas.
+Ritmo mais picado (média 3s) ≈ 60 shots ≈ **+60–70% de horas**, e mais exposição
+a fila cheia e a shot barrado. Em provedor pago por segundo o dólar **não muda**
+com o ritmo: `custo.estimar_partes` soma `duracao_s`, e a soma continua sendo a
+duração da música. Cortes curtos ⇒ mais chamadas, mesma metragem.
+
+**Ordem recomendada:**
+1. durações variáveis + repasse da montagem nas referências (só prompt/planner,
+   US$ 0, sem tocar em render);
+2. campo de ligação por par de shots + render com efeito só onde declarado
+   (re-encode localizado, compensando o overlap na sincronia);
+3. beat-grid do áudio.
+
+**Boa prática, e coerente com a correção do dono:** corte seco no beat é o padrão
+de videoclipe profissional; efeito entra quando ele É a conexão (troca de seção,
+speedramp, match cut de movimento), nunca como enfeite distribuído.
