@@ -63,15 +63,19 @@ def peso_da_secao(secao: str, intensidade: float = 1.0) -> float:
 
 
 def duracoes_alvo(secoes: list[str], originais: list[float],
-                  intensidade: float = 1.0) -> list[float]:
-    """As durações novas: proporcionais ao peso, somando o MESMO total.
+                  intensidade: float = 1.0, total: float | None = None) -> list[float]:
+    """As durações novas: proporcionais ao peso, somando o total pedido.
+
+    `total` existe porque quem manda na soma é a MÚSICA, não o material. Com
+    planos novos entrando (37 gerados a 5s + 25 a 3s = 263s de material para
+    186s de faixa), somar o material esticaria o clipe para além da canção.
 
     Quem bate no piso, no teto ou no limite de slowmo trava, e o que sobra é
     redistribuído entre os livres — senão a soma escorrega e o clipe encurta.
     """
     if not originais:
         return []
-    total = sum(originais)
+    total = float(total if total else sum(originais))
     tetos = [min(TETO_S, o * LENTO_MAX) for o in originais]
     pesos = [peso_da_secao(s, intensidade) for s in secoes]
     travados: dict[int, float] = {}
@@ -167,17 +171,17 @@ def duracao(arq: Path) -> float:
 
 
 def recortar(shots: list[Path], secoes: list[str], destino: Path,
-             intensidade: float = 1.0) -> dict:
+             intensidade: float = 1.0, total_s: float | None = None) -> dict:
     """Remonta os shots existentes com ritmo. Devolve o relatório do que mudou."""
     if not shots:
         raise RecorteError("nenhum shot para recortar")
     duracoes = {s: duracao(s) for s in shots}
-    total = sum(duracoes.values())
+    total = float(total_s) if total_s else sum(duracoes.values())
     media_alvo = MEDIA_ALVO_S.get(intensidade_nome(intensidade))
     n_alvo = max(len(shots), round(total / media_alvo)) if media_alvo else len(shots)
     seq = expandir_sequencia(shots, secoes, n_alvo)
     originais = [duracoes[a] / f[1] for a, f, _, _ in seq]     # a fatia é o material real
-    alvos = duracoes_alvo([s for *_, s in seq], originais, intensidade)
+    alvos = duracoes_alvo([s for *_, s in seq], originais, intensidade, total)
     tmp = destino.parent / "recorte"
     tmp.mkdir(parents=True, exist_ok=True)
     partes = []

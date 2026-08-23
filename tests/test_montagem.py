@@ -182,3 +182,13 @@ def test_expandir_nao_mexe_se_ja_tem_planos_bastante():
     from src.recorte import expandir_sequencia
     shots = [P("a.mp4"), P("b.mp4")]
     assert len(expandir_sequencia(shots, ["verso", "verso"], 2)) == 2
+
+
+def test_recorte_respeita_o_total_pedido_e_nao_o_do_material():
+    """Quem manda na soma é a MÚSICA. Com planos novos entrando, o material
+    passa da faixa — somar o material esticaria o clipe além da canção."""
+    from src.recorte import duracoes_alvo
+    orig = [5.0] * 37 + [3.0] * 25            # 263s de material
+    secoes = ["verso"] * 37 + ["refrão"] * 25
+    alvos = duracoes_alvo(secoes, orig, 1.35, total=186.5)
+    assert abs(sum(alvos) - 186.5) < 1.0

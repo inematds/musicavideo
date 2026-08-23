@@ -78,6 +78,26 @@ def _url(base: Path, rel: str) -> str | None:
     return f"{base.name}/{rel}?v={int(arq.stat().st_mtime)}"
 
 
+# Rótulo de cada capa que o pipeline produz. A quadrada é a do álbum; a
+# `capa-yt.jpg` é a 16:9 do YouTube — hoje DERIVADA da quadrada (miolo no
+# centro, laterais preenchidas com ela mesma borrada), e é a que aparece no
+# feed. Refazer a imagem em cada proporção é o item 1 do MELHORIAS.
+CAPAS = [("capa.png", "quadrada 1:1"),
+         ("publicacao/capa-yt.jpg", "YouTube 16:9"),
+         ("capa-v1.png", "variante · faixa 1"),
+         ("capa-v2.png", "variante · faixa 2"),
+         ("capa-crua.png", "sem texto")]
+
+
+def _capas(base: Path, slug: str) -> list[dict]:
+    saida = []
+    for rel, rotulo in CAPAS:
+        url = _url(base, f"{slug}/{rel}")
+        if url:
+            saida.append({"url": url, "rotulo": rotulo})
+    return saida
+
+
 def _tamanho(w: Path) -> int:
     """Bytes da pasta. É o número que faz querer apagar: cada recorte são
     centenas de MB, e eles acumulam sem aparecer em lugar nenhum."""
@@ -123,6 +143,7 @@ def _derivados(base: Path, ja_listados: set) -> list[dict]:
             "estados": {}, "motores": {}, "custo": 0, "tags": [],
             "bytes": _tamanho(w),
             "capa": _url(base, f"{w.name}/capa.png"),
+            "capas": _capas(base, w.name),
             "clipe": _url(base, f"{w.name}/clipe.mp4"),
             "faixa": _url(base, f"{w.name}/{faixa}") if faixa else None,
             "versoes": versoes, "doc": None,
@@ -180,6 +201,7 @@ def coletar(raiz: Path) -> dict:
             "custo": l.get("custo_gasto_usd", 0),
             "tags": l.get("tags", []),
             "capa": _url(base, f"{l['slug']}/capa.png"),
+            "capas": _capas(base, l["slug"]),
             "clipe": _url(base, f"{l['slug']}/clipe.mp4"),
             "faixa": _url(base, f"{l['slug']}/{faixa}") if faixa else None,
             "versoes": versoes,
@@ -246,6 +268,14 @@ grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
 overflow:hidden;cursor:pointer}
 .card:hover{border-color:var(--amb)}
 .card .thumb{width:100%;aspect-ratio:16/9;object-fit:cover;background:#0a0806;display:block}
+/* capa é QUADRADA: recortada em 16/9 o título some. Inteira, com o fundo
+   escuro nas laterais, é o que ela é. */
+.card .thumb.capa{object-fit:contain}
+.capas{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.capas a{display:block;text-decoration:none;color:var(--dim);font-size:11.5px;text-align:center}
+.capas img{display:block;max-height:190px;max-width:min(46vw,320px);width:auto;
+border:1px solid var(--linha);border-radius:8px;background:#0a0806;margin-bottom:4px}
+.capas a:hover img{border-color:var(--amb)}
 .card .b{padding:11px 13px}
 .card h3{margin:0 0 5px;font-size:15px;line-height:1.3}
 .meta{color:var(--dim);font-size:12.5px}
@@ -290,7 +320,7 @@ const grade=document.getElementById("grade"),dlg=document.getElementById("dlg");
 function alvo(){const q=document.getElementById("q").value.toLowerCase().trim();
  let l=DADOS[aba]||[];
  if(q)l=l.filter(x=>JSON.stringify(x).toLowerCase().includes(q));return l}
-function cardMV(x){const t=x.capa?`<img class=thumb loading=lazy src="${E(x.capa)}">`:`<div class=thumb></div>`;
+function cardMV(x){const t=x.capa?`<img class="thumb capa" loading=lazy src="${E(x.capa)}">`:`<div class=thumb></div>`;
  const st=Object.entries(x.estados||{}).map(([k,v])=>
   `<span class="pill ${v==="pronto"?"ok":(v==="erro"?"err":"")}">${E(k)}: ${E(v)}</span>`).join("");
  const dv=x.derivado?`<span class="pill dv">${E(x.derivado)}</span>`:"";
@@ -312,6 +342,11 @@ function pinta(){const l=alvo();
   d.innerHTML=aba==="musicavideo"?cardMV(x):cardAV(x);d.onclick=()=>abre(x);grade.appendChild(d)})}
 function abre(x){document.getElementById("dt").textContent=x.titulo||x.slug;
  let h="";
+ // as capas primeiro, e clicáveis: o card mostra miniatura, aqui se vê inteira
+ // e o clique abre o arquivo no tamanho real, em outra aba.
+ if((x.capas||[]).length)h+=`<div class=capas>`+x.capas.map(c=>
+  `<a href="${E(c.url)}" target=_blank rel=noopener title="abrir em tamanho real">
+   <img src="${E(c.url)}" alt="${E(c.rotulo)}"><span>${E(c.rotulo)} ↗</span></a>`).join("")+`</div>`;
  const vs=x.versoes||[];
  if(vs.length>1){   // o Suno entrega duas faixas: mesmo video, trilhas diferentes
   h+=`<div class=tabs style="margin-bottom:10px">`+vs.map((v,i)=>
@@ -323,7 +358,7 @@ function abre(x){document.getElementById("dt").textContent=x.titulo||x.slug;
  }
  else if(x.clipe)h+=`<video src="${E(x.clipe)}" controls playsinline></video>`;
  else if(x.video)h+=`<video src="${E(x.video)}" controls playsinline></video>`;
- else if(x.capa)h+=`<img src="${E(x.capa)}">`;
+ else if(x.capa&&!(x.capas||[]).length)h+=`<img src="${E(x.capa)}">`;
  if(x.faixa&&vs.length<2)h+=`<audio src="${E(x.faixa)}" controls></audio>`;
  if(x.url)h+=`<p><a href="${E(x.url)}" target=_blank rel=noopener>fonte original</a></p>`;
  if(x.resumo)h+=`<p>${E(x.resumo)}</p>`;
