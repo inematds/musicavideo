@@ -16,6 +16,7 @@ PESO_TAG = 2.0
 PESO_MOOD = 2.0
 MAX_REFS = 3
 CORTE_RELATIVO = 0.4     # descarta referência fraca perto da melhor (evita carona)
+LIMITE_RESUMO = 2600     # com a montagem junto, 1800 cortava a 3ª referência
 
 
 def _banco() -> Path:
@@ -76,22 +77,59 @@ def referencias_visuais(solicitacao: str, mood, genero: str, n: int = MAX_REFS) 
     return [l for p, l in pontuadas[:n] if p >= minimo]
 
 
-def _camera_notavel(slug: str, limite: int = 3) -> list[str]:
-    """Movimentos de câmera com timecode, da análise completa (quando existe)."""
+def _analise(slug: str) -> dict:
+    """A análise COMPLETA da referência. O `index.jsonl` é uma projeção que
+    deixa `montagem` e `pos_producao` de fora — e é justamente ali que está
+    como os planos se LIGAM. São 3 refs por plano: abrir o arquivo é barato."""
     arq = _banco() / slug / "analise.json"
     if not arq.exists():
-        return []
+        return {}
     try:
         d = json.loads(arq.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return []
-    blocos = d.get("camera") or []
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError):
+        return {}          # análise quebrada não derruba o planejamento
+    return d if isinstance(d, dict) else {}
+
+
+def _camera_notavel(d: dict, limite: int = 3) -> list[str]:
+    """Movimentos de câmera com timecode, da análise completa (quando existe)."""
     saida = []
-    for b in blocos[:limite]:
+    for b in (d.get("camera") or [])[:limite]:
         if isinstance(b, dict):
             partes = [str(b.get(k, "")) for k in ("timecode", "plano", "movimento", "nota")]
             saida.append(" · ".join(x for x in partes if x))
     return saida
+
+
+def _montagem_notavel(d: dict) -> list[str]:
+    """COMO os planos se ligam — o dado que o índice descarta.
+
+    Sem isto o planejador nunca viu a palavra "whip pan" vinda de um vídeo que
+    funcionou de verdade: ele recebia adjetivo ("acelerado") e devolvia ritmo
+    parelho. Aqui vai o medido: transições usadas, corte no beat, speedramp.
+    """
+    m = d.get("montagem") or {}
+    if not isinstance(m, dict) or not m:
+        return []
+    campos = []
+    if m.get("tipos_de_transicao"):
+        campos.append("transições: " + ", ".join(map(str, m["tipos_de_transicao"][:4])))
+    marcas = [nome for chave, nome in (("corte_no_beat", "corte no beat"),
+                                       ("match_cut", "match cut"),
+                                       ("jump_cut", "jump cut"),
+                                       ("uso_de_slowmo_speedramp", "slowmo/speedramp"))
+              if m.get(chave)]
+    if marcas:
+        campos.append("usa: " + ", ".join(marcas))
+    if m.get("cortes_estimados"):
+        campos.append(f"{m['cortes_estimados']} cortes no total")
+    pos = d.get("pos_producao") or {}
+    if isinstance(pos, dict):
+        if pos.get("lut_sugerida"):
+            campos.append(f"LUT: {pos['lut_sugerida']}")
+        if pos.get("sound_design"):
+            campos.append(f"som: {pos['sound_design']}")
+    return [f"    ▸ montagem — {' | '.join(campos)}"] if campos else []
 
 
 def resumir_para_contexto(refs: list[dict]) -> str:
@@ -112,6 +150,8 @@ def resumir_para_contexto(refs: list[dict]) -> str:
         if r.get("referencias"):
             campos.append("refs: " + ", ".join(map(str, r["referencias"][:3])))
         linhas.append(" | ".join(campos))
-        for c in _camera_notavel(r.get("slug", "")):
+        completa = _analise(r.get("slug", ""))
+        linhas += _montagem_notavel(completa)
+        for c in _camera_notavel(completa):
             linhas.append(f"    · {c}")
-    return "\n".join(linhas)[:1800]
+    return "\n".join(linhas)[:LIMITE_RESUMO]

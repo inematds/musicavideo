@@ -66,3 +66,30 @@ def test_referencia_fraca_nao_pega_carona(banco):
     refs = referencias_visuais("clipe de rock épico sobre batalha",
                                mood=["épico"], genero="anthem rock")
     assert all(r["slug"] != "tornado-infografico" for r in refs)
+
+
+def test_resumo_leva_a_montagem_medida(banco):
+    """O `index.jsonl` não projeta `montagem` — o resumo tem que abrir o
+    `analise.json` da referência escolhida, senão a ligação entre planos some."""
+    d = banco / "war-drums-viking"
+    d.mkdir()
+    (d / "analise.json").write_text(json.dumps({
+        "montagem": {"cortes_estimados": 65, "cortes_por_minuto": 42.0,
+                     "tipos_de_transicao": ["corte seco", "whip pan de IA"],
+                     "match_cut": False, "jump_cut": False, "corte_no_beat": True,
+                     "uso_de_slowmo_speedramp": True},
+        "pos_producao": {"lut_sugerida": "Teal & Gold", "sound_design": "impactos nos drops"},
+    }, ensure_ascii=False), encoding="utf-8")
+    txt = resumir_para_contexto(referencias_visuais("rock épico", mood=["épico"], genero="rock"))
+    assert "whip pan de IA" in txt
+    assert "corte no beat" in txt and "slowmo/speedramp" in txt
+    assert "match cut" not in txt          # false não vira sugestão
+    assert "Teal & Gold" in txt and "impactos nos drops" in txt
+
+
+def test_analise_quebrada_nao_derruba_o_resumo(banco):
+    d = banco / "war-drums-viking"
+    d.mkdir()
+    (d / "analise.json").write_text("{isso não é json", encoding="utf-8")
+    txt = resumir_para_contexto(referencias_visuais("rock épico", mood=["épico"], genero="rock"))
+    assert "war-drums-viking" in txt      # segue com o que o índice já tinha

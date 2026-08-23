@@ -104,9 +104,12 @@ def montar_contexto(solicitacao: str, opts: dict, outdir: Path) -> str:
     if refs:
         partes.append(
             "REFERÊNCIAS VISUAIS MEDIDAS (vídeos reais analisados quadro a quadro pelo "
-            "analisevideo — paleta em hex, movimento de câmera, ritmo de corte que "
-            "funcionaram de verdade). Use como base da decupagem e da paleta da capa; "
-            "não copie o conteúdo, copie a LINGUAGEM visual:\n" + refs)
+            "analisevideo — paleta em hex, movimento de câmera, ritmo de corte e MONTAGEM "
+            "que funcionaram de verdade). Use como base da decupagem e da paleta da capa; "
+            "não copie o conteúdo, copie a LINGUAGEM visual. A linha `▸ montagem` diz como "
+            "os planos se LIGAM naqueles vídeos (transições usadas, corte no beat, "
+            "slowmo/speedramp): siga o que está medido ali, não o que é bonito no papel — "
+            "e o que não aparece na medição não deve virar recurso do clipe:\n" + refs)
     if opts.get("estilo"):
         partes.append(f"ESTILO PEDIDO: {opts['estilo']}")
     if opts.get("faixa_pronta"):
