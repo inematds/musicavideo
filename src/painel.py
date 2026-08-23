@@ -89,6 +89,21 @@ CAPAS = [("capa.png", "quadrada 1:1"),
          ("capa-crua.png", "sem texto")]
 
 
+def _faixas(base: Path, slug: str, aprovada: str | None) -> list[dict]:
+    """TODAS as faixas do slug, não só a aprovada.
+
+    O Suno entrega duas, e antes elas só apareciam quando havia dois clipes
+    montados — a segunda música ficava invisível no painel mesmo estando no
+    disco, e é justamente ouvindo as duas que se escolhe qual aprovar.
+    """
+    saida = []
+    for f in sorted((base / slug).glob("faixa*.mp3")):
+        url = _url(base, f"{slug}/{f.name}")
+        if url:
+            saida.append({"url": url, "nome": f.name, "aprovada": f.name == aprovada})
+    return saida
+
+
 def _capas(base: Path, slug: str) -> list[dict]:
     saida = []
     for rel, rotulo in CAPAS:
@@ -146,6 +161,7 @@ def _derivados(base: Path, ja_listados: set) -> list[dict]:
             "capas": _capas(base, w.name),
             "clipe": _url(base, f"{w.name}/clipe.mp4"),
             "faixa": _url(base, f"{w.name}/{faixa}") if faixa else None,
+            "faixas": _faixas(base, w.name, faixa),
             "versoes": versoes, "doc": None,
         })
     return saida
@@ -204,6 +220,7 @@ def coletar(raiz: Path) -> dict:
             "capas": _capas(base, l["slug"]),
             "clipe": _url(base, f"{l['slug']}/clipe.mp4"),
             "faixa": _url(base, f"{l['slug']}/{faixa}") if faixa else None,
+            "faixas": _faixas(base, l["slug"], faixa),
             "versoes": versoes,
             "bytes": _tamanho(w),
             "doc": _texto(w / "PACOTE.md") or _texto(w / "PLANO.md"),
@@ -276,6 +293,8 @@ overflow:hidden;cursor:pointer}
 .capas img{display:block;max-height:190px;max-width:min(46vw,320px);width:auto;
 border:1px solid var(--linha);border-radius:8px;background:#0a0806;margin-bottom:4px}
 .capas a:hover img{border-color:var(--amb)}
+.faixas{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.faixas audio{width:100%;margin-top:3px}
 .card .b{padding:11px 13px}
 .card h3{margin:0 0 5px;font-size:15px;line-height:1.3}
 .meta{color:var(--dim);font-size:12.5px}
@@ -353,13 +372,17 @@ function abre(x){document.getElementById("dt").textContent=x.titulo||x.slug;
    `<button class=tab data-v="${i}" aria-selected="${v.aprovada}">faixa ${E(v.n)}${v.aprovada?" ✓":""}</button>`).join("")+`</div>`;
   vs.forEach((v,i)=>{h+=`<div class=versao data-v="${i}" hidden>
    <video src="${E(v.clipe)}" controls playsinline preload=none></video>
-   ${v.faixa?`<audio src="${E(v.faixa)}" controls preload=none></audio>`:""}
    <p class=meta>${E(v.clipe.split("/").pop())} · trilha ${E(v.n)}${v.aprovada?" · aprovada (é o clipe.mp4)":""}</p></div>`});
  }
  else if(x.clipe)h+=`<video src="${E(x.clipe)}" controls playsinline></video>`;
  else if(x.video)h+=`<video src="${E(x.video)}" controls playsinline></video>`;
  else if(x.capa&&!(x.capas||[]).length)h+=`<img src="${E(x.capa)}">`;
- if(x.faixa&&vs.length<2)h+=`<audio src="${E(x.faixa)}" controls></audio>`;
+ // as faixas SEMPRE, mesmo sem dois clipes montados: é ouvindo as duas que
+ // se escolhe qual aprovar.
+ if((x.faixas||[]).length)h+=`<div class=faixas>`+x.faixas.map(f=>
+  `<div><span class=meta>${E(f.nome)}${f.aprovada?" · aprovada ✓":""}</span>
+   <audio src="${E(f.url)}" controls preload=none></audio></div>`).join("")+`</div>`;
+ else if(x.faixa)h+=`<audio src="${E(x.faixa)}" controls></audio>`;
  if(x.url)h+=`<p><a href="${E(x.url)}" target=_blank rel=noopener>fonte original</a></p>`;
  if(x.resumo)h+=`<p>${E(x.resumo)}</p>`;
  if(x.solicitacao)h+=`<p class=meta>“${E(x.solicitacao)}”</p>`;

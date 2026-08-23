@@ -132,3 +132,21 @@ def test_artefato_ausente_continua_none(tmp_path):
     (base / "index.jsonl").write_text(
         '{"slug": "cancao", "titulo": "C", "criado_em": "2026-08-23"}\n', encoding="utf-8")
     assert coletar(tmp_path)["musicavideo"][0]["capa"] is None
+
+
+def test_painel_lista_as_duas_faixas_mesmo_com_um_clipe_so(tmp_path):
+    """O Suno entrega duas; a segunda ficava invisível quando só um clipe
+    estava montado — e é ouvindo as duas que se escolhe qual aprovar."""
+    from src.painel import coletar
+    base = tmp_path / "musicavideo"
+    (base / "cancao").mkdir(parents=True)
+    for n in (1, 2):
+        (base / "cancao" / f"faixa-{n}.mp3").write_bytes(b"m")
+    (base / "cancao" / "clipe.mp4").write_bytes(b"v")
+    (base / "cancao" / "estado.json").write_text(json.dumps(
+        {"partes": {"musica": {"artefato": "faixa-2.mp3"}}}), encoding="utf-8")
+    (base / "index.jsonl").write_text(
+        '{"slug": "cancao", "titulo": "C", "criado_em": "2026-08-23"}\n', encoding="utf-8")
+    fx = coletar(tmp_path)["musicavideo"][0]["faixas"]
+    assert [f["nome"] for f in fx] == ["faixa-1.mp3", "faixa-2.mp3"]
+    assert [f["aprovada"] for f in fx] == [False, True]
