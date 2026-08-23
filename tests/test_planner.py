@@ -56,6 +56,43 @@ def test_sem_idioma_continua_pt_br(outdir, plano_ok):
     assert p["musica"]["letra"]["idioma"] == "pt-BR"
 
 
+# Metade garantida não garante nada: quem CANTA é o provedor, e ele só lê o
+# `prompt_estilo`. O campo `letra.idioma` já era chumbado; a frase do estilo era
+# só instrução no prompt, e o modelo podia ignorá-la em silêncio.
+def test_idioma_pedido_entra_no_prompt_estilo(outdir, plano_ok):
+    p = gerar_plano("x", "s-estilo-idioma", {"idioma": "en-US"}, outdir,
+                    chamar_llm=_fake_llm(plano_ok))
+    assert p["musica"]["estilo"]["prompt_estilo"].endswith("Lyrics in en-US")
+
+
+def test_idioma_pedido_apaga_a_declaracao_do_modelo(outdir, plano_ok):
+    """Duas declarações no mesmo prompt é o que produz portunhol acidental."""
+    import copy
+    pl = copy.deepcopy(plano_ok)
+    pl["musica"]["estilo"]["prompt_estilo"] = (
+        "rustic folk, acoustic guitar. language = portuguese or spanish or mix like portunhol")
+    p = gerar_plano("x", "s-troca-idioma", {"idioma": "en-US"}, outdir,
+                    chamar_llm=_fake_llm(pl))
+    estilo = p["musica"]["estilo"]["prompt_estilo"]
+    assert estilo == "rustic folk, acoustic guitar. Lyrics in en-US"
+    assert "portunhol" not in estilo
+
+
+def test_idioma_com_acento_nao_quebra_a_validacao_en(outdir, plano_ok):
+    """`prompt_estilo` com acento é recusado (`campos_prompt_en`) — e o idioma
+    entra dentro dele. `português` tem que virar `portugues` na frase."""
+    p = gerar_plano("x", "s-idioma-acento", {"idioma": "português"}, outdir,
+                    chamar_llm=_fake_llm(plano_ok))
+    assert p["musica"]["estilo"]["prompt_estilo"].endswith("Lyrics in portugues")
+    assert p["musica"]["letra"]["idioma"] == "português"   # o rótulo fica como pedido
+
+
+def test_sem_idioma_nao_mexe_no_prompt_estilo(outdir, plano_ok):
+    antes = plano_ok["musica"]["estilo"]["prompt_estilo"]
+    p = gerar_plano("x", "s-estilo-intacto", {}, outdir, chamar_llm=_fake_llm(plano_ok))
+    assert p["musica"]["estilo"]["prompt_estilo"] == antes
+
+
 # O idioma pedido vence até com letra do usuário: a letra é dele, o rótulo do
 # idioma tem que ser o que ele pediu — é ele que vai para o prompt do Suno.
 def test_idioma_pedido_vence_com_letra_do_usuario(outdir, plano_ok, tmp_path):

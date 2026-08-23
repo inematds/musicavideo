@@ -253,6 +253,40 @@ def _validar_tudo(plano: dict, reg: dict) -> list[str]:
     return erros
 
 
+# A frase de idioma que o PROVEDOR lê, no fim do `prompt_estilo`. Duas formas
+# vistas em plano real: a que o prompt pede ("Lyrics in X") e a que o modelo
+# inventa por conta ("language = portuguese or spanish...", MVD#96).
+_IDIOMA_NO_ESTILO = re.compile(
+    r"[.,;]?\s*(?:lyrics?\s+in|sung\s+in|vocals?\s+in|language\s*[=:])\s*[^.;]*",
+    re.IGNORECASE,
+)
+
+
+def _sem_acento(txt: str) -> str:
+    """ASCII puro: o `prompt_estilo` é recusado com acento (`campos_prompt_en`),
+    e o idioma entra dentro dele. `português` viraria erro de validação."""
+    return "".join(c for c in unicodedata.normalize("NFKD", txt)
+                   if not unicodedata.combining(c))
+
+
+def _impor_idioma_no_estilo(plano: dict, idioma: str) -> None:
+    """`Lyrics in <idioma>` no fim do `prompt_estilo`, por CÓDIGO.
+
+    O idioma vale em dois lugares: a letra escrita e a frase que o Suno lê. O
+    campo `musica.letra.idioma` já era chumbado aqui; a frase do estilo era só
+    INSTRUÇÃO no prompt — se o modelo não obedecesse, saía faixa cantada num
+    idioma e pedida em outro, sem nada conferir. Metade garantida não garante
+    nada: quem canta é o provedor, e ele só lê esta frase.
+
+    A frase anterior (do modelo ou de um plano velho) é REMOVIDA antes: duas
+    declarações de idioma no mesmo prompt é o que produz o portunhol acidental.
+    """
+    est = plano.setdefault("musica", {}).setdefault("estilo", {})
+    base = _IDIOMA_NO_ESTILO.sub("", str(est.get("prompt_estilo") or "")).strip(" .,;")
+    frase = f"Lyrics in {_sem_acento(idioma).strip()}"
+    est["prompt_estilo"] = f"{base}. {frase}" if base else frase
+
+
 def _impor_deterministicos(plano: dict, slug: str, solicitacao: str, opts: dict) -> dict:
     plano.update({"schema_version": "1", "slug": slug, "criado_em": _agora(),
                   "solicitacao": solicitacao, "pesquisa": bool(opts.get("pesquisa_md"))})
@@ -271,6 +305,7 @@ def _impor_deterministicos(plano: dict, slug: str, solicitacao: str, opts: dict)
         plano.setdefault("musica", {}).setdefault("params", {})["duracao_s"] = _dur_alvo(opts)
     if idioma:
         plano.setdefault("musica", {}).setdefault("letra", {})["idioma"] = idioma
+        _impor_idioma_no_estilo(plano, idioma)
     if opts.get("letra"):
         original = Path(opts["letra"]).read_text(encoding="utf-8")
         le = plano.setdefault("musica", {}).setdefault("letra", {})

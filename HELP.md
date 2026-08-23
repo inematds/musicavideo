@@ -141,7 +141,17 @@ aparece no `PLANO.md`, que é o que o portão manda no chat.
 
 **Idioma da letra:** default `pt-BR`. Para outro, `--idioma en-US` (ou o que for)
 — o pedido vai para a letra E para o prompt do Suno, que são dois lugares
-diferentes e precisam concordar.
+diferentes e precisam concordar. Os dois são escritos por CÓDIGO, não pedidos ao
+planejador: a frase `Lyrics in <idioma>` é imposta no fim do `prompt_estilo` e
+qualquer declaração de idioma que o modelo tenha posto ali é apagada antes (duas
+declarações no mesmo prompt é o que produz portunhol acidental). Acento cai na
+frase do estilo (`português` → `Lyrics in portugues`), porque prompt de provedor
+é recusado com acento; o rótulo em `musica.letra.idioma` fica como você digitou.
+
+Sem `--idioma`, nada disso acontece: o `prompt_estilo` fica como o planejador
+escreveu, e o rótulo cai em `pt-BR` só se ele não declarar nada. Pedir o idioma
+em prosa dentro do texto ("language = portuguese or spanish") funciona pela boa
+vontade do modelo — foi assim no MVD#96 e o rótulo virou a frase inteira.
 
 ## TEMPLATES
 
