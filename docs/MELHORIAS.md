@@ -55,6 +55,10 @@ inemaccbot já tem o conceito de *clipe de CTA por variante* no promoavatar —
 vale olhar antes de inventar outro).
 
 ### 4. Clipe: durações diferentes, e transição como CONEXÃO
+> **PARCIALMENTE FEITO em 2026-08-23** — ritmo (`--ritmo`, default `auto`), a
+> ponte passando a `montagem` medida ao planner, e o núcleo de 12s medido na
+> onda. **Falta a transição** (campo de ligação entre shots + re-encode):
+> `concat_ffmpeg` ainda é `-c copy`, então corte seco é tudo que existe.
 
 **Hoje:** todo shot tem a mesma duração (`DUR_SHOT_PADRAO`) e a montagem é corte
 seco entre todos.
