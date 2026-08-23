@@ -24,6 +24,7 @@ USO = """uso: musicavideo <comando> ...
   reprova <slug> <parte> ["4,17,23"]  # descarta e devolve pro faz
   tudo "<solicitação>" [--teto N] [demais flags de plano] [--sim] [--telegram]
   monta <slug> [--completo]      # casa o clipe com CADA faixa (não gasta)
+  curto <slug> [--inicio N]      # Short 9:16 de 12s do núcleo da faixa (não gasta)
   arte  <slug> ["<título>"] [--versao N] [--tagline "..."]   # recompõe (não gasta)
   pacote <slug>                  # gera o PACOTE.md sob demanda
   custo <slug> | lista [N] | busca "<termo>" | reindex
@@ -198,12 +199,53 @@ def _cmd_arte(args):
     return 0
 
 
+def _cmd_curto(args) -> int:
+    """O Short: 12s verticais tirados do clipe que JÁ existe. Não gera nada."""
+    import json
+    import sys
+    from src.montagem import faixas_existentes
+    from src.nucleo import nucleo_de, recortar_vertical, NucleoError
+    from src.planner import _parse_opts
+    livres, opts = _parse_opts(args)
+    if not livres:
+        print("uso: curto <slug> [--inicio N]", file=sys.stderr)
+        return 1
+    w = out_dir() / livres[0]
+    clipe = w / "clipe.mp4"
+    if not clipe.exists():
+        print(f"erro: {clipe} não existe — o Short sai do clipe pronto", file=sys.stderr)
+        return 1
+    if opts.get("inicio") is not None:
+        inicio = float(opts["inicio"])
+    else:
+        arq = w / "nucleo.json"
+        try:
+            if arq.exists():
+                inicio = json.loads(arq.read_text(encoding="utf-8"))["inicio_s"]
+            else:
+                faixas = faixas_existentes(w)
+                if not faixas:
+                    print("erro: sem faixa para medir o núcleo — use --inicio N", file=sys.stderr)
+                    return 1
+                inicio = nucleo_de(faixas[0])["inicio_s"]
+        except (NucleoError, KeyError, json.JSONDecodeError) as e:
+            print(f"erro: não deu para achar o núcleo ({e}) — use --inicio N", file=sys.stderr)
+            return 1
+    try:
+        alvo = recortar_vertical(clipe, w / "curto.mp4", inicio)
+    except NucleoError as e:
+        print(f"erro: {e}", file=sys.stderr)
+        return 1
+    print(f"curto: {alvo} (de {inicio:g}s a {inicio + 12:g}s, 1080x1920) · US$ 0, sem render")
+    return 0
+
+
 COMANDOS.update({"lista": _cmd_lista, "busca": _cmd_busca, "reindex": _cmd_reindex,
                  "plano": _cmd_plano, "ver": _cmd_ver, "ok": _cmd_ok, "ajusta": _cmd_ajusta,
                  "faz": _cmd_faz, "custo": _cmd_custo, "tudo": _cmd_tudo,
                  "monta": _cmd_monta, "revisa": _cmd_revisa,
                  "aprova": _cmd_aprova, "reprova": _cmd_reprova,
-                 "pacote": _cmd_pacote, "arte": _cmd_arte, "painel": _cmd_painel})
+                 "curto": _cmd_curto, "pacote": _cmd_pacote, "arte": _cmd_arte, "painel": _cmd_painel})
 
 
 def main(argv: list[str]) -> int:

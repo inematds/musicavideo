@@ -43,13 +43,35 @@ def _reajustar_pela_faixa(w: Path, plano: dict, estado: dict) -> dict:
         dur = _ffprobe_duracao(faixa)
     except MontagemError:
         return plano
+    nucleo = _medir_nucleo(w, faixa)
     if not precisa_reajuste(plano, dur):
         return plano
     try:
-        return reajustar_decupagem(w, dur)
+        return reajustar_decupagem(w, dur, nucleo=nucleo)
     except (ValueError, RuntimeError) as e:
         print(f"clipe: não deu pra reajustar a decupagem ({e}) — seguindo com a atual")
         return plano
+
+
+def _medir_nucleo(w: Path, faixa: Path) -> dict | None:
+    """O trecho de 12s mais forte da faixa, medido na onda (não opinado).
+
+    Serve a duas coisas: dizer ao planejador onde investir o melhor plano, e
+    marcar de onde sai o Short (`musicavideo curto <slug>`). Falhar aqui não
+    pode custar o clipe — é informação a mais, não requisito.
+    """
+    import json
+    from src.nucleo import nucleo_de, NucleoError
+    try:
+        n = nucleo_de(faixa)
+    except (NucleoError, FileNotFoundError) as erro:
+        print(f"núcleo: não deu para medir ({erro})")
+        return None
+    n["faixa"] = faixa.name
+    (w / "nucleo.json").write_text(json.dumps(n, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"núcleo da faixa: {n['inicio_s']}-{n['fim_s']}s "
+          f"(energia {n['energia_relativa']:.0%} do pico) — é daí que sai o Short")
+    return n
 
 
 def faixa_aprovada(w: Path, estado: dict | None = None) -> Path | None:

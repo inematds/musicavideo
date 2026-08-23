@@ -26,6 +26,7 @@ Perguntas de leitura, direto no chat — não entram na fila e não gastam nada:
 | `/musicavideo busca <termo>` | procura no acervo (slug, título, solicitação, gênero, tags) |
 | `/musicavideo estilos` | os estilos disponíveis, por id |
 | `/musicavideo custo <slug>` | estimado vs gasto, por parte |
+| `/musicavideo curto <slug>` | recorta o Short 9:16 do núcleo da faixa (não gasta) |
 
 ## PADROES
 
@@ -80,6 +81,28 @@ de reescrever tudo igual.
 
 Sem flag nenhuma, dá para mexer depois: `ajusta <slug> clipe "deixa o refrão
 mais picado"`.
+
+## NUCLEO (o trecho de 12s) e o SHORT
+
+Assim que a faixa aprovada existe, o pipeline **mede** — não opina — qual é o
+trecho de 12 segundos mais forte dela: energia (RMS) segundo a segundo pela
+onda, com bônus para o trecho que SOBE depois de um vale (é o que separa "o mais
+alto" de "o momento em que a música vira"). Sai no log e em `nucleo.json`:
+
+```
+núcleo da faixa: 151-163s (energia 95% do pico) — é daí que sai o Short
+```
+
+Serve a duas coisas:
+
+- **onde investir o clipe:** o reajuste da decupagem manda pôr ali o melhor
+  plano e o ritmo mais picado;
+- **o Short:** `musicavideo curto <slug>` recorta esses 12s em 9:16 (1080x1920)
+  **do clipe que já existe** — é corte, não render: segundos e US$ 0. Discordou
+  da medição? `--inicio N` manda o segundo na mão.
+
+Limite honesto: energia acerta refrão e drop, que é o caso comum, e erra em
+música que constrói por letra ou por silêncio. É sugestão, não ordem.
 
 ## ESTILOS
 

@@ -113,6 +113,17 @@ def montar_contexto(solicitacao: str, opts: dict, outdir: Path) -> str:
         f"pelas seções da estrutura, com variação real entre eles (nada de repetir o "
         f"mesmo plano).",
         _instrucao_ritmo(opts),
+        # A música não é julgada por qualidade técnica e sim por RESPOSTA do
+        # público: emoção → reconhecimento → memória → repetição. Isto entra no
+        # prompt porque é decisão de ESCRITA (onde cai o refrão, o que a pessoa
+        # repete) — não é nota, não é previsão de hit, e não há como medir aqui.
+        "POTENCIAL: escreva pensando em quem vai ouvir, não em quem vai avaliar. "
+        "(a) HOOK: tem que existir UMA coisa que a pessoa lembra depois de ouvir uma vez "
+        "— uma frase, uma melodia, uma palavra repetida. (b) OS 15 PRIMEIROS SEGUNDOS "
+        "precisam dar motivo para continuar: nada de intro longa de preparação. "
+        "(c) O REFRÃO tem que funcionar SOZINHO, fora da música. (d) IDENTIDADE: em 10s "
+        "deve dar para dizer que é esta música e não outra igual. (e) Familiar o bastante "
+        "para entrar, diferente o bastante para notar — genérico e hermético falham igual.",
         f"SOLICITAÇÃO: {solicitacao}",
         "ESTILOS: " + _arquivo_estilos().read_text(encoding="utf-8"),
         "TEMPLATES CAPA: " + (RAIZ / "data/templates-capa.json").read_text(encoding="utf-8"),
@@ -444,7 +455,8 @@ def precisa_reajuste(plano: dict, duracao_real: float) -> bool:
     return abs(duracao_real - dur_clipe) > DUR_SHOT_PADRAO
 
 
-def reajustar_decupagem(workdir: Path, duracao_real: float, chamar_llm=None) -> dict:
+def reajustar_decupagem(workdir: Path, duracao_real: float, chamar_llm=None,
+                        nucleo: dict | None = None) -> dict:
     """Refaz a decupagem para a duração REAL da faixa aprovada.
 
     O plano é escrito antes de a música existir, então chuta a duração. Se a
@@ -470,7 +482,11 @@ def reajustar_decupagem(workdir: Path, duracao_real: float, chamar_llm=None) -> 
                 f"de {curtos:g}s a {longos:g}s, média {media:g}s — conserve essa variação "
                 f"(refrão picado, verso respirando), NÃO iguale as durações. Isso dá "
                 f"~{alvo_shots} shots, "
-                f"redistribuídos pelas seções (mais nos refrões), mantendo o arco "
+                + (f"O NÚCLEO da faixa (o trecho de 12s mais forte, MEDIDO na onda) "
+                   f"está em {nucleo['inicio_s']}-{nucleo['fim_s']}s: é ali que vai o "
+                   f"melhor plano do clipe e o ritmo mais picado — é esse trecho que "
+                   f"vira Short. " if nucleo else "")
+              + f"Redistribua pelas seções (mais nos refrões), mantendo o arco "
                 f"narrativo e o estilo visual que já estavam lá. Aproveite os shots "
                 f"existentes que continuarem fazendo sentido, com os mesmos prompts. "
                 f"Prompts de provedor em INGLÊS, com prompt_alt em cada shot. "
@@ -637,7 +653,7 @@ def _parse_opts(args: list[str]) -> tuple[list[str], dict]:
             i += 1
             opts["faixa"] = int(args[i])
         elif a in ("--estilo", "--letra", "--teto", "--idioma", "--versao", "--tagline",
-                   "--ritmo"):
+                   "--ritmo", "--inicio"):
             i += 1
             opts[a[2:]] = args[i]
         elif a == "--motor":
