@@ -25,6 +25,7 @@ USO = """uso: musicavideo <comando> ...
   tudo "<solicitação>" [--teto N] [demais flags de plano] [--sim] [--telegram]
   monta <slug> [--completo]      # casa o clipe com CADA faixa (não gasta)
   curto <slug> [--inicio N]      # Short 9:16 de 12s do núcleo da faixa (não gasta)
+  recorta <slug> [--ritmo X]     # dá ritmo a um clipe já gerado, reusando os shots (não gasta)
   arte  <slug> ["<título>"] [--versao N] [--tagline "..."]   # recompõe (não gasta)
   pacote <slug>                  # gera o PACOTE.md sob demanda
   custo <slug> | lista [N] | busca "<termo>" | reindex
@@ -199,6 +200,68 @@ def _cmd_arte(args):
     return 0
 
 
+def _cmd_recorta(args) -> int:
+    """Dá RITMO a um clipe já gerado — sem gerar nada, sem custo.
+
+    Os shots já estão no disco; o que muda é quanto de cada um entra. O clipe
+    velho fica intacto: o novo sai num slug irmão, para comparar lado a lado.
+    """
+    import json
+    import os
+    import sys
+    from src.montagem import montar_todas
+    from src.planner import _parse_opts
+    from src.recorte import INTENSIDADE, RecorteError, recortar
+    livres, opts = _parse_opts(args)
+    if not livres:
+        print("uso: recorta <slug> [--ritmo variado|dinamico|calmo]", file=sys.stderr)
+        return 1
+    w = out_dir() / livres[0]
+    shots = sorted((w / "raw").glob("shot-*.mp4"))
+    if not shots:
+        print(f"erro: sem shots em {w / 'raw'} — o recorte reaproveita o que já foi gerado",
+              file=sys.stderr)
+        return 1
+    try:
+        plano = json.loads((w / "plano.json").read_text(encoding="utf-8"))
+        secoes = [x.get("secao", "") for x in plano["clipe"]["decupagem"]]
+    except (OSError, json.JSONDecodeError, KeyError):
+        secoes = [""] * len(shots)
+    if len(secoes) < len(shots):        # shot sem seção declarada entra na média
+        secoes += [""] * (len(shots) - len(secoes))
+    ritmo = str(opts.get("ritmo") or "variado").lower()
+    if ritmo not in INTENSIDADE:
+        print(f"erro: ritmo '{ritmo}' não vale aqui (use: "
+              f"{', '.join(INTENSIDADE)})", file=sys.stderr)
+        return 1
+    destino = out_dir() / f"{livres[0]}-{ritmo}"
+    (destino / "raw").mkdir(parents=True, exist_ok=True)
+    try:
+        meta = recortar(shots, secoes[:len(shots)], destino / "raw" / "clipe-sem-musica.mp4",
+                        INTENSIDADE[ritmo])
+    except RecorteError as e:
+        print(f"erro: {e}", file=sys.stderr)
+        return 1
+    for f in list(w.glob("faixa-*.mp3")) + [w / "capa.png"]:
+        if f.exists() and not (destino / f.name).exists():
+            try:
+                os.link(f, destino / f.name)
+            except OSError:
+                import shutil
+                shutil.copy2(f, destino / f.name)
+    print(f"recorte: {meta['shots']} shots · {meta['encurtados']} encurtados, "
+          f"{meta['em_slowmo']} em slowmo · planos de {meta['menor_s']:g}s a "
+          f"{meta['maior_s']:g}s · {meta['cortes_por_minuto']:g} cortes/min "
+          f"({meta['duracao_antes_s']:g}s → {meta['duracao_depois_s']:g}s)")
+    try:
+        mm = montar_todas(destino, destino / "raw" / "clipe-sem-musica.mp4")
+        print(f"clipe com música: {destino / mm['principal']} "
+              f"({mm['duracao_final_s']}s) · US$ 0, nada foi gerado")
+    except Exception as e:                # sem faixa: o vídeo mudo já vale
+        print(f"(sem montar a música: {e})")
+    return 0
+
+
 def _cmd_curto(args) -> int:
     """O Short: 12s verticais tirados do clipe que JÁ existe. Não gera nada."""
     import json
@@ -245,7 +308,7 @@ COMANDOS.update({"lista": _cmd_lista, "busca": _cmd_busca, "reindex": _cmd_reind
                  "faz": _cmd_faz, "custo": _cmd_custo, "tudo": _cmd_tudo,
                  "monta": _cmd_monta, "revisa": _cmd_revisa,
                  "aprova": _cmd_aprova, "reprova": _cmd_reprova,
-                 "curto": _cmd_curto, "pacote": _cmd_pacote, "arte": _cmd_arte, "painel": _cmd_painel})
+                 "recorta": _cmd_recorta, "curto": _cmd_curto, "pacote": _cmd_pacote, "arte": _cmd_arte, "painel": _cmd_painel})
 
 
 def main(argv: list[str]) -> int:

@@ -104,6 +104,24 @@ Serve a duas coisas:
 Limite honesto: energia acerta refrão e drop, que é o caso comum, e erra em
 música que constrói por letra ou por silêncio. É sugestão, não ordem.
 
+## RECORTE (ritmo em clipe que já existe)
+
+`musicavideo recorta <slug> [--ritmo variado|dinamico|calmo]`
+
+O caro no clipe é GERAR os planos (fila de 5/min, horas). O corte não custa
+nada. Então um clipe já pronto e parelho pode ganhar ritmo **sem a segunda
+geração**: encurta no refrão, estica no verso, e a soma continua cobrindo a
+música. Medido no MVD gaúcho: **19 segundos**, contra as ~4h de gerar de novo.
+
+| | |
+|---|---|
+| encurtar | corte no miolo do plano (onde o movimento já engrenou) |
+| esticar | slowmo até 1,6x — além disso o olho vê travando |
+| faltam planos (`dinamico`) | **fabricados do próprio material**: um plano de 5s vira dois de 2,5s (metades = material real), e só em último caso entra o espelhado, longe do original |
+
+O clipe velho fica intacto: o novo sai em `<slug>-<ritmo>/`, com as faixas e a
+capa, para comparar lado a lado.
+
 ## ESTILOS
 
 O planejador escolhe um sozinho a partir da sua descrição. Para forçar, use

@@ -138,3 +138,47 @@ def test_sem_faixa_nenhuma_estoura_montagem_error(tmp_path):
     _video_mudo(tmp_path / "bruto.mp4", 2)
     with pytest.raises(MontagemError):
         montar_todas(tmp_path, tmp_path / "bruto.mp4")
+
+
+# --- recorte: ritmo sem gerar nada (2026-08-23) -------------------------------
+
+def test_recorte_preserva_a_soma():
+    """Encurtar refrão e esticar verso não pode encurtar o clipe — ele cobre a
+    música, e a cobertura é o que separa clipe de vídeo em loop."""
+    from src.recorte import duracoes_alvo
+    secoes = ["intro"] * 3 + ["verso 1"] * 6 + ["refrão 1"] * 5 + ["ponte"] * 4
+    orig = [5.0] * len(secoes)
+    alvos = duracoes_alvo(secoes, orig)
+    assert abs(sum(alvos) - sum(orig)) < 0.5
+    assert min(alvos) >= 1.5
+
+
+def test_refrao_fica_mais_curto_que_verso():
+    from src.recorte import duracoes_alvo
+    alvos = duracoes_alvo(["refrão 1", "verso 1"], [5.0, 5.0])
+    assert alvos[0] < alvos[1]
+
+
+def test_slowmo_tem_teto():
+    """Esticar demais trava aos olhos — o alvo nunca passa de 1,6x o original."""
+    from src.recorte import duracoes_alvo, LENTO_MAX
+    alvos = duracoes_alvo(["verso"] * 2 + ["refrão"] * 8, [5.0] * 10)
+    assert max(alvos) <= 5.0 * LENTO_MAX + 0.01
+
+
+def test_expandir_fatia_antes_de_espelhar():
+    """Metade de um plano é material NOVO; espelhar é o último recurso."""
+    from pathlib import Path as P
+    from src.recorte import expandir_sequencia
+    shots = [P(f"shot-{i}.mp4") for i in range(4)]
+    seq = expandir_sequencia(shots, ["refrão"] * 4, 8)
+    assert len(seq) == 8
+    assert not any(espelho for _, _, espelho, _ in seq)     # deu pra fatiar tudo
+    assert all(fatia == (0, 2) or fatia == (1, 2) for _, fatia, _, _ in seq)
+
+
+def test_expandir_nao_mexe_se_ja_tem_planos_bastante():
+    from pathlib import Path as P
+    from src.recorte import expandir_sequencia
+    shots = [P("a.mp4"), P("b.mp4")]
+    assert len(expandir_sequencia(shots, ["verso", "verso"], 2)) == 2
