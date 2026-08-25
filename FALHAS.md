@@ -4,6 +4,7 @@ Uma linha por falha real. Mais recente no topo.
 
 | data | o que quebrou | menor correção | prompt \| infra |
 |---|---|---|---|
+| 2026-08-25 | clipe de "Levanta o Céu" parou em `erro`: Agnes devolveu `HTTP 429 Daily API usage limit reached` (cota diária estourada pelas ~45 gerações do dia), e o adaptador tratou como falha comum — a produção ficou parada com música e capa pagas | cota diária não é falha: deveria pausar até o horário informado no erro (ou trocar de motor), como já se faz com `503 queue_full` | infra |
 | 2026-08-23 | script de densificação apagou 25 dos 37 shots originais do MVD gaúcho: `agnes._um_shot` grava SEMPRE em `raw/shot-NN.mp4`, e o script renomeava para `extra-NN.mp4` DEPOIS — cada plano novo sobrescreveu o original antes da renomeação | recuperados por corte do `raw/clipe-sem-musica.mp4` (concat de planos de duração fixa, então cada plano é uma fatia de tempo previsível); a proteção que faltava é gerar em workdir próprio, nunca no do slug | prompt |
 | 2026-08-23 | recorte com planos novos esticou o clipe para 264s numa música de 185s — `duracoes_alvo` somava o total do MATERIAL, e com 62 planos (37 de 5s + 25 de 3s) o material passa da faixa | `total` virou parâmetro: quem manda na soma é a música | infra |
 | 2026-08-21 | clipe do MVD#90 morreu com `ValueError: not enough values to unpack` — o plano trazia `resolucao: "1080p"` (rótulo do kling) e o adaptador da Agnes fazia `.split("x")`. 47 shots planejados, nenhum gerado, música já paga | `_resolucao_agnes` traduz rótulo → pixels, espelho do `_resolucao_kling` | infra |

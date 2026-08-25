@@ -207,3 +207,49 @@ speedramp, match cut de movimento), nunca como enfeite distribuído.
   e cortar/reaproveitar o que já foi gerado.
 - **Créditos do Kling expiram:** 3.000/mês que não são gastos, são perdidos.
   Isso inverte a lógica de economia — o caro é NÃO usar.
+
+
+## 2026-08-25 — DUAS FAIXAS = DUAS PRODUÇÕES (pedido do dono)
+
+**Hoje:** o Suno entrega duas faixas; o pipeline monta `clipe-1.mp4` e
+`clipe-2.mp4` (mesmo vídeo, trilhas diferentes), mas só UMA vira produção: a
+faixa aprovada vira `clipe.mp4`, e é ela que aparece no painel como a peça e é
+ela que vai no pacote de canal. A segunda faixa existe no disco e morre ali.
+
+**Pedido:** cada faixa é uma MÚSICA DIFERENTE — logo, uma produção diferente.
+As duas têm que aparecer **no painel** e **subir no YouTube**, cada uma com a
+sua capa. O que elas compartilham é só o material de vídeo.
+
+Do que já existe e serve:
+- `capa-v1.png` / `capa-v2.png` já são geradas com selo de versão, uma por
+  faixa (foi o motivo de o selo existir).
+- `montar_todas` já monta um clipe por faixa.
+- O painel já lista `versoes[]` por trilha — o que falta é tratá-las como
+  **peças**, não como variantes de uma peça.
+
+O que falta decidir/fazer:
+1. O pacote de canal (`montar_publicacao`) monta UM clipe. Precisa montar um
+   por faixa, com título/descrição próprios (ou o mesmo título com marca de
+   versão) e a capa correspondente.
+2. O `index.jsonl` e o painel tratam slug = peça. Duas peças no mesmo slug
+   exigem ou um sufixo (`<slug>-f1`, `<slug>-f2`) ou o card virar duas peças.
+3. Título no YouTube: duas faixas com o mesmo nome competem entre si. Precisa
+   de diferenciação (v1/v2, ou títulos escritos pelo planejador para cada uma).
+
+### E a ideia que vale mais que a duplicação
+
+> *"até podemos pensar que o videoclipe pode ser montado de forma diferente com
+> os mesmos shots feitos."*
+
+Isso já é possível HOJE, e de graça: o `recorta` monta ritmo diferente sobre o
+mesmo material, e o `ritmo-kling` mostrou que dá para tirar 44 planos de 20
+tomadas cortando em pontos diferentes. Então a segunda faixa não precisa levar
+o MESMO clipe — pode levar **outra montagem do mesmo material**: outra ordem,
+outro ritmo, outros trechos das mesmas tomadas.
+
+Duas peças que dividem o custo de geração e não parecem a mesma coisa. É o
+melhor uso do material já pago, e não depende de crédito nenhum — só de corte.
+
+Ponto a resolver: as faixas têm durações diferentes (185s e 191s no MVD
+gaúcho), então cada montagem tem seu próprio total — que é justamente o que o
+`recortar(total_s=...)` já sabe fazer.
