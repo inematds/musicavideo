@@ -154,7 +154,7 @@ def test_prompt_de_capa_perde_o_pedido_de_album_cover():
     saida = prompt_sem_tipografia("album cover, wide landscape at dusk, film grain")
     assert "album cover" not in saida.lower()
     assert saida.startswith("wide landscape at dusk")
-    assert "no lettering" in saida
+    assert "clean unmarked surfaces" in saida
 
 
 def test_pedido_de_limpeza_nao_duplica():
@@ -165,4 +165,22 @@ def test_pedido_de_limpeza_nao_duplica():
 
 def test_prompt_sem_tipografia_aguenta_vazio():
     from src.executor import prompt_sem_tipografia
-    assert "no lettering" in prompt_sem_tipografia("")
+    assert "clean unmarked surfaces" in prompt_sem_tipografia("")
+
+
+def test_clausula_que_pede_espaco_para_titulo_some():
+    """'space for bold title at the bottom' fazia o flux desenhar um título
+    em negrito na base — garatuja, no lugar exato do título de verdade."""
+    from src.executor import prompt_sem_tipografia
+    saida = prompt_sem_tipografia(
+        "a lone boat on ice, space for bold title at the bottom, film grain")
+    assert "title" not in saida.lower()
+    assert "a lone boat on ice" in saida and "film grain" in saida
+
+
+def test_a_instrucao_de_limpeza_nao_nomeia_letra():
+    """O modelo desenha o que lê, inclusive dentro de uma negação."""
+    from src.executor import prompt_sem_tipografia
+    saida = prompt_sem_tipografia("a barn at dusk").lower()
+    for palavra in ("text", "letter", "typograph", "writing", "word"):
+        assert palavra not in saida

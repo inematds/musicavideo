@@ -25,16 +25,32 @@ ARTEFATOS = {"musica": "faixa.mp3", "capa": "capa.png", "clipe": "clipe.mp4"}
 _TIPOGRAFIA = re.compile(
     r"\b(album cover|album art|cover art|poster art|movie poster|book cover)\b\s*,?\s*",
     re.IGNORECASE)
-_LIMPO = ("clean unmarked surfaces, bare walls and skies, "
-          "no lettering, no signage, no writing anywhere in the frame")
+# Cláusula que FALA de título/texto: some inteira. "space for bold title at the
+# bottom" era o pedido mais comum vindo do planejador — e o flux desenhava um
+# título em negrito na base, garatuja, exatamente onde o nosso título real vai.
+_CLAUSULA_TEXTO = re.compile(r"\b(title|text|typograph\w*|lettering|caption|logo|watermark|signage)\b",
+                             re.IGNORECASE)
+# A instrução de limpeza NÃO pode conter as palavras que queremos evitar: o
+# modelo desenha o que lê, inclusive dentro de uma negação. Então se descreve a
+# superfície como limpa, sem nunca nomear letra.
+_LIMPO = "clean unmarked surfaces, bare walls and open sky, calm uncluttered lower third"
 
 
 def prompt_sem_tipografia(prompt: str) -> str:
-    """Tira o pedido de capa-com-letra e pede superfície limpa, no positivo."""
-    limpo = _TIPOGRAFIA.sub("", prompt or "").strip().lstrip(",").strip()
-    if _LIMPO in limpo:
-        return limpo
-    return f"{limpo}, {_LIMPO}"
+    """Tira do positivo tudo que PEÇA tipografia — o título é nosso, composto
+    por cima em `arte.compor_poster`.
+
+    Não adianta pôr no negativo: o flux (default global de imagem) não tem
+    prompt negativo, aceita o campo e ignora. Medido em 2026-08-25: 6 de 13
+    capas vieram com texto falso, e as refeitas continuaram vindo enquanto a
+    cláusula "space for bold title at the bottom" seguia no prompt.
+    """
+    limpo = _TIPOGRAFIA.sub("", prompt or "")
+    partes = [c.strip() for c in limpo.split(",")]
+    partes = [c for c in partes if c and not _CLAUSULA_TEXTO.search(c)]
+    if _LIMPO not in ", ".join(partes):
+        partes.append(_LIMPO)
+    return ", ".join(partes)
 
 
 def _params_de(plano: dict, parte: str) -> dict:
