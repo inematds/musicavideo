@@ -122,3 +122,31 @@ def test_fal_contrato_queue(tmp_path, monkeypatch):
 
 def test_fal_custo_por_segundo():
     assert fal_mod.criar(DECL_F).estimar_custo("kling-v3-turbo", {"duracao_shot_s": 10}) == 0.5
+
+
+# --- ritmo variável no Kling (2026-08-25) ------------------------------------
+
+def test_duracao_pedida_ao_kling_e_sempre_5_ou_10():
+    """O gerador só aceita 5 ou 10; com ritmo variável quase todo plano vira
+    número que ele recusa — e job recusado é plano faltando no clipe."""
+    from providers.kling import duracao_gerada
+    assert [duracao_gerada(x) for x in (2, 3, 3.5, 5)] == [5, 5, 5, 5]
+    assert [duracao_gerada(x) for x in (6, 8, 9, 10)] == [10, 10, 10, 10]
+    assert duracao_gerada(12) == 10        # acima do teto: gera 10 e estica
+
+
+def test_ajuste_de_duracao_nao_estica_alem_do_teto(tmp_path, monkeypatch):
+    from providers import kling
+    chamadas = {}
+
+    def falso_refazer(origem, alvo, dur_orig, dur_nova, *a, **k):
+        chamadas["nova"] = dur_nova
+        alvo.write_bytes(b"x")
+        return alvo
+
+    monkeypatch.setattr("src.recorte.duracao", lambda p: 10.0)
+    monkeypatch.setattr("src.recorte._refazer_shot", falso_refazer)
+    arq = tmp_path / "shot-01.mp4"
+    arq.write_bytes(b"y")
+    kling.ajustar_duracao(arq, 20.0)       # pediria 2x: o teto é 1,6x
+    assert chamadas["nova"] == 16.0

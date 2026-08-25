@@ -88,6 +88,45 @@ def _resolucao_kling(valor) -> str:
     return "1080p" if texto == "" else "720p"
 
 
+DURACOES_KLING = (5, 10)     # o gerador só aceita estes dois; o resto é corte nosso
+
+
+def duracao_gerada(pedida: float) -> int:
+    """Quanto PEDIR ao Kling para um plano de `pedida` segundos.
+
+    O gerador só entrega 5s ou 10s. Um plano de 3s vem de uma geração de 5s
+    cortada; um de 12s, de uma geração de 10s esticada. Mandar o número cru
+    (era o que acontecia até 2026-08-25) faz o Kling recusar o job — e com
+    ritmo variável no plano, quase todo shot vira número que ele não aceita.
+    """
+    for d in DURACOES_KLING:
+        if pedida <= d:
+            return d
+    return DURACOES_KLING[-1]
+
+
+def ajustar_duracao(arq: Path, alvo_s: float) -> Path:
+    """Encaixa o plano gerado na duração do PLANO: corta o miolo ou estica.
+
+    O corte é de graça e não some com o plano; esticar é slowmo, com o mesmo
+    teto de 1,6x que o recorte usa (além disso o olho vê travando).
+    """
+    from src.recorte import LENTO_MAX, RecorteError, _refazer_shot, duracao
+    try:
+        atual = duracao(arq)
+        if abs(atual - alvo_s) < 0.25:
+            return arq
+        alvo_s = min(alvo_s, atual * LENTO_MAX)
+        tmp = arq.with_suffix(".ajustado.mp4")
+        _refazer_shot(arq, tmp, atual, alvo_s)
+        tmp.replace(arq)
+    except (RecorteError, OSError) as e:
+        # o plano gerado vale mais que o encaixe: o clipe segue com a duração
+        # que veio, e a montagem acomoda.
+        print(f"kling: shot ficou com a duração do gerador ({e})")
+    return arq
+
+
 class Kling(Provider):
     nome = "kling"
 
@@ -111,7 +150,7 @@ class Kling(Provider):
         m = next(x for x in self.decl["modelos"] if x["id"] == modelo)
         aceitos = m.get("params", {})
         flags = []
-        for nome, valor in (("duration", int(shot.get("duracao_s", 5))),
+        for nome, valor in (("duration", duracao_gerada(float(shot.get("duracao_s", 5)))),
                             ("aspect_ratio", params.get("aspect_ratio", "16:9")),
                             ("resolution", _resolucao_kling(params.get("resolucao")))):
             if nome in aceitos:
@@ -141,6 +180,7 @@ class Kling(Provider):
             urls = [u for u in urls if u]
             if urls:
                 arq = baixar(urls[0], workdir / "raw" / f"shot-{shot['n']:02d}.mp4")
+                ajustar_duracao(arq, float(shot.get("duracao_s", 5)))
                 depois = creditos()
                 gasto = round(antes - depois, 2) if (antes is not None and depois is not None) else None
                 return arq, gasto
