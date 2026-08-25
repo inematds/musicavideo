@@ -143,3 +143,26 @@ def test_escolher_a_outra_faixa_depois_de_pronto(outdir, slug):
     e = carregar_estado(outdir / slug)
     assert e["partes"]["musica"]["artefato"] == "faixa-2.mp3"
     assert e["partes"]["musica"]["estado"] == "pronto"
+
+
+# --- capa sem tipografia alucinada (2026-08-25) ------------------------------
+
+def test_prompt_de_capa_perde_o_pedido_de_album_cover():
+    """'album cover' pede LETRA ao modelo, e o título é nosso — composto por
+    cima. No flux não há negativo para desfazer isso."""
+    from src.executor import prompt_sem_tipografia
+    saida = prompt_sem_tipografia("album cover, wide landscape at dusk, film grain")
+    assert "album cover" not in saida.lower()
+    assert saida.startswith("wide landscape at dusk")
+    assert "no lettering" in saida
+
+
+def test_pedido_de_limpeza_nao_duplica():
+    from src.executor import prompt_sem_tipografia
+    uma = prompt_sem_tipografia("poster art, a lone boat")
+    assert prompt_sem_tipografia(uma) == uma
+
+
+def test_prompt_sem_tipografia_aguenta_vazio():
+    from src.executor import prompt_sem_tipografia
+    assert "no lettering" in prompt_sem_tipografia("")

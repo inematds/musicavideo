@@ -1,5 +1,6 @@
 """Fase 2: executa as partes aprovadas. Falha de uma parte não derruba as outras."""
 import json
+import re
 from pathlib import Path
 
 from src.estado import (carregar_estado, salvar_estado, transicao,
@@ -13,6 +14,29 @@ PARTES = ("musica", "capa", "clipe")
 ARTEFATOS = {"musica": "faixa.mp3", "capa": "capa.png", "clipe": "clipe.mp4"}
 
 
+# "album cover" é um PEDIDO DE TIPOGRAFIA: capa de disco tem letra, e o modelo
+# desenha letra — garatuja, porque nenhum gerador escreve de verdade. E não
+# adianta pôr no negativo: o flux não tem prompt negativo, ele ignora o campo
+# (a Agnes respeita, por isso o defeito só apareceu ao trocar de motor, em
+# 2026-08-25: 6 de 13 capas vieram com texto falso).
+#
+# O título é NOSSO — `arte.compor_poster` desenha por cima. Então o que se pede
+# ao gerador é a imagem limpa, e isso se diz no positivo.
+_TIPOGRAFIA = re.compile(
+    r"\b(album cover|album art|cover art|poster art|movie poster|book cover)\b\s*,?\s*",
+    re.IGNORECASE)
+_LIMPO = ("clean unmarked surfaces, bare walls and skies, "
+          "no lettering, no signage, no writing anywhere in the frame")
+
+
+def prompt_sem_tipografia(prompt: str) -> str:
+    """Tira o pedido de capa-com-letra e pede superfície limpa, no positivo."""
+    limpo = _TIPOGRAFIA.sub("", prompt or "").strip().lstrip(",").strip()
+    if _LIMPO in limpo:
+        return limpo
+    return f"{limpo}, {_LIMPO}"
+
+
 def _params_de(plano: dict, parte: str) -> dict:
     p = dict(plano[parte].get("params", {}))
     if parte == "musica":
@@ -20,7 +44,7 @@ def _params_de(plano: dict, parte: str) -> dict:
                   "estilo": plano["musica"]["estilo"]["prompt_estilo"],
                   "instrumental": plano["musica"]["params"].get("instrumental", False)})
     elif parte == "capa":
-        p.update({"prompt": plano["capa"]["prompt_imagem"],
+        p.update({"prompt": prompt_sem_tipografia(plano["capa"]["prompt_imagem"]),
                   "prompt_negativo": plano["capa"]["prompt_negativo"]})
     elif parte == "clipe":
         p["decupagem"] = plano["clipe"]["decupagem"]
