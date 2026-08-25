@@ -113,6 +113,22 @@ def montar_contexto(solicitacao: str, opts: dict, outdir: Path) -> str:
         f"pelas seções da estrutura, com variação real entre eles (nada de repetir o "
         f"mesmo plano).",
         _instrucao_ritmo(opts),
+        # BOCA: o gerador de vídeo não ouve a música. Sem áudio de referência
+        # não existe fonema, então "mouth open in a sustained note" vira uma
+        # boca parada aberta, ou um abre-e-fecha genérico que não corresponde a
+        # som nenhum — e boca é justamente a região que os geradores fazem
+        # pior (dentes e mandíbula deformam entre quadros). Medido no MVD
+        # "Stay" (2026-08-25), onde 16 dos 42 planos pediam canto explícito.
+        "CANTO — NUNCA descreva a boca. Os prompts do clipe não podem conter "
+        "'mouth open', 'singing', 'belting', 'lips', 'sustained note' nem equivalente: "
+        "o gerador não ouve a faixa, então boca aberta vira careta parada e boca em "
+        "movimento vira mímica que não bate com nada. Entregue a MESMA emoção pela "
+        "postura e pela luz: cabeça inclinada para trás, olhos fechados com força, "
+        "garganta e pescoço tensionados, veia saltada, mão fechada no pé do microfone, "
+        "ombros subindo na inspiração, queixo erguido, lágrima. Nos closes, enquadre "
+        "dos olhos para cima, de perfil, contra a luz ou com o microfone à frente da "
+        "boca. O canto se lê no corpo, não na boca — e o público está OUVINDO a voz, "
+        "então não precisa vê-la sendo produzida.",
         # A música não é julgada por qualidade técnica e sim por RESPOSTA do
         # público: emoção → reconhecimento → memória → repetição. Isto entra no
         # prompt porque é decisão de ESCRITA (onde cai o refrão, o que a pessoa
@@ -525,6 +541,9 @@ def reajustar_decupagem(workdir: Path, duracao_real: float, chamar_llm=None,
                 f"narrativo e o estilo visual que já estavam lá. Aproveite os shots "
                 f"existentes que continuarem fazendo sentido, com os mesmos prompts. "
                 f"Prompts de provedor em INGLÊS, com prompt_alt em cada shot. "
+                f"NUNCA descreva a boca cantando ('mouth open', 'singing', 'belting'): "
+                f"o gerador não ouve a faixa e devolve careta. O canto se lê no corpo — "
+                f"cabeça para trás, olhos fechados, garganta tensionada, microfone à frente. "
                 f"Responda só o JSON da seção clipe.")
     nova = _extrair_json(chamar_llm(prompt))
     candidato = dict(plano)

@@ -344,3 +344,13 @@ def test_flag_ritmo_e_lida():
     from src.planner import _parse_opts
     assert _parse_opts(["--ritmo", "dinamico"])[1]["ritmo"] == "dinamico"
     assert _parse_opts(["--ritmo=variado"])[1]["ritmo"] == "variado"
+
+
+def test_contexto_proibe_descrever_a_boca_cantando(tmp_path):
+    """O gerador não ouve a faixa: boca aberta vira careta parada, e boca em
+    movimento vira mímica que não bate com som nenhum (MVD 'Stay')."""
+    from src.planner import montar_contexto
+    ctx = montar_contexto("balada sobre recomeço", {}, tmp_path)
+    assert "NUNCA descreva a boca" in ctx
+    assert "'singing'" in ctx and "'belting'" in ctx
+    assert "garganta" in ctx and "olhos fechados" in ctx

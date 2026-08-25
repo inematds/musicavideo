@@ -186,3 +186,24 @@ duração da música. Cortes curtos ⇒ mais chamadas, mesma metragem.
 **Boa prática, e coerente com a correção do dono:** corte seco no beat é o padrão
 de videoclipe profissional; efeito entra quando ele É a conexão (troca de seção,
 speedramp, match cut de movimento), nunca como enfeite distribuído.
+
+
+## 2026-08-25 — o que ficou aberto depois do MVD "Stay" (Kling)
+
+- **Boca cantando: RESOLVIDO no prompt** (planner + reajuste). A regra é não
+  descrever a boca; o canto se lê no corpo. Os clipes JÁ gerados continuam com
+  o defeito — refazer é gerar de novo, então fica para quando valer a pena.
+- **Lipsync existe, mas por fora.** O CLI do Kling só tem t2i/i2i/t2v/i2v. A
+  Magnific tem 6 modelos, 3 aceitam VÍDEO como fonte (`lipsync-2.0`,
+  `veed-sync-2-v2v`, `latentsync`) — dá para aplicar em cima de um plano já
+  gerado. O empecilho é ÁUDIO: lipsync quer voz isolada e o que existe é a
+  mixagem. Sem demucs instalado, o caminho honesto é testar em UM plano de
+  refrão antes de decidir.
+- **Preço medido do Kling direto (2026-08-25):** 5s = 25 créditos em 1080p,
+  10s = 50; em 720p a tomada de 10s saiu por 30. O plano de 44 planos custaria
+  ~1.400 em 1080p; as 20 tomadas de 10s em 720p custaram **600** (675 com as
+  duas de teste). Reduzir a duração dos planos NÃO economiza — um plano de 3s
+  paga uma geração de 5s. O que economiza é: menos gerações, menor resolução,
+  e cortar/reaproveitar o que já foi gerado.
+- **Créditos do Kling expiram:** 3.000/mês que não são gastos, são perdidos.
+  Isso inverte a lógica de economia — o caro é NÃO usar.
