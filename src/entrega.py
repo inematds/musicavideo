@@ -1,5 +1,6 @@
 """Fase 3: PACOTE.md, pacote de publicação e envio opcional no Telegram."""
 import json
+import os
 import shutil
 import unicodedata
 import urllib.request
@@ -169,6 +170,21 @@ def resumo_de_estilo(plano: dict) -> str:
     return " · ".join(x for x in partes if x)
 
 
+def link_do_clipe(workdir: Path) -> str:
+    """O endereço do clipe para o fecho da entrega.
+
+    `MUSICAVIDEO_LINK_BASE` (ex.: `http://192.168.2.99:5400/musicavideo`) faz o
+    link apontar para o painel, que já serve o arquivo com suporte a arrastar a
+    barra. Sem a variável, vai o caminho absoluto — o bot sabe transformar em
+    link, e caminho errado é melhor que link inventado.
+    """
+    w = Path(workdir)
+    base = os.environ.get("MUSICAVIDEO_LINK_BASE", "").rstrip("/")
+    if base:
+        return f"{base}/{w.name}/clipe.mp4"
+    return str(w / "clipe.mp4")
+
+
 def enviar_telegram(workdir: Path, estado: dict, plano: dict, http=None) -> None:
     if not estado.get("telegram"):
         return                                   # desligado por default
@@ -196,6 +212,12 @@ def enviar_telegram(workdir: Path, estado: dict, plano: dict, http=None) -> None
     # e vai DEPOIS da capa, para a capa ser o frame que anuncia a peça.
     envios += [(w / "capa.png", "sendPhoto", "photo", f"{plano['titulo']}{sufixo_estilo}"),
                (w / "clipe.mp4", "sendVideo", "video", plano["titulo"])]
+    # FECHO: a capa outra vez, agora com o título e o LINK. É a mensagem que
+    # fica valendo no chat — quem rolar a conversa depois acha a peça por ela,
+    # sem precisar caçar o vídeo no meio dos áudios.
+    if (w / "clipe.mp4").exists():
+        envios.append((w / "capa.png", "sendPhoto", "photo",
+                       f"{plano['titulo']}\n{link_do_clipe(w)}"))
     for arq, metodo, campo, legenda in envios:
         if arq.exists():
             _post_multipart(f"{base}/{metodo}",

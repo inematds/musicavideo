@@ -151,7 +151,14 @@ Quando a entrega roda com `--telegram`, o bot recebe, nesta ordem:
    Elas são músicas diferentes, não versões: mandar só a aprovada tirava de
    você justamente o que se decide de ouvido;
 2. a **capa**, com `<título>` e o **estilo**;
-3. o **clipe**, com **só o título**.
+3. o **clipe**, com **só o título**;
+4. **o fecho** — a capa outra vez, com `<título>` e o **link do clipe**.
+
+O fecho existe porque é a mensagem que fica valendo no chat: quem rolar a
+conversa depois acha a peça por ela, sem caçar o vídeo no meio dos áudios. O
+link sai de `MUSICAVIDEO_LINK_BASE` (ex.: `http://192.168.2.99:5400/musicavideo`,
+o painel, que serve o arquivo e deixa arrastar a barra); sem a variável vai o
+caminho absoluto — caminho certo é melhor que link inventado.
 
 A regra da legenda: enquanto a decisão é sobre o SOM (mp3 + capa), vai título
 **e estilo** — gênero · bpm · tom · mood, como `nordic folk anthem rock · 118

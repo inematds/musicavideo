@@ -49,7 +49,8 @@ def test_telegram_desligado_nao_envia(outdir, plano_ok, monkeypatch):
     e["telegram"] = True
     monkeypatch.setattr(ent, "ler_env_chave", lambda n: "tok" if "TOKEN" in n[0] else "123")
     enviar_telegram(w, e, plano)
-    assert len(chamadas) == 3
+    # faixa, capa, clipe e o FECHO (capa outra vez, com o link)
+    assert len(chamadas) == 4
 
 
 def test_telegram_manda_AS_DUAS_faixas(outdir, plano_ok, monkeypatch):
@@ -73,7 +74,7 @@ def test_telegram_manda_AS_DUAS_faixas(outdir, plano_ok, monkeypatch):
     assert [a[1] for a in audios] == ["faixa-1.mp3", "faixa-2.mp3"]
     assert "✓ aprovada" in [a[2] for a in audios if a[1] == "faixa-2.mp3"][0]
     assert "✓ aprovada" not in [a[2] for a in audios if a[1] == "faixa-1.mp3"][0]
-    assert [c[0] for c in chamadas if c[0] != "audio"] == ["photo", "video"]
+    assert [c[0] for c in chamadas if c[0] != "audio"] == ["photo", "video", "photo"]
 
 
 def test_legendas_mp3_e_capa_levam_estilo_e_o_video_so_o_titulo(outdir, plano_ok, monkeypatch):
@@ -93,14 +94,57 @@ def test_legendas_mp3_e_capa_levam_estilo_e_o_video_so_o_titulo(outdir, plano_ok
     estilo = ent.resumo_de_estilo(plano)
     assert estilo                                   # o plano de teste tem gênero
     enviar_telegram(w, e, plano)
-    por_campo = dict(chamadas)
-    assert estilo in por_campo["audio"] and plano["titulo"] in por_campo["audio"]
-    assert estilo in por_campo["photo"] and plano["titulo"] in por_campo["photo"]
-    assert por_campo["video"] == plano["titulo"]    # vídeo: só o título
-    assert [c[0] for c in chamadas][-2:] == ["photo", "video"]   # capa antes do vídeo
+    audio = [c[1] for c in chamadas if c[0] == "audio"][0]
+    capa = [c[1] for c in chamadas if c[0] == "photo"][0]
+    video = [c[1] for c in chamadas if c[0] == "video"][0]
+    assert estilo in audio and plano["titulo"] in audio
+    assert estilo in capa and plano["titulo"] in capa
+    assert video == plano["titulo"]                 # vídeo: só o título
+    assert [c[0] for c in chamadas][-3:] == ["photo", "video", "photo"]
 
 
 def test_resumo_de_estilo_aguenta_plano_magro():
     from src.entrega import resumo_de_estilo
     assert resumo_de_estilo({}) == ""
     assert resumo_de_estilo({"musica": {"estilo": {"genero": "forró"}}}) == "forró"
+
+
+def test_fecho_manda_a_capa_de_novo_com_titulo_e_link(outdir, plano_ok, monkeypatch):
+    """A última mensagem é a que fica valendo no chat: capa + título + link."""
+    w = _preparar(outdir, plano_ok)
+    e = carregar_estado(w)
+    e["telegram"] = True
+    chamadas = []
+    import src.entrega as ent
+    monkeypatch.setattr(ent, "_post_multipart",
+                        lambda url, campos, campo, arq: chamadas.append((campo, arq.name, campos["caption"])))
+    monkeypatch.setattr(ent, "ler_env_chave", lambda n: "tok" if "TOKEN" in n[0] else "123")
+    monkeypatch.setenv("MUSICAVIDEO_LINK_BASE", "http://painel/musicavideo")
+    plano = json.loads((w / "plano.json").read_text())
+    enviar_telegram(w, e, plano)
+    campo, nome, legenda = chamadas[-1]
+    assert (campo, nome) == ("photo", "capa.png")
+    assert legenda.startswith(plano["titulo"])
+    assert legenda.endswith("http://painel/musicavideo/teste-rock/clipe.mp4")
+    assert [c[0] for c in chamadas][-3:] == ["photo", "video", "photo"]
+
+
+def test_sem_clipe_nao_ha_fecho(outdir, plano_ok, monkeypatch):
+    w = _preparar(outdir, plano_ok, prontas=("musica", "capa"))
+    (w / "clipe.mp4").unlink(missing_ok=True)
+    e = carregar_estado(w)
+    e["telegram"] = True
+    chamadas = []
+    import src.entrega as ent
+    monkeypatch.setattr(ent, "_post_multipart",
+                        lambda url, campos, campo, arq: chamadas.append(campo))
+    monkeypatch.setattr(ent, "ler_env_chave", lambda n: "tok" if "TOKEN" in n[0] else "123")
+    enviar_telegram(w, e, json.loads((w / "plano.json").read_text()))
+    assert chamadas.count("photo") == 1 and "video" not in chamadas
+
+
+def test_link_cai_no_caminho_quando_nao_ha_base(outdir, plano_ok, monkeypatch):
+    from src.entrega import link_do_clipe
+    monkeypatch.delenv("MUSICAVIDEO_LINK_BASE", raising=False)
+    w = _preparar(outdir, plano_ok)
+    assert link_do_clipe(w) == str(w / "clipe.mp4")
