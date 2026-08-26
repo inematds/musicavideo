@@ -1,8 +1,39 @@
-{"provider": "agnes", "env_keys": ["AGNES_API_KEY"], "modelos": [
-  {"id": "agnes-image-2.1-flash", "capacidade": "imagem",
-   "custo": {"base_usd": 0.0, "por": "geracao"},
-   "params": {"tamanho": {"default": "1024x1024"}}},
-  {"id": "agnes-video-v2.0", "capacidade": "video",
-   "custo": {"base_usd": 0.0, "por": "segundo"},
-   "params": {"resolucao": {"default": "1312x736"},
-              "duracao_shot_s": {"default": 5, "max": 18}}}]}
+{
+ "provider": "agnes",
+ "env_keys": [
+  "AGNES_API_KEY",
+  "AGNES_API_KEY_2"
+ ],
+ "modelos": [
+  {
+   "id": "agnes-image-2.1-flash",
+   "capacidade": "imagem",
+   "custo": {
+    "base_usd": 0.0,
+    "por": "geracao"
+   },
+   "params": {
+    "tamanho": {
+     "default": "1024x1024"
+    }
+   }
+  },
+  {
+   "id": "agnes-video-v2.0",
+   "capacidade": "video",
+   "custo": {
+    "base_usd": 0.0,
+    "por": "segundo"
+   },
+   "params": {
+    "resolucao": {
+     "default": "1312x736"
+    },
+    "duracao_shot_s": {
+     "default": 5,
+     "max": 18
+    }
+   }
+  }
+ ]
+}

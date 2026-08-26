@@ -340,3 +340,49 @@ def test_cota_dorme_e_retoma_em_vez_de_derrubar(monkeypatch, tmp_path):
     except Exception:
         pass                      # o polling do teste é raso; o que importa é a espera
     assert 7200.0 in dormidas and tentativas["n"] >= 2
+
+
+def test_troca_de_conta_antes_de_dormir(monkeypatch, tmp_path):
+    """A cota é diária e POR CONTA: a reserva tem o dia inteiro, então trocar
+    devolve o render na hora. Dormir é o último recurso."""
+    from providers import agnes
+    from providers.base import ProviderError
+    dormidas, tentativas = [], {"n": 0}
+    monkeypatch.setattr(agnes, "ler_env_chave", lambda nomes: "k-" + nomes[0])
+    monkeypatch.setattr(agnes.time, "sleep", lambda s: dormidas.append(s))
+    monkeypatch.setattr(agnes, "baixar", lambda url, alvo: alvo)
+
+    def falso(url, metodo="GET", corpo=None, headers=None, **k):
+        if "/videos" in url and metodo == "POST":
+            tentativas["n"] += 1
+            if tentativas["n"] == 1:
+                raise ProviderError(MSG_COTA)
+            return {"video_id": "v1"}
+        return {"status": "completed", "video_url": "http://x/v.mp4"}
+
+    monkeypatch.setattr(agnes, "http_json", falso)
+    ag = agnes.Agnes({"env_keys": ["AGNES_API_KEY", "AGNES_API_KEY_2"], "modelos": []})
+    try:
+        ag._um_shot("p", {"n": 1, "duracao_s": 5}, "1312", "736", tmp_path)
+    except Exception:
+        pass
+    assert ag._conta == 1                     # virou para a reserva
+    assert dormidas == []                     # e NÃO dormiu
+    assert "AGNES_API_KEY_2" in ag._headers()["Authorization"]
+
+
+def test_sem_reserva_ainda_dorme(monkeypatch, tmp_path):
+    from providers import agnes
+    monkeypatch.setattr(agnes, "ler_env_chave",
+                        lambda nomes: "k" if nomes[0] == "AGNES_API_KEY" else None)
+    ag = agnes.Agnes({"env_keys": ["AGNES_API_KEY", "AGNES_API_KEY_2"], "modelos": []})
+    assert ag._chaves() == ["AGNES_API_KEY"]
+    assert ag._proxima_conta() is False
+
+
+def test_indisponivel_so_quando_nao_ha_chave_nenhuma(monkeypatch):
+    from providers import agnes
+    monkeypatch.setattr(agnes, "ler_env_chave", lambda nomes: None)
+    ag = agnes.Agnes({"env_keys": ["AGNES_API_KEY", "AGNES_API_KEY_2"], "modelos": []})
+    ok, motivo = ag.disponivel()
+    assert ok is False and "AGNES_API_KEY" in motivo

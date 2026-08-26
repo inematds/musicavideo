@@ -172,7 +172,13 @@ Dois limites da Agnes não são falha — são espera, e o adaptador espera sozi
 | resposta | o que ele faz |
 |---|---|
 | `503 video_queue_full` | dorme 60s e tenta de novo, dentro do teto do polling |
-| `429 Daily API usage limit reached` | **dorme até o horário que a própria mensagem informa** (`Please try again after **2026-08-26 00:00 UTC**`), com teto de 8h |
+| `429 Daily API usage limit reached` | **vira para a conta reserva**; se não houver, dorme até o horário que a própria mensagem informa (`Please try again after **2026-08-26 00:00 UTC**`), com teto de 8h |
+
+**Contas em cascata:** a cota da Agnes é diária E por conta. `AGNES_API_KEY` é a
+principal e `AGNES_API_KEY_2` (`inemaccbottime`) é a reserva — quando a primeira
+estoura, a segunda ainda tem o dia inteiro, então a troca devolve o render na
+hora e dormir vira o último recurso. As duas moram nos `.env` autorizados
+(`openpcbotv2/.env`, `wifi/.env`); basta existir para entrar na cascata.
 
 Sem horário legível na mensagem, espera 1h. O clipe segue de onde parou: shot
 que já está no disco não é refeito.

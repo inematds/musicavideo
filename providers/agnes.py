@@ -143,11 +143,32 @@ class Agnes(Provider):
     def __init__(self, decl):
         self.decl = decl
 
+    # CONTAS EM CASCATA. A cota é DIÁRIA e por conta: quando a primeira estoura,
+    # a segunda (`inemaccbottime`) ainda tem o dia inteiro. Trocar de conta
+    # custa zero e devolve o render na hora — dormir até o reset é o último
+    # recurso, não o primeiro.
+    def _chaves(self) -> list[str]:
+        nomes = list(self.decl.get("env_keys") or [])
+        return [n for n in nomes if ler_env_chave([n])]
+
     def _headers(self):
-        return {"Authorization": f"Bearer {ler_env_chave(self.decl['env_keys'])}"}
+        chaves = self._chaves()
+        i = min(getattr(self, "_conta", 0), max(0, len(chaves) - 1))
+        nome = chaves[i] if chaves else (self.decl.get("env_keys") or ["AGNES_API_KEY"])[0]
+        return {"Authorization": f"Bearer {ler_env_chave([nome])}"}
+
+    def _proxima_conta(self) -> bool:
+        """Vira para a próxima conta com chave. False = não há reserva."""
+        atual = getattr(self, "_conta", 0)
+        if atual + 1 >= len(self._chaves()):
+            return False
+        self._conta = atual + 1
+        print(f"agnes: trocando para a conta reserva "
+              f"({self._chaves()[self._conta]}) — a cota da anterior estourou", flush=True)
+        return True
 
     def disponivel(self):
-        if ler_env_chave(self.decl["env_keys"]) is None:
+        if not self._chaves():
             return False, f"{self.nome}: indisponível — {motivo_indisponivel(self.decl['env_keys'])}"
         return True, ""
 
@@ -204,6 +225,8 @@ class Agnes(Provider):
                 # virar (MVD "Levanta o Céu", 2026-08-25). O reset vem escrito
                 # na mensagem; dormir até lá é a resposta do provedor.
                 if _cota_diaria(e):
+                    if self._proxima_conta():
+                        continue          # a reserva tem o dia inteiro: sem espera
                     espera = segundos_ate_reset(str(e))
                     print(f"agnes: COTA DIÁRIA estourada no shot {shot['n']} — "
                           f"dormindo {espera / 3600:.1f}h até o reset informado pela API",
