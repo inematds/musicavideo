@@ -52,6 +52,24 @@ def _faixa(w: Path) -> str | None:
     return achadas[0].name if achadas else None
 
 
+def _documento(w: Path, limite: int = 120000) -> str | None:
+    """PACOTE + PLANO, nessa ordem, no mesmo painel de leitura.
+
+    O `PACOTE.md` é um resumo de entrega (estado, custo, pasta) — cabe em 20
+    linhas. O que a pessoa quer ler quando abre um card é o PLANO: letra,
+    estilo, decupagem plano a plano. Mostrar só o pacote fazia o card parecer
+    vazio justamente nas produções em que o plano é mais rico.
+    """
+    partes = []
+    for nome in ("PACOTE.md", "PLANO.md"):
+        txt = _texto(w / nome, limite)
+        if txt:
+            partes.append(txt.strip())
+    if not partes:
+        return None
+    return ("\n\n" + "─" * 60 + "\n\n").join(partes)[:limite]
+
+
 def _texto(p: Path, limite: int = 40000) -> str | None:
     if not p.exists():
         return None
@@ -223,7 +241,9 @@ def coletar(raiz: Path) -> dict:
             "faixas": _faixas(base, l["slug"], faixa),
             "versoes": versoes,
             "bytes": _tamanho(w),
-            "doc": _texto(w / "PACOTE.md") or _texto(w / "PLANO.md"),
+            "doc": _documento(w),
+            "docs": [d for d in (_url(base, f"{l['slug']}/PACOTE.md"),
+                                 _url(base, f"{l['slug']}/PLANO.md")) if d],
         })
 
     mv += _derivados(base, {x["slug"] for x in mv})
@@ -323,7 +343,8 @@ padding:4px 11px;cursor:pointer}
 .db{padding:16px 18px 24px;max-height:72vh;overflow:auto}
 .db video,.db img{width:100%;border-radius:10px;background:#000}
 .db audio{width:100%;margin-top:10px}
-pre{white-space:pre-wrap;word-wrap:break-word;background:#0a0806;border:1px solid var(--linha);
+pre{white-space:pre-wrap;word-wrap:break-word;max-height:60vh;overflow:auto;
+background:#0a0806;border:1px solid var(--linha);
 border-radius:10px;padding:13px;font-size:13px;color:#d6ccc0;margin-top:14px}
 a{color:var(--amb)}
 .vazio{color:var(--dim);padding:40px 22px}
@@ -419,6 +440,8 @@ function abre(x){document.getElementById("dt").textContent=x.titulo||x.slug;
  h+=`<p class=meta style="margin-top:12px">${E(x.slug)}${x.custo!==undefined?" · US$ "+E(x.custo):""}${x.bytes?" · "+MB(x.bytes):""}</p>`;
  if(x.fonte==="musicavideo")h+=`<p><button id=apagar class=perigo data-slug="${E(x.slug)}">mandar para a lixeira</button>
   <span class=meta>não apaga: move para <code>.lixo/</code></span></p>`;
+ if((x.docs||[]).length)h+=`<p>`+x.docs.map(d=>
+  `<a class="pill nocard" href="${E(d)}" target=_blank rel=noopener>abrir ${E(d.split("?")[0].split("/").pop())} ↗</a>`).join(" ")+`</p>`;
  if(x.doc)h+=`<pre>${E(x.doc)}</pre>`;
  document.getElementById("dc").innerHTML=h;
  const dc=document.getElementById("dc"),bts=[...dc.querySelectorAll(".tab")],pns=[...dc.querySelectorAll(".versao")];
@@ -457,6 +480,17 @@ def _ip_da_rede() -> str:
 
 
 class Handler(SimpleHTTPRequestHandler):
+    def guess_type(self, path):
+        """`.md` como texto puro, para ABRIR na aba.
+
+        O tipo registrado é `text/markdown`, e com ele o navegador baixa o
+        arquivo em vez de mostrar — o link do PACOTE/PLANO virava um download
+        que ninguém pediu.
+        """
+        if str(path).lower().endswith(".md"):
+            return "text/plain; charset=utf-8"
+        return super().guess_type(path)
+
     def do_GET(self):  # noqa: N802
         if self.path in ("/", "/index.html"):
             return self._envia(PAGINA.encode("utf-8"), "text/html; charset=utf-8")
