@@ -295,6 +295,9 @@ border:1px solid var(--linha);border-radius:8px;background:#0a0806;margin-bottom
 .capas a:hover img{border-color:var(--amb)}
 .faixas{display:flex;flex-direction:column;gap:8px;margin-top:10px}
 .faixas audio{width:100%;margin-top:3px}
+audio.nocard{width:100%;height:30px;margin:8px 0 2px;display:block}
+a.pill.nocard{text-decoration:none;color:var(--amb);border-color:#5a4626}
+a.pill.nocard:hover{background:#2a1f12}
 .card .b{padding:11px 13px}
 .card h3{margin:0 0 5px;font-size:15px;line-height:1.3}
 .meta{color:var(--dim);font-size:12.5px}
@@ -343,22 +346,34 @@ function cardMV(x){const t=x.capa?`<img class="thumb capa" loading=lazy src="${E
  const st=Object.entries(x.estados||{}).map(([k,v])=>
   `<span class="pill ${v==="pronto"?"ok":(v==="erro"?"err":"")}">${E(k)}: ${E(v)}</span>`).join("");
  const dv=x.derivado?`<span class="pill dv">${E(x.derivado)}</span>`:"";
+ // a música TOCA no card: dá para ouvir sem abrir nada, e o clique no player
+ // não abre o modal (o `onclick` do card é cancelado no `pinta`).
+ const som=(x.faixas||[]).length?`<audio class=nocard controls preload=none src="${E(x.faixas[0].url)}"></audio>`
+  :(x.faixa?`<audio class=nocard controls preload=none src="${E(x.faixa)}"></audio>`:"");
  return `${t}<div class=b><h3>${dv}${E(x.titulo)}</h3>
  <div class=meta>${x.origem?"de "+E(x.origem)+" · ":""}${E(x.genero)}${x.bpm?" · "+E(x.bpm)+" bpm":""}${x.tom?" · "+E(x.tom):""}${x.bytes?" · "+MB(x.bytes):""}</div>
+ ${som}
  <div>${st}${(x.versoes||[]).length>1?`<span class=pill>${x.versoes.length} versões</span>`:""}</div></div>`}
 function MB(b){return b>=1073741824?(b/1073741824).toFixed(1)+" GB":Math.round(b/1048576)+" MB"}
 function cardAV(x){const g=(x.paleta||[]).slice(0,5);
- const t=x.video?`<video class=thumb src="${E(x.video)}#t=1" preload=metadata muted></video>`
+ const t=x.video?`<video class="thumb nocard" src="${E(x.video)}#t=1" preload=metadata controls></video>`
   :`<div class=thumb style="background:linear-gradient(120deg,${g.length?g.map(E).join(","):"#1a1512,#2b241d"})"></div>`;
  const p=(x.paleta||[]).slice(0,6).map(c=>`<i style="background:${E(c)}"></i>`).join("");
+ const fonte=x.url?`<a class="pill nocard" href="${E(x.url)}" target=_blank rel=noopener>assistir no canal ↗</a>`:"";
  return `${t}<div class=b><h3>${E(x.titulo)}</h3>
  <div class=meta>${E(x.tipo)}${x.canal?" · "+E(x.canal):""}${x.duracao_s?" · "+E(x.duracao_s)+"s":""}</div>
+ ${fonte}
  <div class=pal>${p}</div>
  <div>${(x.tags||[]).slice(0,4).map(g=>`<span class=pill>${E(g)}</span>`).join("")}</div></div>`}
 function pinta(){const l=alvo();
  grade.innerHTML=l.length?"":`<div class=vazio>nada por aqui ainda.</div>`;
  l.forEach((x,i)=>{const d=document.createElement("div");d.className="card";
-  d.innerHTML=aba==="musicavideo"?cardMV(x):cardAV(x);d.onclick=()=>abre(x);grade.appendChild(d)})}
+  d.innerHTML=aba==="musicavideo"?cardMV(x):cardAV(x);
+  d.onclick=()=>abre(x);
+  // tocar não é abrir: quem clica no player (ou no link da fonte) quer ouvir/ver
+  // ali mesmo. Sem isto, arrastar a barra do áudio abre o modal por cima.
+  d.querySelectorAll(".nocard").forEach(el=>el.addEventListener("click",ev=>ev.stopPropagation()));
+  grade.appendChild(d)})}
 function abre(x){document.getElementById("dt").textContent=x.titulo||x.slug;
  let h="";
  // as capas primeiro, e clicáveis: o card mostra miniatura, aqui se vê inteira

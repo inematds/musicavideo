@@ -137,6 +137,12 @@ Desde 2026-08-23 ele mostra **tudo que existe no disco**, não só o que está n
 origem e o **tamanho em disco** — que é o número que importa, porque cada
 recorte são centenas de MB.
 
+**A música toca no card.** Nos cards do musicavideo há um player da faixa
+aprovada, e nos da análise o vídeo local quando existe — ouvir/ver não exige
+abrir nada. Clicar no player NÃO abre o modal (senão arrastar a barra abriria a
+janela por cima); clicar em qualquer outro ponto do card abre como antes. Nas
+análises há também **"assistir no canal ↗"**, que leva ao vídeo original.
+
 Cada card tem **"mandar para a lixeira"**: não apaga, MOVE para
 `output/musicavideo/.lixo/`. Engano tem volta, e esvaziar a lixeira é decisão
 de terminal (`rm -rf`), nunca de clique — ainda mais com `--lan`, onde a página
