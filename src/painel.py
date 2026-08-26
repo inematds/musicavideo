@@ -298,6 +298,8 @@ border:1px solid var(--linha);border-radius:8px;background:#0a0806;margin-bottom
 audio.nocard{width:100%;height:30px;margin:8px 0 2px;display:block}
 a.pill.nocard{text-decoration:none;color:var(--amb);border-color:#5a4626}
 a.pill.nocard:hover{background:#2a1f12}
+.embed{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:10px;overflow:hidden}
+.embed iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 .card .b{padding:11px 13px}
 .card h3{margin:0 0 5px;font-size:15px;line-height:1.3}
 .meta{color:var(--dim);font-size:12.5px}
@@ -355,9 +357,16 @@ function cardMV(x){const t=x.capa?`<img class="thumb capa" loading=lazy src="${E
  ${som}
  <div>${st}${(x.versoes||[]).length>1?`<span class=pill>${x.versoes.length} versões</span>`:""}</div></div>`}
 function MB(b){return b>=1073741824?(b/1073741824).toFixed(1)+" GB":Math.round(b/1048576)+" MB"}
+// 24 das 30 análises são do YouTube: a miniatura oficial (img.youtube.com) dá
+// a CARA do vídeo analisado no card, sem baixar nada. Quem não é YouTube cai
+// no degradê da paleta, que já era o comportamento.
+function ytid(u){const m=/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{6,})/.exec(u||"");
+ return m?m[1]:""}
 function cardAV(x){const g=(x.paleta||[]).slice(0,5);
+ const yid=ytid(x.url);
  const t=x.video?`<video class="thumb nocard" src="${E(x.video)}#t=1" preload=metadata controls></video>`
-  :`<div class=thumb style="background:linear-gradient(120deg,${g.length?g.map(E).join(","):"#1a1512,#2b241d"})"></div>`;
+  :(yid?`<img class=thumb loading=lazy src="https://img.youtube.com/vi/${E(yid)}/hqdefault.jpg" alt="">`
+  :`<div class=thumb style="background:linear-gradient(120deg,${g.length?g.map(E).join(","):"#1a1512,#2b241d"})"></div>`);
  const p=(x.paleta||[]).slice(0,6).map(c=>`<i style="background:${E(c)}"></i>`).join("");
  const fonte=x.url?`<a class="pill nocard" href="${E(x.url)}" target=_blank rel=noopener>assistir no canal ↗</a>`:"";
  return `${t}<div class=b><h3>${E(x.titulo)}</h3>
@@ -391,6 +400,9 @@ function abre(x){document.getElementById("dt").textContent=x.titulo||x.slug;
  }
  else if(x.clipe)h+=`<video src="${E(x.clipe)}" controls playsinline></video>`;
  else if(x.video)h+=`<video src="${E(x.video)}" controls playsinline></video>`;
+ else if(ytid(x.url))h+=`<div class=embed><iframe src="https://www.youtube-nocookie.com/embed/${E(ytid(x.url))}"
+   title="vídeo analisado" allow="accelerometer; clipboard-write; encrypted-media; picture-in-picture"
+   allowfullscreen loading=lazy></iframe></div>`;
  else if(x.capa&&!(x.capas||[]).length)h+=`<img src="${E(x.capa)}">`;
  // as faixas SEMPRE, mesmo sem dois clipes montados: é ouvindo as duas que
  // se escolhe qual aprovar.
