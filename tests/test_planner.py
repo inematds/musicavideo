@@ -363,3 +363,21 @@ def test_contexto_manda_cortar_o_close_sem_nomear_a_pessoa(tmp_path):
     ctx = montar_contexto("forró sobre festa de rua", {}, tmp_path)
     assert "CLOSE DE PARTE DO CORPO" in ctx
     assert "NUNCA nomeie a pessoa" in ctx
+
+
+def test_regra_do_canto_e_escopada_ao_clipe(tmp_path):
+    """A regra existe para o CLIPE; solta, ela vazava para a capa e saíam
+    retratos em série com queixo erguido e olhos fechados."""
+    from src.planner import montar_contexto
+    ctx = montar_contexto("balada pop", {}, tmp_path)
+    assert "vale SÓ para clipe.decupagem[].prompt" in ctx
+    assert "NUNCA para capa.prompt_imagem" in ctx
+
+
+def test_capa_manda_variar_o_olhar(tmp_path):
+    from src.planner import montar_contexto
+    ctx = montar_contexto("balada pop", {}, tmp_path)
+    assert "CAPA — o olhar VARIA" in ctx
+    for proibido in ("chin raised", "chin lifted", "head tilted back", "eyes closed"):
+        assert proibido in ctx          # citados como o que NÃO repetir
+    assert "capa SEM pessoa nenhuma" in ctx

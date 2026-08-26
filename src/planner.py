@@ -131,7 +131,12 @@ def montar_contexto(solicitacao: str, opts: dict, outdir: Path) -> str:
         "foot', 'the singer's hand'): o gerador tenta desenhar a pessoa inteira dentro do "
         "close e erra o que não cabe — sai corpo sem tronco, membro a mais, escala errada. "
         "Parte do corpo é objeto no quadro, não gente pequena.",
-        "CANTO — NUNCA descreva a boca. Os prompts do clipe não podem conter "
+        # ESCOPO: a regra abaixo vale só para `clipe.decupagem[].prompt`. Sem
+        # dizer isso, o planejador levava o vocabulário dela para a CAPA — e
+        # saíram capas em série com queixo erguido e olhos fechados, todas com
+        # a mesma pose (visto em 2026-08-26, em 8 planos seguidos).
+        "CANTO (vale SÓ para clipe.decupagem[].prompt, NUNCA para capa.prompt_imagem) "
+        "— NUNCA descreva a boca. Os prompts do clipe não podem conter "
         "'mouth open', 'singing', 'belting', 'lips', 'sustained note' nem equivalente: "
         "o gerador não ouve a faixa, então boca aberta vira careta parada e boca em "
         "movimento vira mímica que não bate com nada. Entregue a MESMA emoção pela "
@@ -152,6 +157,13 @@ def montar_contexto(solicitacao: str, opts: dict, outdir: Path) -> str:
         "(c) O REFRÃO tem que funcionar SOZINHO, fora da música. (d) IDENTIDADE: em 10s "
         "deve dar para dizer que é esta música e não outra igual. (e) Familiar o bastante "
         "para entrar, diferente o bastante para notar — genérico e hermético falham igual.",
+        "CAPA — o olhar VARIA, e é escolha de composição, não fórmula. A capa é um "
+        "retrato ou uma cena, não um plano de canto: não repita 'chin raised', "
+        "'chin lifted', 'head tilted back' nem 'eyes closed' (isso é recurso do CLIPE, "
+        "para não mostrar boca cantando). Escolha o que a música pede e diga qual é: "
+        "olhar direto na lente, olhar fora de quadro, perfil, de costas, olhos baixos, "
+        "de longe sem rosto legível, ou capa SEM pessoa nenhuma (objeto, paisagem, "
+        "detalhe). Duas capas seguidas com a mesma pose é erro.",
         f"SOLICITAÇÃO: {solicitacao}",
         "ESTILOS: " + _arquivo_estilos().read_text(encoding="utf-8"),
         "TEMPLATES CAPA: " + (RAIZ / "data/templates-capa.json").read_text(encoding="utf-8"),
