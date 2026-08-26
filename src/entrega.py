@@ -158,14 +158,23 @@ def enviar_telegram(workdir: Path, estado: dict, plano: dict, http=None) -> None
         return
     base = f"https://api.telegram.org/bot{token}"
     from src.executor import faixa_aprovada
-    faixa = faixa_aprovada(Path(workdir), estado)
-    envios = [(faixa.name if faixa else "faixa.mp3", "sendAudio", "audio"),
-              ("capa.png", "sendPhoto", "photo"), ("clipe.mp4", "sendVideo", "video")]
-    for nome, metodo, campo in envios:
-        arq = Path(workdir) / nome
+    from src.montagem import faixas_existentes
+    w = Path(workdir)
+    aprovada = faixa_aprovada(w, estado)
+    # AS DUAS FAIXAS, SEMPRE. O Suno entrega duas e elas são músicas
+    # diferentes — mandar só a aprovada tira do dono justamente o que ele
+    # decide de ouvido. A marca de qual está aprovada vai na legenda.
+    envios = [(f, "sendAudio", "audio",
+               f"{plano['titulo']} — {f.stem.split('-')[-1] if '-' in f.stem else '1'}"
+               + (" ✓ aprovada" if aprovada and f.name == aprovada.name else ""))
+              for f in faixas_existentes(w)]
+    envios += [(w / nome, metodo, campo, plano["titulo"])
+               for nome, metodo, campo in (("capa.png", "sendPhoto", "photo"),
+                                           ("clipe.mp4", "sendVideo", "video"))]
+    for arq, metodo, campo, legenda in envios:
         if arq.exists():
             _post_multipart(f"{base}/{metodo}",
-                            {"chat_id": chat, "caption": plano["titulo"]}, campo, arq)
+                            {"chat_id": chat, "caption": legenda}, campo, arq)
 
 
 def entregar(outdir: Path, slug: str) -> Path:

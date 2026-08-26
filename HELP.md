@@ -142,6 +142,17 @@ Cada card tem **"mandar para a lixeira"**: não apaga, MOVE para
 de terminal (`rm -rf`), nunca de clique — ainda mais com `--lan`, onde a página
 está aberta pra rede.
 
+## O QUE O BOT RECEBE
+
+Quando a entrega roda com `--telegram`, o bot recebe, nesta ordem:
+
+1. **as DUAS faixas** — `faixa-1.mp3` e `faixa-2.mp3`, cada uma com a legenda
+   `<título> — 1|2`, e a aprovada marcada com `✓ aprovada`. Elas são músicas
+   diferentes, não versões: mandar só a aprovada tirava de você justamente o
+   que se decide de ouvido;
+2. a **capa**;
+3. o **clipe**.
+
 ## ESTILOS
 
 O planejador escolhe um sozinho a partir da sua descrição. Para forçar, use
