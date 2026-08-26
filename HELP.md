@@ -165,6 +165,22 @@ A regra da legenda: enquanto a decisão é sobre o SOM (mp3 + capa), vai título
 bpm · sombrio, épico`. Com o vídeo final a peça já se explica, e a legenda é só
 o título; a capa vai logo antes dele, para ser o frame que anuncia a peça.
 
+## QUANDO O PROVEDOR DIZ "VOLTE DEPOIS"
+
+Dois limites da Agnes não são falha — são espera, e o adaptador espera sozinho:
+
+| resposta | o que ele faz |
+|---|---|
+| `503 video_queue_full` | dorme 60s e tenta de novo, dentro do teto do polling |
+| `429 Daily API usage limit reached` | **dorme até o horário que a própria mensagem informa** (`Please try again after **2026-08-26 00:00 UTC**`), com teto de 8h |
+
+Sem horário legível na mensagem, espera 1h. O clipe segue de onde parou: shot
+que já está no disco não é refeito.
+
+Isso existe porque cota estourada deixava cicatriz — a parte ficava marcada
+`erro` e a produção parava a noite inteira com música e capa já pagas, mesmo
+depois de a cota virar.
+
 ## ESTILOS
 
 O planejador escolhe um sozinho a partir da sua descrição. Para forçar, use

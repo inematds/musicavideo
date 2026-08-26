@@ -269,3 +269,74 @@ def test_shots_ja_baixados_sao_reaproveitados(tmp_path, monkeypatch):
     agnes_mod.criar(DECL).gerar("agnes-video-v2.0",
                                 {"resolucao": "1312x736", "decupagem": _decup(4)}, tmp_path)
     assert posts == ["shot 3", "shot 4"]   # 1 e 2 vieram do disco
+
+
+# --- cota diária: espera, não falha (2026-08-26) -----------------------------
+
+MSG_COTA = ('HTTP 429 em https://apihub.agnes-ai.com/v1/videos: {"error":{"code":"",'
+            '"message":"Daily API usage limit reached. Please try again after '
+            '**2026-08-26 00:00 UTC**. (request id: 2026...)"}}')
+
+
+def test_reconhece_a_cota_diaria_e_nao_confunde_com_fila_cheia():
+    from providers.agnes import _cota_diaria
+    from providers.base import ProviderError
+    assert _cota_diaria(ProviderError(MSG_COTA))
+    assert not _cota_diaria(ProviderError("HTTP 503 video_queue_full: queue is full"))
+    assert not _cota_diaria(ProviderError("HTTP 400 content_policy"))
+
+
+def test_espera_ate_o_horario_que_a_propria_api_informa():
+    """O reset vem escrito na mensagem — ler é melhor que chutar."""
+    import calendar
+    from providers.agnes import segundos_ate_reset
+    agora = calendar.timegm((2026, 8, 25, 21, 30, 0, 0, 0, 0))   # 2h30 antes
+    s = segundos_ate_reset(MSG_COTA, agora)
+    assert 2.4 * 3600 < s < 2.6 * 3600
+
+
+def test_sem_horario_legivel_espera_uma_hora():
+    from providers.agnes import segundos_ate_reset
+    assert segundos_ate_reset("HTTP 429 quota exceeded") == 3600.0
+
+
+def test_espera_tem_teto_e_piso():
+    import calendar
+    from providers.agnes import TETO_ESPERA_COTA_S, segundos_ate_reset
+    agora = calendar.timegm((2026, 8, 1, 0, 0, 0, 0, 0, 0))      # 25 dias antes
+    assert segundos_ate_reset(MSG_COTA, agora) == TETO_ESPERA_COTA_S
+    depois = calendar.timegm((2026, 8, 26, 3, 0, 0, 0, 0, 0))    # reset já passou
+    assert segundos_ate_reset(MSG_COTA, depois) == 60.0
+
+
+def test_cota_dorme_e_retoma_em_vez_de_derrubar(monkeypatch, tmp_path):
+    """O clipe não pode morrer por um limite que se resolve sozinho."""
+    from providers import agnes
+    from providers.base import ProviderError
+    dormidas, tentativas = [], {"n": 0}
+
+    def falso_post(url, metodo="GET", corpo=None, headers=None, **k):
+        tentativas["n"] += 1
+        if tentativas["n"] == 1:
+            raise ProviderError(MSG_COTA)
+        return {"video_id": "v1"}
+
+    monkeypatch.setattr(agnes, "http_json", falso_post)
+    monkeypatch.setattr(agnes.time, "sleep", lambda s: dormidas.append(s))
+    monkeypatch.setattr(agnes, "segundos_ate_reset", lambda *a, **k: 7200.0)
+    monkeypatch.setattr(agnes, "baixar", lambda url, alvo: alvo)
+    ag = agnes.Agnes({"env_keys": ["AGNES_API_KEY"], "modelos": []})
+    monkeypatch.setattr(ag, "_headers", lambda: {})
+
+    # o POST passa na segunda; o polling é curto-circuitado devolvendo url logo
+    def falso_json(url, metodo="GET", corpo=None, headers=None, **k):
+        if "/videos" in url and metodo == "POST":
+            return falso_post(url, metodo, corpo, headers)
+        return {"status": "completed", "video_url": "http://x/v.mp4"}
+
+    monkeypatch.setattr(agnes, "http_json", falso_json)
+    try:
+        ag._um_shot("p", {"n": 1, "duracao_s": 5}, "1312", "736", tmp_path)
+    except Exception:
+        pass                      # o polling do teste é raso; o que importa é a espera
+    assert 7200.0 in dormidas and tentativas["n"] >= 2

@@ -24,6 +24,8 @@ ONDE ESTÁ O RESTO DO CONHECIMENTO desta API, que não cabe aqui:
 - `~/projetos/bench-studio-br/docs/RELATORIO-integracao-modelos.md` — medições
   de ponta a ponta (o vídeo de 3,4s levou 71s de parede e 4 polls).
 """
+import calendar
+import re
 import subprocess
 import time
 from pathlib import Path
@@ -39,6 +41,8 @@ MAX_FRAMES = 441
 # comentário registra o porquê — "30min deixava job lento virar buraco no
 # filme". Aqui era 15 min, escolhido sem essa evidência.
 TIMEOUT_POLL_S = 45 * 60
+TETO_ESPERA_COTA_S = 8 * 3600   # cota diária: até 8h de espera, nunca indefinido
+_COTA_RE = re.compile(r"(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})")
 
 
 # Rótulo de resolução → PIXELS, que é o vocabulário desta API (`width`/`height`).
@@ -89,6 +93,30 @@ def _barrou(e: Exception) -> bool:
     """Filtro de conteúdo (ou 400 equivalente) — não é falha de infraestrutura."""
     t = str(e)
     return "content_policy" in t or "HTTP 400" in t or "failed" in t
+
+
+def _cota_diaria(e: Exception) -> bool:
+    """`429 Daily API usage limit reached` — cota do dia, não falha."""
+    txt = str(e).lower()
+    return "429" in txt and ("daily" in txt or "usage limit" in txt or "quota" in txt)
+
+
+def segundos_ate_reset(msg: str, agora: float | None = None) -> float:
+    """Quanto falta até o horário que o PRÓPRIO erro informa (em UTC).
+
+    A mensagem traz `Please try again after **2026-08-26 00:00 UTC**`. Ler o
+    horário dela é melhor que chutar: a espera é a resposta do provedor, não um
+    palpite nosso. Sem horário legível, cai numa hora — tempo de a cota virar
+    sem prender a fila de render a noite inteira.
+    """
+    agora = time.time() if agora is None else agora
+    m = _COTA_RE.search(msg or "")
+    if not m:
+        return 3600.0
+    data, hora, minuto = m.group(1), int(m.group(2)), int(m.group(3))
+    ano, mes, dia = (int(x) for x in data.split("-"))
+    alvo = calendar.timegm((ano, mes, dia, hora, minuto, 0, 0, 0, 0))
+    return max(60.0, min(alvo - agora + 60, TETO_ESPERA_COTA_S))
 
 
 def _vizinho_da_secao(decupagem: list, shot: dict, feitos: dict):
@@ -170,6 +198,19 @@ class Agnes(Provider):
             try:
                 resp = http_json(f"{AGNES_BASE}/v1/videos", "POST", corpo, self._headers())
             except ProviderError as e:
+                # COTA DIÁRIA TAMBÉM NÃO É FALHA — e essa custa mais caro que a
+                # fila cheia: o erro derrubava a produção inteira e ela ficava
+                # marcada `erro`, parada a noite toda, mesmo depois de a cota
+                # virar (MVD "Levanta o Céu", 2026-08-25). O reset vem escrito
+                # na mensagem; dormir até lá é a resposta do provedor.
+                if _cota_diaria(e):
+                    espera = segundos_ate_reset(str(e))
+                    print(f"agnes: COTA DIÁRIA estourada no shot {shot['n']} — "
+                          f"dormindo {espera / 3600:.1f}h até o reset informado pela API",
+                          flush=True)
+                    time.sleep(espera)
+                    limite = time.time() + TIMEOUT_POLL_S    # o relógio da fila recomeça
+                    continue
                 cheia = "503" in str(e) or "queue_full" in str(e) or "queue is full" in str(e)
                 if not cheia or time.time() > limite:
                     raise
