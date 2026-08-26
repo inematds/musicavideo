@@ -86,6 +86,10 @@ def montar_publicacao(outdir: Path, slug: str) -> Path | None:
     outdir = Path(outdir)
     w = outdir / slug
     plano = json.loads((w / "plano.json").read_text(encoding="utf-8"))
+    try:
+        estado = carregar_estado(w)
+    except (OSError, ValueError):
+        estado = None
     descricao = ((plano.get("publicacao") or {}).get("descricao") or "").strip()
     if not descricao:
         # NÃO aponta para `ajusta`: ele só conhece musica|capa|clipe (partes com
@@ -106,26 +110,52 @@ def montar_publicacao(outdir: Path, slug: str) -> Path | None:
     tmp = w / ".publicacao-tmp"
     shutil.rmtree(tmp, ignore_errors=True)
     tmp.mkdir(parents=True)
-    thumb = None
-    if crua.exists():
-        from src.arte import compor_capa_yt, ArteError
-        try:
-            compor_capa_yt(crua, plano["titulo"], plano["capa"].get("paleta"),
-                           plano["capa"].get("template", ""), tmp / "capa-yt.jpg",
-                           tagline=plano["capa"].get("tagline", ""))
-            thumb = "capa-yt.jpg"
-        except (ArteError, OSError, ValueError) as e:
-            print(f"publicação: sem capa 16:9 ({e}) — o pacote vai sem thumbnail")
-    else:
-        print("publicação: não há raw/capa-crua.png — o pacote vai sem thumbnail")
-    shutil.copy2(clipe, tmp / f"{slug}.mp4")
-    clip = {"filename": f"{slug}.mp4", "title": plano["titulo"],
-            "description": descricao, "tags": tags_de(plano)}
-    if thumb:
-        clip["thumbnail"] = thumb
+
+    # AS DUAS FAIXAS VIRAM DOIS VÍDEOS. O Suno entrega duas músicas, não duas
+    # versões da mesma: cada uma tem sua trilha, sua capa (o selo de versão
+    # existe por isso) e merece sua publicação. O vídeo é o mesmo material, a
+    # música é que muda — e é a música que a pessoa vem ouvir.
+    from src.montagem import faixas_existentes
+    from src.executor import faixa_aprovada
+    aprovada = faixa_aprovada(w, estado) if estado else None
+    faixas = faixas_existentes(w)
+    pecas = []
+    for f in faixas:
+        n = f.stem.split("-")[-1]
+        n = int(n) if n.isdigit() else 1
+        versao = w / f"clipe-{n}.mp4"
+        if not versao.exists():
+            versao = clipe if len(faixas) == 1 else None
+        if versao and versao.exists():
+            pecas.append((n, versao, aprovada is not None and f.name == aprovada.name))
+    if not pecas:
+        pecas = [(1, clipe, True)]
+
+    clips = []
+    for n, arquivo, eh_aprovada in pecas:
+        sufixo = "" if len(pecas) == 1 else f"-{n}"
+        nome_mp4 = f"{slug}{sufixo}.mp4"
+        shutil.copy2(arquivo, tmp / nome_mp4)
+        titulo = plano["titulo"] if len(pecas) == 1 else f"{plano['titulo']} (faixa {n})"
+        clip = {"filename": nome_mp4, "title": titulo,
+                "description": descricao, "tags": tags_de(plano)}
+        if crua.exists():
+            from src.arte import compor_capa_yt, ArteError
+            thumb = f"capa-yt{sufixo}.jpg"
+            try:
+                compor_capa_yt(crua, plano["titulo"], plano["capa"].get("paleta"),
+                               plano["capa"].get("template", ""), tmp / thumb,
+                               tagline=plano["capa"].get("tagline", ""),
+                               versao=None if len(pecas) == 1 else n)
+                clip["thumbnail"] = thumb
+            except (ArteError, OSError, ValueError) as e:
+                print(f"publicação: sem capa 16:9 da faixa {n} ({e}) — vai sem thumbnail")
+        else:
+            print("publicação: não há raw/capa-crua.png — o pacote vai sem thumbnail")
+        clips.append(clip)
     # Sem `privacy` e sem `publish_at` de propósito: agendamento e visibilidade
     # são decisão do canal, não da peça.
-    manifesto = {"titulo": plano["titulo"], "clips": [clip]}
+    manifesto = {"titulo": plano["titulo"], "clips": clips}
     (tmp / "manifest.json").write_text(
         json.dumps(manifesto, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     shutil.rmtree(destino, ignore_errors=True)

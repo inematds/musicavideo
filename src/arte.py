@@ -303,7 +303,8 @@ def _fundo_16x9(crua: Image.Image) -> Image.Image:
 
 
 def compor_capa_yt(bruta: Path, titulo: str, paleta: list[str] | None,
-                   template_id: str, destino: Path, tagline: str = "") -> Path:
+                   template_id: str, destino: Path, tagline: str = "",
+                   versao: int | None = None) -> Path:
     """A MESMA crua, na proporção que o YouTube quer. Não gera imagem nova:
     recompor a thumbnail é de graça, gerar é que custa."""
     bruta, destino = Path(bruta), Path(destino)
@@ -313,7 +314,7 @@ def compor_capa_yt(bruta: Path, titulo: str, paleta: list[str] | None,
     tmp = destino.with_suffix(".base.png")
     base.save(tmp)
     try:
-        compor(tmp, titulo, paleta, template_id, destino, tagline=tagline)
+        compor(tmp, titulo, paleta, template_id, destino, tagline=tagline, versao=versao)
         # A composição salva no formato da extensão; para JPG o teto de 2 MB
         # manda, então cai a qualidade até caber em vez de o upload dar 400.
         q = 92

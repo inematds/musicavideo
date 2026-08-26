@@ -292,6 +292,29 @@ Para mudar depois do plano pronto, fale em português:
 bash musicavideo.sh ajusta <slug> clipe "usa narrativo, menos close em rosto, mais mar e gelo"
 ```
 
+## CANAL: SEMPRE lives10, E SEMPRE AS DUAS FAIXAS
+
+O destino padrão é o **lives10** — é para lá que vai toda produção, sem precisar
+pedir. O **lives2 só quando você mandar**, caso a caso (é onde se testa modelo
+de imagem, marca de título, etc.).
+
+E vão **as duas faixas**: o Suno entrega duas MÚSICAS, não duas versões da
+mesma. O pacote de canal leva dois vídeos:
+
+```
+publicacao/
+  <slug>-1.mp4   capa-yt-1.jpg   → "<título> (faixa 1)"
+  <slug>-2.mp4   capa-yt-2.jpg   → "<título> (faixa 2)"
+  manifest.json  (clips: [ {...}, {...} ])
+```
+
+Cada peça leva **capa própria com o selo da versão** — é para isso que o selo
+existe: duas capas iguais no feed confundem. Descrição e tags são as mesmas (a
+música é a mesma ideia; o que muda é a gravação).
+
+Com uma faixa só, nada muda: um vídeo, `<slug>.mp4`, `capa-yt.jpg`, sem sufixo
+no título.
+
 ## ENTREGA
 
 O que chega no chat quando cada portão abre:

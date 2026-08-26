@@ -99,3 +99,35 @@ def test_capa_yt_e_16x9_e_cabe_no_teto(tmp_path):
     assert Image.open(destino).size == (YT_LARGURA, YT_ALTURA)
     assert destino.stat().st_size <= YT_TETO_BYTES
     assert not destino.with_suffix(".base.png").exists()
+
+
+# --- duas faixas = dois vídeos no pacote (2026-08-26) ------------------------
+
+def test_pacote_leva_as_duas_faixas_como_dois_videos(tmp_path):
+    """O Suno entrega duas MÚSICAS, não duas versões — cada uma merece sua
+    publicação, com título e capa próprios."""
+    w = _slug(tmp_path, _plano(publicacao={"descricao": "Uma canção sobre a chuva."}))
+    for n in (1, 2):
+        (w / f"faixa-{n}.mp3").write_bytes(b"m")
+        (w / f"clipe-{n}.mp4").write_bytes(b"v" * 20)
+    pasta = montar_publicacao(tmp_path, "faixa-teste")
+    m = json.loads((pasta / "manifest.json").read_text(encoding="utf-8"))
+    assert len(m["clips"]) == 2
+    assert [c["filename"] for c in m["clips"]] == ["faixa-teste-1.mp4", "faixa-teste-2.mp4"]
+    assert [c["title"] for c in m["clips"]] == ["Chuva de Verão (faixa 1)",
+                                                "Chuva de Verão (faixa 2)"]
+    assert [c["thumbnail"] for c in m["clips"]] == ["capa-yt-1.jpg", "capa-yt-2.jpg"]
+    for c in m["clips"]:
+        assert (pasta / c["filename"]).exists() and (pasta / c["thumbnail"]).exists()
+    assert all(c["description"] for c in m["clips"])
+
+
+def test_uma_faixa_so_continua_com_um_video_e_sem_sufixo(tmp_path):
+    w = _slug(tmp_path, _plano(publicacao={"descricao": "Uma canção."}))
+    (w / "faixa-1.mp3").write_bytes(b"m")
+    pasta = montar_publicacao(tmp_path, "faixa-teste")
+    m = json.loads((pasta / "manifest.json").read_text(encoding="utf-8"))
+    assert len(m["clips"]) == 1
+    assert m["clips"][0]["filename"] == "faixa-teste.mp4"
+    assert m["clips"][0]["title"] == "Chuva de Verão"      # sem "(faixa 1)"
+    assert m["clips"][0]["thumbnail"] == "capa-yt.jpg"
