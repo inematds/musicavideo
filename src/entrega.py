@@ -148,6 +148,27 @@ def _post_multipart(url: str, campos: dict, arquivo_campo: str, arquivo: Path) -
         return json.loads(r.read().decode())
 
 
+def resumo_de_estilo(plano: dict) -> str:
+    """Gênero, andamento e mood numa linha — o que identifica a MÚSICA.
+
+    Vai junto do mp3 e da capa porque nesse momento a decisão é sobre o som:
+    ouvir a faixa olhando a capa e saber de que música se trata. No vídeo
+    final não vai: lá a peça já está pronta e o que importa é o título.
+    """
+    e = (plano.get("musica") or {}).get("estilo") or {}
+    partes = [str(e.get("genero") or "").strip()]
+    if e.get("bpm"):
+        partes.append(f"{e['bpm']} bpm")
+    if e.get("tom"):
+        partes.append(str(e["tom"]))
+    mood = e.get("mood") or []
+    if isinstance(mood, list) and mood:
+        partes.append(", ".join(map(str, mood[:3])))
+    elif mood:
+        partes.append(str(mood))
+    return " · ".join(x for x in partes if x)
+
+
 def enviar_telegram(workdir: Path, estado: dict, plano: dict, http=None) -> None:
     if not estado.get("telegram"):
         return                                   # desligado por default
@@ -164,13 +185,17 @@ def enviar_telegram(workdir: Path, estado: dict, plano: dict, http=None) -> None
     # AS DUAS FAIXAS, SEMPRE. O Suno entrega duas e elas são músicas
     # diferentes — mandar só a aprovada tira do dono justamente o que ele
     # decide de ouvido. A marca de qual está aprovada vai na legenda.
+    estilo = resumo_de_estilo(plano)
+    sufixo_estilo = f"\n{estilo}" if estilo else ""
     envios = [(f, "sendAudio", "audio",
                f"{plano['titulo']} — {f.stem.split('-')[-1] if '-' in f.stem else '1'}"
-               + (" ✓ aprovada" if aprovada and f.name == aprovada.name else ""))
+               + (" ✓ aprovada" if aprovada and f.name == aprovada.name else "")
+               + sufixo_estilo)
               for f in faixas_existentes(w)]
-    envios += [(w / nome, metodo, campo, plano["titulo"])
-               for nome, metodo, campo in (("capa.png", "sendPhoto", "photo"),
-                                           ("clipe.mp4", "sendVideo", "video"))]
+    # capa acompanha o som (título + estilo); o vídeo final leva só o título —
+    # e vai DEPOIS da capa, para a capa ser o frame que anuncia a peça.
+    envios += [(w / "capa.png", "sendPhoto", "photo", f"{plano['titulo']}{sufixo_estilo}"),
+               (w / "clipe.mp4", "sendVideo", "video", plano["titulo"])]
     for arq, metodo, campo, legenda in envios:
         if arq.exists():
             _post_multipart(f"{base}/{metodo}",

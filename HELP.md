@@ -146,12 +146,17 @@ está aberta pra rede.
 
 Quando a entrega roda com `--telegram`, o bot recebe, nesta ordem:
 
-1. **as DUAS faixas** — `faixa-1.mp3` e `faixa-2.mp3`, cada uma com a legenda
-   `<título> — 1|2`, e a aprovada marcada com `✓ aprovada`. Elas são músicas
-   diferentes, não versões: mandar só a aprovada tirava de você justamente o
-   que se decide de ouvido;
-2. a **capa**;
-3. o **clipe**.
+1. **as DUAS faixas** — `faixa-1.mp3` e `faixa-2.mp3`, com legenda
+   `<título> — 1|2` (a aprovada marcada `✓ aprovada`) **e o estilo embaixo**.
+   Elas são músicas diferentes, não versões: mandar só a aprovada tirava de
+   você justamente o que se decide de ouvido;
+2. a **capa**, com `<título>` e o **estilo**;
+3. o **clipe**, com **só o título**.
+
+A regra da legenda: enquanto a decisão é sobre o SOM (mp3 + capa), vai título
+**e estilo** — gênero · bpm · tom · mood, como `nordic folk anthem rock · 118
+bpm · sombrio, épico`. Com o vídeo final a peça já se explica, e a legenda é só
+o título; a capa vai logo antes dele, para ser o frame que anuncia a peça.
 
 ## ESTILOS
 

@@ -74,3 +74,33 @@ def test_telegram_manda_AS_DUAS_faixas(outdir, plano_ok, monkeypatch):
     assert "✓ aprovada" in [a[2] for a in audios if a[1] == "faixa-2.mp3"][0]
     assert "✓ aprovada" not in [a[2] for a in audios if a[1] == "faixa-1.mp3"][0]
     assert [c[0] for c in chamadas if c[0] != "audio"] == ["photo", "video"]
+
+
+def test_legendas_mp3_e_capa_levam_estilo_e_o_video_so_o_titulo(outdir, plano_ok, monkeypatch):
+    """Com o som na mão a decisão é sobre a música (título + estilo); com o
+    vídeo pronto a peça já se explica, e o que importa é o título."""
+    w = _preparar(outdir, plano_ok)
+    (w / "faixa.mp3").unlink(missing_ok=True)
+    (w / "faixa-1.mp3").write_bytes(b"m")
+    e = carregar_estado(w)
+    e["telegram"] = True
+    chamadas = []
+    import src.entrega as ent
+    monkeypatch.setattr(ent, "_post_multipart",
+                        lambda url, campos, campo, arq: chamadas.append((campo, campos["caption"])))
+    monkeypatch.setattr(ent, "ler_env_chave", lambda n: "tok" if "TOKEN" in n[0] else "123")
+    plano = json.loads((w / "plano.json").read_text())
+    estilo = ent.resumo_de_estilo(plano)
+    assert estilo                                   # o plano de teste tem gênero
+    enviar_telegram(w, e, plano)
+    por_campo = dict(chamadas)
+    assert estilo in por_campo["audio"] and plano["titulo"] in por_campo["audio"]
+    assert estilo in por_campo["photo"] and plano["titulo"] in por_campo["photo"]
+    assert por_campo["video"] == plano["titulo"]    # vídeo: só o título
+    assert [c[0] for c in chamadas][-2:] == ["photo", "video"]   # capa antes do vídeo
+
+
+def test_resumo_de_estilo_aguenta_plano_magro():
+    from src.entrega import resumo_de_estilo
+    assert resumo_de_estilo({}) == ""
+    assert resumo_de_estilo({"musica": {"estilo": {"genero": "forró"}}}) == "forró"
