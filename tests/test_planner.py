@@ -354,3 +354,12 @@ def test_contexto_proibe_descrever_a_boca_cantando(tmp_path):
     assert "NUNCA descreva a boca" in ctx
     assert "'singing'" in ctx and "'belting'" in ctx
     assert "garganta" in ctx and "olhos fechados" in ctx
+
+
+def test_contexto_manda_cortar_o_close_sem_nomear_a_pessoa(tmp_path):
+    """Nomear a dona do pé faz o modelo desenhar a criança inteira e errar o
+    tronco (MVD 'Levanta a Poeira')."""
+    from src.planner import montar_contexto
+    ctx = montar_contexto("forró sobre festa de rua", {}, tmp_path)
+    assert "CLOSE DE PARTE DO CORPO" in ctx
+    assert "NUNCA nomeie a pessoa" in ctx

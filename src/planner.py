@@ -119,6 +119,18 @@ def montar_contexto(solicitacao: str, opts: dict, outdir: Path) -> str:
         # som nenhum — e boca é justamente a região que os geradores fazem
         # pior (dentes e mandíbula deformam entre quadros). Medido no MVD
         # "Stay" (2026-08-25), onde 16 dos 42 planos pediam canto explícito.
+        # CLOSE DE PARTE DO CORPO: nomear a pessoa ("a small girl's bare foot")
+        # faz o modelo tentar desenhar a pessoa INTEIRA dentro do quadro
+        # apertado — e ele erra o que não cabe. No MVD "Levanta a Poeira"
+        # (2026-08-26) o último plano saiu com cabeça e pernas de criança sem
+        # tronco nenhum. O conserto foi descrever só o pé, cortado no
+        # tornozelo, sem citar de quem é.
+        "CLOSE DE PARTE DO CORPO (pé, mão, olho, boca do violão): descreva SÓ A PARTE e "
+        "diga que ela está cortada pela borda do quadro ('framed so tightly that only the "
+        "foot and ankle are visible'). NUNCA nomeie a pessoa dona da parte ('a small girl's "
+        "foot', 'the singer's hand'): o gerador tenta desenhar a pessoa inteira dentro do "
+        "close e erra o que não cabe — sai corpo sem tronco, membro a mais, escala errada. "
+        "Parte do corpo é objeto no quadro, não gente pequena.",
         "CANTO — NUNCA descreva a boca. Os prompts do clipe não podem conter "
         "'mouth open', 'singing', 'belting', 'lips', 'sustained note' nem equivalente: "
         "o gerador não ouve a faixa, então boca aberta vira careta parada e boca em "
