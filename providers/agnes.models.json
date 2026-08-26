@@ -2,7 +2,9 @@
  "provider": "agnes",
  "env_keys": [
   "AGNES_API_KEY",
-  "AGNES_API_KEY_2"
+  "AGNES_API_KEY_2",
+  "AGNES_API_KEY_3",
+  "AGNES_API_KEY_4"
  ],
  "modelos": [
   {
