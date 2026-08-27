@@ -18,6 +18,8 @@ cd "$(dirname "$0")" || exit 1
 
 TRAVA=/tmp/musicavideo-nuvem.lock
 LOG="${MUSICAVIDEO_LOG:-$HOME/projetos/output/nuvem.log}"
+# A vitrine no ar. É daqui que as curtidas voltam para o painel local.
+export MUSICAVIDEO_PUB_URL="${MUSICAVIDEO_PUB_URL:-https://musicavideo-pub.vercel.app}"
 
 exec 9>"$TRAVA"
 flock -n 9 || { echo "$(date -Is) já rodando — pulei" >> "$LOG"; exit 0; }

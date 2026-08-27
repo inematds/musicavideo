@@ -129,7 +129,8 @@ def baixar_likes(outdir: Path, base_url: str | None = None) -> dict:
     não é erro de acervo: vitrine fora do ar, `likes.json` velho, e nada mais.
     """
     import urllib.request
-    base = (base_url or os.environ.get("MUSICAVIDEO_PUB_URL") or "").rstrip("/")
+    base = (base_url or os.environ.get("MUSICAVIDEO_PUB_URL")
+            or "https://musicavideo-pub.vercel.app").rstrip("/")
     if not base:
         return {}
     from src.mvd import usados
