@@ -167,7 +167,7 @@ def _cmd_arte(args):
     from src.arte import compor, ArteError
     from src.planner import _parse_opts
     if not args:
-        print('uso: arte <slug> ["<título>"] [--versao N] [--tagline "..."]', file=sys.stderr)
+        print('uso: arte <slug> ["<título>"] [--versao N] [--nova] [--tagline "..."]', file=sys.stderr)
         return 1
     livres, opts = _parse_opts(args)
     w = out_dir() / livres[0]
@@ -182,6 +182,16 @@ def _cmd_arte(args):
               "com `musicavideo faz <slug> capa`", file=sys.stderr)
         return 1
     titulo = livres[1] if len(livres) > 1 else plano.get("titulo", "")
+    # `--nova` gera uma IMAGEM PRÓPRIA para esta versão (inemaimg, custo zero),
+    # em vez de reusar o fundo da capa principal. É o que tira as duas capas
+    # idênticas das produções antigas, feitas antes de a versão ganhar imagem.
+    if opts.get("nova") and str(opts.get("versao", "")).isdigit():
+        from src.executor import crua_da_versao
+        nova = crua_da_versao(w, plano, int(opts["versao"]), refaz=True)
+        if nova is None:
+            print("erro: não consegui gerar a imagem da versão", file=sys.stderr)
+            return 1
+        bruta = nova
     # A TAGLINE vem do plano quando existe (o planejador escreve), e a linha de
     # comando vence — é assim que se experimenta sem replanejar.
     tagline = opts.get("tagline") or plano["capa"].get("tagline", "")

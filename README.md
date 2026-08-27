@@ -128,12 +128,43 @@ bash $S painel                  # abre o acervo no navegador (:5400)
 ```
 
 **O painel** (`painel [--porta N] [--lan]`) sobe um servidor local em :5400 — só leitura,
-sem chave nenhuma — com duas abas: os pacotes do musicavideo (capa, as duas versões do clipe lado a lado,
-faixa aprovada, PACOTE.md, estado por parte) e as análises do
+sem chave nenhuma — com duas abas: os pacotes do musicavideo e as análises do
 [analisevideo](https://github.com/inematds/analisevideo) (paleta, look, ritmo,
 tags, analise.md). Busca em tudo, na hora — a página é montada a cada request,
 então nunca fica velha. Por padrão só em `127.0.0.1`; `--lan` publica na rede local (sem senha — quem
 alcançar a porta vê o acervo inteiro).
+
+**Um card por PRODUÇÃO, as duas versões dentro dele.** O Suno entrega duas
+faixas por música e cada uma vira um clipe — mas é uma produção só: uma pasta,
+um plano, uma letra, um custo, um botão de lixeira. Dois cards separados
+duplicariam esses números e quebrariam a comparação, que é justamente a decisão
+que se toma ali (qual das duas aprovar).
+
+Na **grade**, o topo do card traz as duas capas lado a lado, cada uma com o seu
+play — `v1 ✓` marca a aprovada. Dá para ouvir as duas sem abrir nada. Produção
+antiga que só tem uma capa mostra a mesma imagem nas duas colunas: o que não
+pode faltar é o play da segunda faixa.
+
+**Abrindo o card**, as versões vêm empilhadas — capa da versão, player da faixa,
+link para assistir o clipe daquela versão — e embaixo, fechado, o expansível
+**"ver os prompts que foram para os provedores"**: conceito e tagline da capa, o
+prompt de estilo que o Suno leu, o prompt da capa e o negativo, e a decupagem
+plano a plano (seção, câmera, prompt e o `prompt_alt` de cada shot). É o que se
+quer ver quando o resultado sai diferente do plano, e antes só existia dentro do
+`plano.json`. Depois dele seguem o PACOTE.md e o PLANO.md.
+
+**Cada versão tem a SUA capa**, não a mesma imagem com um selo trocado: a versão
+1 usa o fundo da capa aprovada e, da 2 em diante, o `inemaimg` (flux2-klein,
+local, custo zero) gera uma imagem própria com o mesmo prompt — mesma direção de
+arte, cena nova. O título NÃO muda: é a mesma música, e nome diferente faria o
+acervo e a busca mentirem; quem separa as duas é o selo `VERSÃO`. Servidor local
+fora do ar não quebra nada — a versão cai de volta no fundo compartilhado e o
+comando avisa. Para refazer numa produção que já existe:
+
+```bash
+bash $S arte <slug> --versao 2 --nova     # gera imagem nova para a versão 2
+bash $S arte <slug> --versao 2            # só recompõe a arte sobre a crua (de graça)
+```
 
 ---
 

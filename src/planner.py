@@ -740,6 +740,8 @@ def _parse_opts(args: list[str]) -> tuple[list[str], dict]:
             opts.setdefault("motor", {})[parte] = motor
         elif a == "--autorizo-pago":
             opts["autorizo_pago"] = True
+        elif a == "--nova":
+            opts["nova"] = True
         elif a == "--bruto":
             opts["bruto"] = True
         elif a == "--aprovar":

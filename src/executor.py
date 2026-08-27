@@ -1,6 +1,7 @@
 """Fase 2: executa as partes aprovadas. Falha de uma parte não derruba as outras."""
 import json
 import re
+import shutil
 from pathlib import Path
 
 from src.estado import (carregar_estado, salvar_estado, transicao,
@@ -158,11 +159,71 @@ def _montar_com_a_faixa(w: Path, r, plano: dict):
     return r
 
 
-def _capas_por_versao(w: Path, plano: dict, bruta: Path, tagline: str) -> None:
-    """Uma capa marcada por FAIXA existente.
+# O motor da imagem PRÓPRIA da versão 2: local, no DGX, custo zero. Não é o
+# motor do plano de propósito — o plano pode estar num provedor pago, e uma
+# segunda capa não vale uma segunda cobrança.
+MOTOR_CAPA_EXTRA = "inemaimg:flux2-klein"
 
-    O Suno entrega duas, e as duas viram clipe. Capa sem marca deixa as duas
-    idênticas — e escolher qual subir vira adivinhação no thumbnail do celular.
+
+def crua_da_versao(w: Path, plano: dict, n: int, refaz: bool = False) -> Path | None:
+    """Uma IMAGEM nova para a versão n, pelo inemaimg — não o mesmo fundo.
+
+    Antes as duas capas eram a MESMA imagem com um selo diferente no canto: no
+    painel elas apareciam lado a lado idênticas, e o selo é o único jeito de
+    saber qual é qual. São dois vídeos distintos no canal; cada um merece a sua
+    imagem. O prompt é o mesmo (é a mesma música) — o que muda é a geração.
+
+    Devolve None quando o servidor local não responde: a capa da versão cai de
+    volta no fundo compartilhado, que é o que existia antes. Segunda capa é
+    ganho, não requisito.
+    """
+    from src.registry import carregar_registry, resolver_motor
+    alvo = w / "raw" / f"capa-crua-v{n}.png"
+    if alvo.exists() and not refaz:
+        return alvo
+    # MESMO caminho da capa principal: o prompt passa pelo `prompt_sem_tipografia`.
+    # Sem isso o flux desenha garatuja de título no fundo — foi o que saiu no
+    # primeiro teste desta função (2026-08-27), exatamente o defeito de
+    # 2026-08-25 voltando por uma porta nova.
+    prompt = prompt_sem_tipografia((plano.get("capa") or {}).get("prompt_imagem") or "")
+    if not prompt:
+        return None
+    try:
+        prov, modelo = resolver_motor(carregar_registry(), MOTOR_CAPA_EXTRA)
+    except KeyError as e:
+        print(f"capa: {e}")
+        return None
+    ok, motivo = prov.disponivel()
+    if not ok:
+        print(f"capa v{n}: sem imagem própria — {motivo}")
+        return None
+    tmp = w / "raw" / f".v{n}"
+    tmp.mkdir(parents=True, exist_ok=True)
+    try:
+        # O provider grava sempre em `<workdir>/capa.png`: por isso a pasta
+        # temporária — a capa principal do slug não pode ser sobrescrita.
+        r = prov.gerar(modelo["id"], {"prompt": prompt,
+                                      "prompt_negativo": (plano["capa"].get("prompt_negativo") or ""),
+                                      "tamanho": "1024x1024"}, tmp)
+        alvo.parent.mkdir(parents=True, exist_ok=True)
+        Path(r.arquivo).replace(alvo)
+        return alvo
+    except Exception as e:
+        print(f"capa v{n}: geração falhou ({e}) — usando o fundo da capa principal")
+        return None
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def _capas_por_versao(w: Path, plano: dict, bruta: Path, tagline: str) -> None:
+    """Uma capa por FAIXA existente — e, da segunda em diante, imagem própria.
+
+    O Suno entrega duas, e as duas viram clipe. A versão 1 fica com o fundo da
+    capa principal (é a que já foi aprovada); as seguintes ganham uma imagem
+    gerada só para elas, com o mesmo prompt. O título NÃO muda: é a mesma
+    música, e nome diferente faria o acervo e a busca mentirem — quem separa as
+    duas é o selo VERSÃO.
+
     Falhar aqui não derruba nada: a capa principal já está pronta.
     """
     from src.arte import compor, ArteError
@@ -174,8 +235,9 @@ def _capas_por_versao(w: Path, plano: dict, bruta: Path, tagline: str) -> None:
             n = int(f.stem.split("-")[-1])
         except ValueError:
             continue
+        fundo = bruta if n == 1 else (crua_da_versao(w, plano, n) or bruta)
         try:
-            compor(bruta, plano.get("titulo", ""), plano["capa"].get("paleta"),
+            compor(fundo, plano.get("titulo", ""), plano["capa"].get("paleta"),
                    plano["capa"].get("template", ""), w / f"capa-v{n}.png",
                    tagline=tagline, versao=n)
         except (ArteError, OSError, ValueError) as e:

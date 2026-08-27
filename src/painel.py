@@ -117,9 +117,44 @@ def _faixas(base: Path, slug: str, aprovada: str | None) -> list[dict]:
     saida = []
     for f in sorted((base / slug).glob("faixa*.mp3")):
         url = _url(base, f"{slug}/{f.name}")
-        if url:
-            saida.append({"url": url, "nome": f.name, "aprovada": f.name == aprovada})
+        if not url:
+            continue
+        # Cada faixa anda com a SUA capa e o SEU clipe: `faixa-2.mp3` com
+        # `capa-v2.png` e `clipe-2.mp4`. Empilhados, dá para ver e ouvir a
+        # versão inteira sem caçar arquivo pelo nome — e é comparando as duas
+        # na mesma tela que se escolhe qual aprovar.
+        n = f.stem.rpartition("-")[2] if "-" in f.stem else ""
+        saida.append({"url": url, "nome": f.name, "n": n,
+                      "aprovada": f.name == aprovada,
+                      "capa": _url(base, f"{slug}/capa-v{n}.png") if n else None,
+                      "clipe": (_url(base, f"{slug}/clipe-{n}.mp4") if n else None)
+                               or _url(base, f"{slug}/clipe.mp4")})
     return saida
+
+
+def _prompts(w: Path) -> dict | None:
+    """O que FOI PEDIDO aos provedores, tirado do `plano.json`.
+
+    O PLANO.md conta a história; estes são os textos literais que o Suno e o
+    Agnes leram. É o que se quer ver quando um clipe sai diferente do plano —
+    e ficava só dentro do JSON, invisível no painel.
+    """
+    try:
+        p = json.loads((w / "plano.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    est = (p.get("musica") or {}).get("estilo") or {}
+    capa = p.get("capa") or {}
+    shots = [{"n": c.get("n"), "secao": c.get("secao", ""), "camera": c.get("camera", ""),
+              "prompt": c.get("prompt", ""), "alt": c.get("prompt_alt", "")}
+             for c in ((p.get("clipe") or {}).get("decupagem") or [])]
+    d = {"estilo": est.get("prompt_estilo", ""),
+         "imagem": capa.get("prompt_imagem", ""),
+         "negativo": capa.get("prompt_negativo", ""),
+         "conceito": capa.get("conceito", ""),
+         "tagline": capa.get("tagline", ""),
+         "shots": shots}
+    return d if any(d.values()) else None
 
 
 def _capas(base: Path, slug: str) -> list[dict]:
@@ -180,7 +215,7 @@ def _derivados(base: Path, ja_listados: set) -> list[dict]:
             "clipe": _url(base, f"{w.name}/clipe.mp4"),
             "faixa": _url(base, f"{w.name}/{faixa}") if faixa else None,
             "faixas": _faixas(base, w.name, faixa),
-            "versoes": versoes, "doc": None,
+            "versoes": versoes, "doc": None, "prompts": _prompts(w),
         })
     return saida
 
@@ -242,6 +277,7 @@ def coletar(raiz: Path) -> dict:
             "versoes": versoes,
             "bytes": _tamanho(w),
             "doc": _documento(w),
+            "prompts": _prompts(w),
             "docs": [d for d in (_url(base, f"{l['slug']}/PACOTE.md"),
                                  _url(base, f"{l['slug']}/PLANO.md")) if d],
         })
@@ -308,6 +344,18 @@ overflow:hidden;cursor:pointer}
 /* capa é QUADRADA: recortada em 16/9 o título some. Inteira, com o fundo
    escuro nas laterais, é o que ela é. */
 .card .thumb.capa{object-fit:contain}
+/* As DUAS capas já na grade, lado a lado: a escolha entre a versão 1 e a 2 é a
+   pergunta mais frequente do painel, e ela não precisa de um clique para
+   começar. Cada uma com o seu play. */
+.duas{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:10px;
+padding:10px 10px 4px}
+.duas>div{position:relative;display:flex;flex-direction:column;gap:5px}
+.duas img{width:100%;aspect-ratio:1;object-fit:cover;display:block;background:#0a0806;
+border:1px solid var(--linha);border-radius:8px}
+.duas audio{width:100%;height:32px;display:block}
+.duas .n{position:absolute;top:6px;left:6px;background:#0009;color:var(--txt);
+font-size:10.5px;letter-spacing:.5px;border-radius:99px;padding:1px 7px}
+.duas .n.ok{background:var(--amb);color:#1a1206;font-weight:600}
 .capas{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 .capas a{display:block;text-decoration:none;color:var(--dim);font-size:11.5px;text-align:center}
 .capas img{display:block;max-height:190px;max-width:min(46vw,320px);width:auto;
@@ -315,6 +363,26 @@ border:1px solid var(--linha);border-radius:8px;background:#0a0806;margin-bottom
 .capas a:hover img{border-color:var(--amb)}
 .faixas{display:flex;flex-direction:column;gap:8px;margin-top:10px}
 .faixas audio{width:100%;margin-top:3px}
+.versaocapa{display:flex;flex-direction:column;align-items:flex-start;gap:5px;
+padding-bottom:14px;border-bottom:1px solid var(--linha)}
+.versaocapa:last-child{border-bottom:0}
+.versaocapa img{display:block;max-height:300px;max-width:min(72vw,400px);width:auto;
+border:1px solid var(--linha);border-radius:8px;background:#0a0806}
+.versaocapa a:hover img{border-color:var(--amb)}
+details.prompts{margin-top:14px;border:1px solid var(--linha);border-radius:10px;
+background:#120f0c}
+details.prompts>summary{cursor:pointer;padding:9px 12px;color:var(--amb);font-size:13.5px;
+list-style:none}
+details.prompts>summary::-webkit-details-marker{display:none}
+details.prompts>summary::before{content:"▸ ";color:var(--dim)}
+details.prompts[open]>summary::before{content:"▾ "}
+details.prompts .corpo{padding:0 12px 12px}
+details.prompts h4{margin:12px 0 4px;font-size:12px;letter-spacing:.6px;
+text-transform:uppercase;color:var(--dim);font-weight:600}
+details.prompts p{margin:0;font-size:13.5px;white-space:pre-wrap;word-break:break-word}
+details.prompts .shot{border-top:1px solid var(--linha);padding-top:8px;margin-top:8px}
+details.prompts .shot .meta{display:block;margin-bottom:3px}
+details.prompts .alt{color:var(--dim);font-size:12.5px;margin-top:4px}
 audio.nocard{width:100%;height:30px;margin:8px 0 2px;display:block}
 a.pill.nocard{text-decoration:none;color:var(--amb);border-color:#5a4626}
 a.pill.nocard:hover{background:#2a1f12}
@@ -373,9 +441,19 @@ function cardMV(x){const t=x.capa?`<img class="thumb capa" loading=lazy src="${E
  // não abre o modal (o `onclick` do card é cancelado no `pinta`).
  const som=(x.faixas||[]).length?`<audio class=nocard controls preload=none src="${E(x.faixas[0].url)}"></audio>`
   :(x.faixa?`<audio class=nocard controls preload=none src="${E(x.faixa)}"></audio>`:"");
- return `${t}<div class=b><h3>${dv}${E(x.titulo)}</h3>
+ // Com as duas variantes no disco, o topo do card vira o par: capa 1 + play 1,
+ // capa 2 + play 2. Sem elas, segue a capa única e um player só.
+ // Produção antiga tem as duas MÚSICAS e uma capa só (a capa por versão veio
+ // depois): ali o par se monta com a mesma imagem nas duas colunas — o que não
+ // pode faltar é o play da segunda faixa, que antes ficava invisível no card.
+ const par=(x.faixas||[]).map(f=>({...f,capa:f.capa||x.capa})).filter(f=>f.capa);
+ const topo=par.length>1
+  ?`<div class=duas>`+par.map(f=>`<div><span class="n${f.aprovada?" ok":""}">v${E(f.n||"?")}${f.aprovada?" ✓":""}</span>
+     <img loading=lazy src="${E(f.capa)}" alt="capa da versão ${E(f.n)}">
+     <audio class=nocard controls preload=none src="${E(f.url)}"></audio></div>`).join("")+`</div>`
+  :`${t}${som}`;
+ return `${topo}<div class=b><h3>${dv}${E(x.titulo)}</h3>
  <div class=meta>${x.origem?"de "+E(x.origem)+" · ":""}${E(x.genero)}${x.bpm?" · "+E(x.bpm)+" bpm":""}${x.tom?" · "+E(x.tom):""}${x.bytes?" · "+MB(x.bytes):""}</div>
- ${som}
  <div>${st}${(x.versoes||[]).length>1?`<span class=pill>${x.versoes.length} versões</span>`:""}</div></div>`}
 function MB(b){return b>=1073741824?(b/1073741824).toFixed(1)+" GB":Math.round(b/1048576)+" MB"}
 // 24 das 30 análises são do YouTube: a miniatura oficial (img.youtube.com) dá
@@ -408,7 +486,12 @@ function abre(x){document.getElementById("dt").textContent=x.titulo||x.slug;
  let h="";
  // as capas primeiro, e clicáveis: o card mostra miniatura, aqui se vê inteira
  // e o clique abre o arquivo no tamanho real, em outra aba.
- if((x.capas||[]).length)h+=`<div class=capas>`+x.capas.map(c=>
+ // as variantes por faixa saem daqui: elas aparecem empilhadas embaixo, cada
+ // uma com a sua música e o link do clipe. Repetidas nos dois lugares, a
+ // fileira do topo só empurrava o conteúdo para baixo.
+ const temV=(x.faixas||[]).some(f=>f.capa);
+ const capas=(x.capas||[]).filter(c=>!(temV&&/capa-v\d+\.png/.test(c.url)));
+ if(capas.length)h+=`<div class=capas>`+capas.map(c=>
   `<a href="${E(c.url)}" target=_blank rel=noopener title="abrir em tamanho real">
    <img src="${E(c.url)}" alt="${E(c.rotulo)}"><span>${E(c.rotulo)} ↗</span></a>`).join("")+`</div>`;
  const vs=x.versoes||[];
@@ -428,8 +511,12 @@ function abre(x){document.getElementById("dt").textContent=x.titulo||x.slug;
  // as faixas SEMPRE, mesmo sem dois clipes montados: é ouvindo as duas que
  // se escolhe qual aprovar.
  if((x.faixas||[]).length)h+=`<div class=faixas>`+x.faixas.map(f=>
-  `<div><span class=meta>${E(f.nome)}${f.aprovada?" · aprovada ✓":""}</span>
-   <audio src="${E(f.url)}" controls preload=none></audio></div>`).join("")+`</div>`;
+  `<div class=versaocapa>${f.capa?`<a href="${E(f.capa)}" target=_blank rel=noopener
+     title="abrir em tamanho real"><img src="${E(f.capa)}" alt="capa da versão ${E(f.n)}"></a>`:""}
+   <span class=meta>${f.n?`versão ${E(f.n)} · `:""}${E(f.nome)}${f.aprovada?" · aprovada ✓":""}</span>
+   <audio src="${E(f.url)}" controls preload=none></audio>
+   ${f.clipe?`<a class="pill nocard" href="${E(f.clipe)}" target=_blank rel=noopener>assistir o clipe ↗</a>`:""}
+   </div>`).join("")+`</div>`;
  else if(x.faixa)h+=`<audio src="${E(x.faixa)}" controls></audio>`;
  if(x.url)h+=`<p><a href="${E(x.url)}" target=_blank rel=noopener>fonte original</a></p>`;
  if(x.resumo)h+=`<p>${E(x.resumo)}</p>`;
@@ -442,6 +529,19 @@ function abre(x){document.getElementById("dt").textContent=x.titulo||x.slug;
   <span class=meta>não apaga: move para <code>.lixo/</code></span></p>`;
  if((x.docs||[]).length)h+=`<p>`+x.docs.map(d=>
   `<a class="pill nocard" href="${E(d)}" target=_blank rel=noopener>abrir ${E(d.split("?")[0].split("/").pop())} ↗</a>`).join(" ")+`</p>`;
+ // O que foi PEDIDO aos provedores, palavra por palavra. Fechado por padrão:
+ // é texto longo e só interessa quando o resultado saiu diferente do plano.
+ if(x.prompts){const P=x.prompts;let c="";
+  if(P.conceito)c+=`<h4>conceito da capa</h4><p>${E(P.conceito)}</p>`;
+  if(P.tagline)c+=`<h4>tagline</h4><p>${E(P.tagline)}</p>`;
+  if(P.estilo)c+=`<h4>estilo da música (Suno)</h4><p>${E(P.estilo)}</p>`;
+  if(P.imagem)c+=`<h4>capa</h4><p>${E(P.imagem)}</p>`;
+  if(P.negativo)c+=`<h4>capa · negativo</h4><p>${E(P.negativo)}</p>`;
+  if((P.shots||[]).length)c+=`<h4>decupagem · ${P.shots.length} planos</h4>`+P.shots.map(sh=>
+   `<div class=shot><span class=meta>${E(sh.n)}. ${E(sh.secao)}${sh.camera?" · "+E(sh.camera):""}</span>
+    <p>${E(sh.prompt)}</p>${sh.alt?`<p class=alt>alt: ${E(sh.alt)}</p>`:""}</div>`).join("");
+  if(c)h+=`<details class=prompts><summary>ver os prompts que foram para os provedores</summary>
+   <div class=corpo>${c}</div></details>`}
  if(x.doc)h+=`<pre>${E(x.doc)}</pre>`;
  document.getElementById("dc").innerHTML=h;
  const dc=document.getElementById("dc"),bts=[...dc.querySelectorAll(".tab")],pns=[...dc.querySelectorAll(".versao")];
