@@ -3,6 +3,21 @@
 Semver `vX.XX.YY`: patch incrementa o último; recurso incrementa o do meio e
 carrega o último; major zera o resto.
 
+## 1.2.0 — 2026-08-27
+
+**Correção que muda dado**
+
+- **O número da produção passa a ser o do bot.** O `inemaccbot` já numerava os
+  fluxos como `MVD#122` — é o que aparece no Telegram, no `/aprovar MVD#N` e nas
+  linhas de FALHAS deste repo. A numeração própria (`MVD-001…031`) criava dois
+  "MVD 25" falando de produções diferentes, que é o oposto do que um
+  identificador serve. Agora o acervo adota o id do fluxo que gerou a pasta
+  (casando pelo prefixo do slug, porque o bot guarda o slug inteiro e a pasta
+  usa os 40 primeiros caracteres) e só inventa número — acima do topo do bot —
+  para o que nasceu fora dele. Reprocessamento (`...-2`) não divide o número da
+  pasta original: material diferente, número diferente.
+- **A segunda faixa do Suno não se perde mais** (ver abaixo).
+
 ## 1.1.0 — 2026-08-27
 
 **Recursos**

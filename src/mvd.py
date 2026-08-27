@@ -12,7 +12,15 @@ senão o número não serve para citar nada, que é justamente para o que ele ex
 import json
 from pathlib import Path
 
-FORMATO = "MVD-%03d"
+# O NÚMERO É O DO BOT. `MVD#122` já existe: é assim que o inemaccbot numera os
+# fluxos, é o que aparece no Telegram, no `/aprovar MVD#N` e nas linhas de
+# FALHAS deste repo. Criar uma segunda numeração aqui produzia dois "MVD 25"
+# falando de produções diferentes — que é o oposto do que um identificador
+# serve. Então o acervo ADOTA o número do fluxo que gerou a produção, e só
+# inventa número (na mesma sequência, acima do topo do bot) para o que nasceu
+# fora dele.
+FORMATO = "MVD#%d"
+BANCO_BOT = "projetos/inemaccbot/inemaccbot.db"
 
 
 def formatar(n: int) -> str:
@@ -20,13 +28,48 @@ def formatar(n: int) -> str:
 
 
 def numero_de(texto: str | None) -> int | None:
-    """`MVD-014` -> 14. Qualquer outra coisa -> None."""
-    if not texto or not str(texto).upper().startswith("MVD-"):
+    """`MVD#122`, `MVD-122`, `mvd122` -> 122. Qualquer outra coisa -> None."""
+    t = str(texto or "").strip().upper()
+    if not t.startswith("MVD"):
         return None
+    resto = t[3:].lstrip("#-").strip()
     try:
-        return int(str(texto)[4:])
+        return int(resto)
     except ValueError:
         return None
+
+
+def numeros_do_bot(db: Path | None = None) -> dict[str, int]:
+    """`slug da pasta -> id do fluxo`, lido do banco do bot em SOMENTE LEITURA.
+
+    O bot guarda o slug INTEIRO (60 caracteres) e a pasta usa os 40 primeiros —
+    por isso o casamento é por prefixo, não por igualdade. Banco ausente ou
+    ilegível devolve vazio: o acervo continua funcionando sem o bot, só sem
+    herdar os números.
+    """
+    import sqlite3
+    caminho = Path(db) if db else Path.home() / BANCO_BOT
+    if not caminho.exists():
+        return {}
+    try:
+        con = sqlite3.connect(f"file:{caminho}?mode=ro", uri=True)
+        linhas = list(con.execute("select id, slug from fluxos where prefixo='MVD'"))
+    except sqlite3.Error:
+        return {}
+    finally:
+        try:
+            con.close()
+        except Exception:
+            pass
+    return {slug: int(i) for i, slug in linhas if slug}
+
+
+def numero_do_fluxo(slug: str, do_bot: dict[str, int]) -> int | None:
+    """O id do fluxo que gerou esta pasta, casando pelo prefixo do slug."""
+    for s, i in do_bot.items():
+        if s == slug or s.startswith(slug) or slug.startswith(s[:40]):
+            return i
+    return None
 
 
 # O maior número JÁ DADO, guardado fora das pastas. Sem ele, apagar a última
@@ -70,7 +113,7 @@ def usados(outdir: Path) -> dict[str, int]:
     return saida
 
 
-def atribuir(outdir: Path, slug: str) -> str | None:
+def atribuir(outdir: Path, slug: str, do_bot: dict[str, int] | None = None) -> str | None:
     """O MVD desta produção, criando-o se ainda não existir.
 
     Devolve None para pasta sem `estado.json` — derivado de recorte, teste solto,
@@ -83,7 +126,27 @@ def atribuir(outdir: Path, slug: str) -> str | None:
         return None
     if numero_de(est.get("mvd")) is not None:
         return est["mvd"]
-    proximo = max(max(usados(outdir).values(), default=0), _teto(outdir)) + 1
+    # O mapa do bot é lido UMA vez por lote (o `numerar_acervo` passa adiante):
+    # abrir o banco por produção é trabalho repetido à toa.
+    do_bot = numeros_do_bot() if do_bot is None else do_bot
+    herdado = numero_do_fluxo(slug, do_bot)
+    # UM número, UMA produção. Reprocessamento do mesmo pedido vira pasta irmã
+    # (`...-2`, `...-3`) e casa com o MESMO fluxo do bot — mas são materiais
+    # diferentes, com clipe e faixa próprios. A primeira pasta fica com o número
+    # do fluxo; as irmãs ganham número novo, senão o identificador deixa de
+    # identificar.
+    if herdado is not None and herdado in usados(outdir).values():
+        herdado = None
+    if herdado is not None:
+        est["mvd"] = formatar(herdado)
+        _gravar_teto(outdir, max(herdado, _teto(outdir)))
+        from src.estado import salvar_estado
+        salvar_estado(w, est)
+        return est["mvd"]
+    # Nasceu fora do bot: número novo, acima de tudo que já existe dos dois
+    # lados — senão o próximo fluxo do bot colidiria com o que se inventou aqui.
+    topo_bot = max(do_bot.values(), default=0)
+    proximo = max(max(usados(outdir).values(), default=0), _teto(outdir), topo_bot) + 1
     _gravar_teto(outdir, proximo)
     est["mvd"] = formatar(proximo)
     from src.estado import salvar_estado
@@ -112,8 +175,9 @@ def numerar_acervo(outdir: Path) -> list[tuple[str, str]]:
             except (OSError, ValueError):
                 pass
     novos = []
+    do_bot = numeros_do_bot()
     for _, slug in sorted(pendentes):
-        mvd = atribuir(outdir, slug)
+        mvd = atribuir(outdir, slug, do_bot)
         if mvd:
             novos.append((mvd, slug))
     return novos
