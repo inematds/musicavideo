@@ -360,7 +360,21 @@ def _cmd_publica_hf(args) -> int:
     return 0
 
 
-COMANDOS.update({"nuvem": _cmd_nuvem, "publica-hf": _cmd_publica_hf})
+def _cmd_likes(args) -> int:
+    """Traz as curtidas da vitrine para o painel local. Fecha o ciclo."""
+    from src.publicahf import baixar_likes
+    base = args[0] if args else None
+    d = baixar_likes(out_dir(), base)
+    if not d:
+        print("sem likes — falta MUSICAVIDEO_PUB_URL (ou a vitrine não respondeu)",
+              file=sys.stderr)
+        return 1
+    for mvd, n in sorted(d.items(), key=lambda kv: -kv[1])[:10]:
+        print(f"{mvd}: {n}")
+    return 0
+
+
+COMANDOS.update({"nuvem": _cmd_nuvem, "publica-hf": _cmd_publica_hf, "likes": _cmd_likes})
 COMANDOS.update({"lista": _cmd_lista, "busca": _cmd_busca, "reindex": _cmd_reindex,
                  "plano": _cmd_plano, "ver": _cmd_ver, "ok": _cmd_ok, "ajusta": _cmd_ajusta,
                  "faz": _cmd_faz, "custo": _cmd_custo, "tudo": _cmd_tudo,

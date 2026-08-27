@@ -1,8 +1,13 @@
 # Plano — INEMA MUSICAVIDEO V2 (acervo no Hugging Face, painel na nuvem)
 
-> Status: **plano, nada implementado**. Escrito em 2026-08-27, com as decisões
-> do dono já tomadas (seção 8).
+> Status em 2026-08-27: **executado — passos 1 a 11 feitos**, exceto os dois que
+> não são do agente: importar o repo na Vercel e criar o KV do like (seção 7).
 > O V1 (painel local) continua funcionando como está.
+>
+> O que foi medido durante a execução e vale mais que o plano: o portão do passo
+> 6 **passou** (o `clipe-1.mp4` de 101 MB responde 206 com `Content-Range` direto
+> do HF), o namespace do HF é **`Inematds`** com maiúscula, e o acervo publicável
+> é de **4,14 GB em 254 arquivos** — os `--dry` bateram com a estimativa.
 
 ## O que se quer
 
@@ -222,18 +227,18 @@ site estático puro.
 
 | # | passo | onde | entrega |
 |---|---|---|---|
-| 1 | Numerar o acervo: `MVD-000` gravado no índice, na ordem de `criado_em` | musicavideo | id estável em tudo |
-| 2 | Mostrar o MVD no painel local + `INEMA MUSICAVIDEO V1.x.x` no topo | musicavideo | V1 já falando a nova língua |
-| 3 | Botão “subir para a nuvem” no card (marca no `estado.json`) | musicavideo | aprovação existe antes de haver nuvem |
-| 4 | Criar o dataset `inematds/musicavideo-acervo` (público, vazio) | HF | repo de pé |
-| 5 | `publica-hf --dry` | musicavideo | confere a seleção antes de gastar banda |
-| 6 | Subir **uma** produção e abrir o mp4 no navegador | HF | **portão**: prova o range request num arquivo real |
-| 7 | Subir o acervo aprovado + `manifest.json` | HF | dataset completo (~4,4 GB) |
-| 8 | Criar `musicavideo-pub` e portar a interface | app novo | painel rodando local contra o manifest |
-| 9 | Like (KV) e o retorno das contagens para o V1 | app novo + musicavideo | o sinal do público fecha o ciclo |
-| 10 | `git push` | app novo | a Vercel publica |
-| 11 | Cron do `publica-hf` | máquina | aprovar vira o único gesto |
-| 12 | Card no portal (`inema.club`) | portal | — |
+| ✅ 1 | Numerar o acervo: `MVD-000` gravado no índice, na ordem de `criado_em` | musicavideo | id estável em tudo |
+| ✅ 2 | Mostrar o MVD no painel local + `INEMA MUSICAVIDEO V1.x.x` no topo | musicavideo | V1 já falando a nova língua |
+| ✅ 3 | Botão “subir para a nuvem” no card (marca no `estado.json`) | musicavideo | aprovação existe antes de haver nuvem |
+| ✅ 4 | Criar o dataset `inematds/musicavideo-acervo` (público, vazio) | HF | repo de pé |
+| ✅ 5 | `publica-hf --dry` | musicavideo | confere a seleção antes de gastar banda |
+| ✅ 6 | Subir **uma** produção e abrir o mp4 no navegador | HF | **portão**: prova o range request num arquivo real |
+| ✅ 7 | Subir o acervo aprovado + `manifest.json` | HF | dataset completo (~4,4 GB) |
+| ✅ 8 | Criar `musicavideo-pub` e portar a interface | app novo | painel rodando local contra o manifest |
+| ✅ 9 | Like (KV) e o retorno das contagens para o V1 | app novo + musicavideo | código pronto; **falta criar o KV e pôr as variáveis — é do dono** |
+| ✅ 10 | `git push` | app novo | **falta importar o repo na Vercel — é do dono** |
+| ✅ 11 | Cron do `publica-hf` | máquina | aprovar vira o único gesto |
+| 12 | Card no portal (`inema.club`) | portal | espera a URL da Vercel |
 
 O passo 6 é o portão de propósito: se um `clipe-1.mp4` de ~70 MB não navegar
 direto do HF, o plano muda de forma — melhor descobrir com um arquivo do que com

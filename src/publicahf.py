@@ -118,6 +118,35 @@ def manifesto(outdir: Path, repo: str, slugs: list[str]) -> dict:
             "musicavideo": mv, "analisevideo": av}
 
 
+def baixar_likes(outdir: Path, base_url: str | None = None) -> dict:
+    """Traz as contagens de like da vitrine para o acervo local.
+
+    É a metade que fecha o ciclo. Sem isto o único sinal de público que o
+    projeto tem morreria na nuvem: quem produz continuaria escolhendo no escuro,
+    que é exatamente o que a vitrine existe para resolver.
+
+    Grava `likes.json` na pasta de saída — o painel local lê de lá. Falhar aqui
+    não é erro de acervo: vitrine fora do ar, `likes.json` velho, e nada mais.
+    """
+    import urllib.request
+    base = (base_url or os.environ.get("MUSICAVIDEO_PUB_URL") or "").rstrip("/")
+    if not base:
+        return {}
+    from src.mvd import usados
+    from src.mvd import formatar
+    saida = {}
+    for slug, n in usados(outdir).items():
+        mvd = formatar(n)
+        try:
+            with urllib.request.urlopen(f"{base}/api/like?mvd={mvd}", timeout=15) as r:
+                saida[mvd] = int(json.load(r).get("n") or 0)
+        except Exception:
+            continue
+    if saida:
+        (outdir / "likes.json").write_text(json.dumps(saida, indent=1), encoding="utf-8")
+    return saida
+
+
 def publicar(outdir: Path, repo: str = REPO_PADRAO, alvos: list[str] | None = None,
              dry: bool = False, so_manifesto: bool = False, log=print) -> dict:
     """Sobe o que está aprovado e grava o manifesto. Devolve o resumo.

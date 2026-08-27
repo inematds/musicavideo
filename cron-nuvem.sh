@@ -25,3 +25,7 @@ flock -n 9 || { echo "$(date -Is) já rodando — pulei" >> "$LOG"; exit 0; }
 echo "$(date -Is) publica-hf" >> "$LOG"
 ./musicavideo.sh publica-hf >> "$LOG" 2>&1
 echo "$(date -Is) fim (saida=$?)" >> "$LOG"
+
+# O like volta: as contagens da vitrine viram `likes.json` no acervo, e o painel
+# local mostra ♥ em cada card. Sem MUSICAVIDEO_PUB_URL isto não faz nada.
+[ -n "${MUSICAVIDEO_PUB_URL:-}" ] && ./musicavideo.sh likes >> "$LOG" 2>&1

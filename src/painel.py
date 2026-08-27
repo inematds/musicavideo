@@ -160,6 +160,18 @@ def _prompts(w: Path) -> dict | None:
     return d if any(d.values()) else None
 
 
+def _likes(base: Path) -> dict:
+    """O que o público curtiu na vitrine, trazido pelo `publica-hf`.
+
+    Vive num arquivo e não numa chamada de rede: o painel local tem que abrir
+    com a internet fora, e like é informação de apoio, não o acervo.
+    """
+    try:
+        return json.loads((base.parent / "likes.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
 def _capas(base: Path, slug: str) -> list[dict]:
     saida = []
     for rel, rotulo in CAPAS:
@@ -283,6 +295,7 @@ def coletar(raiz: Path) -> dict:
             "doc": _documento(w),
             "prompts": _prompts(w),
             "nuvem": situacao_nuvem(w),
+            "likes": _likes(base).get(l.get("mvd") or "", 0),
             "docs": [d for d in (_url(base, f"{l['slug']}/PACOTE.md"),
                                  _url(base, f"{l['slug']}/PLANO.md")) if d],
         })
@@ -464,7 +477,8 @@ function cardMV(x){const t=x.capa?`<img class="thumb capa" loading=lazy src="${E
      <audio class=nocard controls preload=none src="${E(f.url)}"></audio></div>`).join("")+`</div>`
   :`${t}${som}`;
  const id=x.mvd?`<span class="pill mvd">${E(x.mvd)}</span>`:"";
- return `${topo}<div class=b><h3>${dv}${E(x.titulo)}</h3>${id}
+ const lk=x.likes?`<span class="pill" title="curtidas na vitrine">♥ ${E(x.likes)}</span>`:"";
+ return `${topo}<div class=b><h3>${dv}${E(x.titulo)}</h3>${id}${lk}
  <div class=meta>${x.origem?"de "+E(x.origem)+" · ":""}${E(x.genero)}${x.bpm?" · "+E(x.bpm)+" bpm":""}${x.tom?" · "+E(x.tom):""}${x.bytes?" · "+MB(x.bytes):""}</div>
  <div>${st}${(x.versoes||[]).length>1?`<span class=pill>${x.versoes.length} versões</span>`:""}</div></div>`}
 function MB(b){return b>=1073741824?(b/1073741824).toFixed(1)+" GB":Math.round(b/1048576)+" MB"}
