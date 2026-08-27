@@ -69,7 +69,12 @@ def test_generate_manda_callbackurl(tmp_path, monkeypatch):
 
 
 def test_first_success_ignora_faixa_sem_audiourl(tmp_path, monkeypatch):
-    """FIRST_SUCCESS traz faixa ainda sem audioUrl — usar só a que tem áudio."""
+    """FIRST_SUCCESS traz faixa ainda sem audioUrl — usar só a que tem áudio.
+
+    Aqui a segunda NUNCA chega: passado o tempo de espera, entrega-se a que
+    existe. Segurar a produção inteira por causa da irmã atrasada seria pior.
+    """
+    monkeypatch.setattr(kie_mod, "ESPERA_SEGUNDA_S", 0)
     baixados = []
 
     def fake_http(url, metodo="GET", corpo=None, headers=None, **kw):
@@ -136,3 +141,39 @@ def test_baixa_as_duas_faixas_da_mesma_geracao(tmp_path, monkeypatch):
     assert r.meta["opcoes"] == ["faixa-1.mp3", "faixa-2.mp3"]
     assert r.meta["duracoes_s"] == [180, 195]
     assert r.custo_real == 0.08          # uma geração só
+
+
+def test_espera_a_segunda_faixa_antes_de_desistir(tmp_path, monkeypatch):
+    """Sair no FIRST_SUCCESS PERDE a segunda música.
+
+    Ela é gerada e paga do mesmo jeito (o Suno cobra pelo par) e a URL expira:
+    quem sai cedo fica com uma faixa só, para sempre. Foi o que aconteceu com o
+    "Before the Lights Come Up" — `faixas_geradas: 1`, `status_final:
+    FIRST_SUCCESS`, e a segunda nunca foi baixada.
+    """
+    baixados = []
+    chamadas = {"n": 0}
+
+    def fake_http(url, metodo="GET", corpo=None, headers=None, **kw):
+        if url.endswith("/generate"):
+            return {"data": {"taskId": "T3"}}
+        chamadas["n"] += 1
+        if chamadas["n"] == 1:      # primeira olhada: só uma pronta
+            return {"data": {"status": "FIRST_SUCCESS", "response": {"sunoData": [
+                {"audioUrl": "http://x/uma.mp3", "duration": 170},
+                {"audioUrl": "", "duration": None}]}}}
+        return {"data": {"status": "SUCCESS", "response": {"sunoData": [
+            {"audioUrl": "http://x/uma.mp3", "duration": 170},
+            {"audioUrl": "http://x/duas.mp3", "duration": 172}]}}}
+
+    monkeypatch.setattr(kie_mod.time, "sleep", lambda s: None)
+    monkeypatch.setattr(kie_mod, "http_json", fake_http)
+    monkeypatch.setattr(kie_mod, "baixar",
+                        lambda url, destino, **kw: (baixados.append(url),
+                                                    destino.write_bytes(b"m"), destino)[-1])
+    monkeypatch.setattr(kie_mod, "ler_env_chave", lambda n: "k")
+    r = kie_mod.criar(DECL).gerar("suno-v4.5", {"titulo": "t", "letra": "l", "estilo": "s",
+                                                "instrumental": False}, tmp_path)
+    assert baixados == ["http://x/uma.mp3", "http://x/duas.mp3"]
+    assert r.meta["faixas_geradas"] == 2
+    assert r.meta["status_final"] == "SUCCESS"

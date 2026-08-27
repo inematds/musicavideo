@@ -9,6 +9,10 @@ from providers.base import (Provider, Resultado, ProviderError, ler_env_chave,
 
 KIE_BASE = "https://api.kie.ai/api/v1"
 TIMEOUT_POLL_S = 15 * 60
+# Quanto se espera pela SEGUNDA faixa depois que a primeira ficou pronta. O Suno
+# entrega as duas com poucos minutos de diferença; passado esse tempo, entrega-se
+# o que existe em vez de segurar a produção inteira por causa da irmã atrasada.
+ESPERA_SEGUNDA_S = 300
 # A API devolve 422 "Please enter callBackUrl" sem este campo, embora o doc o
 # marque como opcional. Não temos endpoint público: mandamos um placeholder e
 # lemos o resultado por polling (mesmo caminho que o musicaclone usa).
@@ -83,6 +87,9 @@ class Kie(Provider):
         faixas = []
         while True:
             if time.time() - inicio > TIMEOUT_POLL_S:
+                if faixas:      # tem música no disco: entregar vale mais que falhar
+                    gravar_raw(workdir, "kie-record-info", r)
+                    break
                 raise ProviderError(f"kie: timeout de polling (15 min) taskId={task}")
             r = http_json(f"{KIE_BASE}/generate/record-info?taskId={task}",
                           headers=self._headers())
@@ -92,7 +99,19 @@ class Kie(Provider):
             # FIRST_SUCCESS = só uma faixa ficou pronta; as outras ainda vêm com
             # audioUrl vazio. Só serve a que já tem áudio de verdade.
             faixas = [f for f in todas if (f.get("audioUrl") or "").startswith("http")]
-            if faixas and st in ("SUCCESS", "FIRST_SUCCESS"):
+            # SAIR NO FIRST_SUCCESS PERDE A SEGUNDA MÚSICA. Ela é gerada e paga
+            # do mesmo jeito (o Suno cobra pelo par), e a URL expira — quem sai
+            # cedo fica com uma faixa só, para sempre. Aconteceu com o
+            # "Before the Lights Come Up" (MVD-016): `faixas_geradas: 1`,
+            # `status_final: FIRST_SUCCESS`, e a segunda nunca foi baixada.
+            #
+            # Então: com FIRST_SUCCESS, continua esperando o SUCCESS. Se o
+            # tempo acabar, aí sim leva o que já tem — uma faixa é melhor do que
+            # perder a produção inteira por causa da irmã atrasada.
+            if faixas and st == "SUCCESS":
+                gravar_raw(workdir, "kie-record-info", r)
+                break
+            if faixas and st == "FIRST_SUCCESS" and time.time() - inicio > ESPERA_SEGUNDA_S:
                 gravar_raw(workdir, "kie-record-info", r)
                 break
             if "FAIL" in st or "ERROR" in st:

@@ -31,9 +31,15 @@ from src.nuvem import a_remover, ler as ler_nuvem, marcar_publicado, marcar_remo
 REPO_PADRAO = "Inematds/musicavideo-acervo"
 BASE_HF = "https://huggingface.co/datasets/{repo}/resolve/main/"
 
-# O que a vitrine mostra, e nada além. Ordem importa só para o log.
+# MÍDIA, e nada além. O HF é onde ficam os arquivos pesados, que o navegador
+# busca direto (e que precisam de range request para o vídeo navegar).
+#
+# TEXTO NÃO VEM PARA CÁ. Letra, prompts, decupagem, PACOTE e PLANO viajam DENTRO
+# do manifesto, que vive no repo do app: são quilobytes, são o que a vitrine
+# renderiza como HTML, e mantê-los aqui obrigaria a vitrine a fazer uma segunda
+# viagem de rede para mostrar o que já podia vir pronto na página.
 PADROES = ("capa.png", "capa-v*.png", "capa-crua.png", "publicacao/capa-yt.jpg",
-           "faixa-*.mp3", "clipe-*.mp4", "plano.json", "PACOTE.md", "PLANO.md")
+           "faixa-*.mp3", "clipe-*.mp4")
 
 
 def token() -> str | None:
@@ -107,8 +113,8 @@ def manifesto(outdir: Path, repo: str, slugs: list[str]) -> dict:
             continue
         item = _reescreve(x, x["slug"], repo)
         item["clipe"] = None            # a cópia não sobe; quem manda é `faixas[].clipe`
-        item["doc"] = None              # o texto vem do PACOTE/PLANO no próprio HF
-        mv.append(item)
+        item["docs"] = []               # não há .md no HF para linkar: o texto vem aqui
+        mv.append(item)                 # `doc` e `prompts` seguem inteiros, como texto
     av = []
     for a in dados.get("analisevideo", []):
         a = dict(a)
@@ -146,6 +152,29 @@ def baixar_likes(outdir: Path, base_url: str | None = None) -> dict:
     if saida:
         (outdir / "likes.json").write_text(json.dumps(saida, indent=1), encoding="utf-8")
     return saida
+
+
+APP = Path.home() / "projetos/musicavideo-pub"
+
+
+def gravar_no_app(man: dict, app: Path | None = None, log=print) -> Path | None:
+    """O manifesto vive no REPO DO APP, não no HF.
+
+    Ele é texto e é o que a vitrine renderiza: no repo, ele viaja no build, sai
+    junto com o deploy e não exige uma viagem de rede por visita. No HF ele
+    obrigaria a vitrine a buscar antes de desenhar — e a página ficaria refém do
+    HF estar de pé para mostrar até o próprio título.
+    """
+    app = app or APP
+    if not (app / "package.json").exists():
+        log(f"app não encontrado em {app} — manifesto ficou só no acervo")
+        return None
+    alvo = app / "data" / "manifest.json"
+    alvo.parent.mkdir(parents=True, exist_ok=True)
+    alvo.write_text(json.dumps(man, ensure_ascii=False, indent=1), encoding="utf-8")
+    kb = alvo.stat().st_size / 1024
+    log(f"manifesto no app: {alvo} ({kb:.0f} KB)")
+    return alvo
 
 
 def publicar(outdir: Path, repo: str = REPO_PADRAO, alvos: list[str] | None = None,
@@ -196,8 +225,7 @@ def publicar(outdir: Path, repo: str = REPO_PADRAO, alvos: list[str] | None = No
     man = manifesto(outdir, repo, publicados)
     destino = outdir / "manifest.json"
     destino.write_text(json.dumps(man, ensure_ascii=False, indent=1), encoding="utf-8")
-    api.upload_file(path_or_fileobj=str(destino), path_in_repo="manifest.json",
-                    repo_id=repo, repo_type="dataset")
+    gravar_no_app(man, log=log)
     log(f"manifest.json: {len(man['musicavideo'])} produções, "
         f"{len(man['analisevideo'])} análises")
     return {"slugs": slugs, "removidos": remover, "bytes": bytes_totais,
