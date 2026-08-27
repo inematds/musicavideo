@@ -197,6 +197,11 @@ passa a ser uma entidade citável, como o `MVD#N` é para a produção.
    Fica então: a ficha tem **texto** (portátil entre provedores) **e fotos**
    (consistência real onde o motor aceita), e o adaptador de cada provedor
    decide o que usar — como já se faz com resolução e negativo.
+
+   **E não é só a Agnes:** o Wan 2.7 (Alibaba) aceita `first_frame`/`last_frame`
+   como âncora do plano e `driving_audio` para lip sync — levantado em
+   `WANVIDEO.md`. Reforça a decisão acima: a ficha guarda texto E fotos, e cada
+   adaptador pega o que o seu motor entende.
 3. **Como o plano cita o personagem.** O contrato é FECHADO (`esquemas.py`:
    campo desconhecido = erro), então um `personagem: "PSG#3"` no topo do plano
    exige tocar `validar_plano` junto. E é preciso decidir se o personagem
@@ -285,6 +290,11 @@ speedramp, match cut de movimento), nunca como enfeite distribuído.
 - **Boca cantando: RESOLVIDO no prompt** (planner + reajuste). A regra é não
   descrever a boca; o canto se lê no corpo. Os clipes JÁ gerados continuam com
   o defeito — refazer é gerar de novo, então fica para quando valer a pena.
+- **O Wan 2.7 tem lipsync POR DENTRO — ver `WANVIDEO.md` (2026-08-27).** O
+  `driving_audio` do `wan2.7-i2v` dirige o vídeo pelo áudio, e o exemplo da
+  própria doc é um personagem cantando em sincronia. Resolveria este item e o da
+  boca acima de uma vez — mas é provedor PAGO e sem preço nem rate limit
+  medidos, então é candidato, não decisão.
 - **Lipsync existe, mas por fora.** O CLI do Kling só tem t2i/i2i/t2v/i2v. A
   Magnific tem 6 modelos, 3 aceitam VÍDEO como fonte (`lipsync-2.0`,
   `veed-sync-2-v2v`, `latentsync`) — dá para aplicar em cima de um plano já
