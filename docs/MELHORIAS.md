@@ -131,6 +131,71 @@ clipe fica mais curto que a faixa e o reajuste refaz a decupagem sozinho.
 
 ---
 
+## 2026-08-27 — FICHA DO PERSONAGEM CANTOR (pedido do dono)
+
+**Hoje:** o cantor nasce e morre dentro de uma produção. O planejador escreve
+`capa.prompt_imagem` e os `prompt` de cada shot da decupagem a partir da
+solicitação daquele pedido — e mais nada atravessa para o pedido seguinte. Duas
+produções do mesmo "personagem" só se parecem por coincidência de adjetivo, e é
+por isso que os slugs longos (`woman-young-tall-black-slender-elegant-s`,
+`woman-yung-tall-black-slender-elegant-st`) são quase o mesmo texto digitado
+duas vezes: a descrição do personagem está sendo redigitada a cada produção.
+
+**Pedido:** uma **ficha** do personagem cantor, com **fotos** e com as
+definições **de texto e de imagem**, para que toda música feita com ele herde as
+mesmas características. Com **código, nome e o resto** — ou seja, o personagem
+passa a ser uma entidade citável, como o `MVD#N` é para a produção.
+
+### O que já existe e serve
+
+- **`data/estilos.json`, `templates-capa.json`, `templates-clipe.json`** já são
+  exatamente esse tipo de dado: catálogo versionado (`schema_version` +
+  lista) que o planejador consulta. Uma ficha de personagem cabe no mesmo
+  formato — é um quarto catálogo, não uma invenção estrutural.
+- **A numeração estável** (`src/mvd.py`) resolve o "dar um código a ele" com um
+  padrão já testado: número atribuído uma vez, gravado, que nunca muda. Vale
+  reler antes de inventar outro esquema de id.
+- **A skill `inemaref-folder`** já monta folder de personagem com
+  `referencia.json` (e o `inemaref-quadrinho` consome esse folder). Antes de
+  desenhar o formato daqui, olhar o de lá: personagem que existe em dois
+  formatos diferentes na mesma casa é o começo de uma divergência.
+- **`arte.py`** já compõe pôster com selo de versão a partir da imagem gerada —
+  a ficha não precisa refazer a camada de tipografia.
+
+### O que falta decidir antes de codar
+
+1. **Onde a ficha mora.** Catálogo no repo (`data/personagens.json`, versionado,
+   viaja com o código) ou pasta por personagem no acervo (`~/projetos/output`,
+   junto das fotos)? As fotos empurram para o acervo; a citação em plano
+   empurra para o repo. Provável: ficha no repo, fotos no acervo, com a ficha
+   apontando para elas.
+2. **O que é "definição de imagem".** Um parágrafo de prompt reaproveitável?
+   Uma lista de traços (cabelo, pele, corpo, roupa, idade)? **Fotos de
+   referência** que vão como *image reference* para o provedor? Os três resolvem
+   coisas diferentes: texto é portátil entre provedores, foto dá consistência
+   real mas só nos motores que aceitam referência de personagem (a Magnific
+   aceita; a Agnes, que é o motor de graça e o default, precisa ser conferida —
+   **este é o ponto que decide se a ficha entrega consistência de verdade ou só
+   descrição parecida**).
+3. **Como o plano cita o personagem.** O contrato é FECHADO (`esquemas.py`:
+   campo desconhecido = erro), então um `personagem: "PSG#3"` no topo do plano
+   exige tocar `validar_plano` junto. E é preciso decidir se o personagem
+   *substitui* trechos do `prompt_imagem`/dos shots ou se é *prefixado* a eles —
+   substituir dá consistência e tira liberdade do planejador; prefixar mantém a
+   liberdade e arrisca contradição ("cabelos prateados" na ficha, "morena" no
+   shot).
+4. **Personagem por produção ou por shot.** Um clipe pode ter mais de uma
+   pessoa em cena. Começar por UM cantor (o sujeito da capa e do refrão) é o
+   recorte honesto; elenco vem depois, se vier.
+
+**Cuidado registrado:** a ficha só vale se o planejador **for obrigado** a usá-la.
+Um campo opcional que o prompt "pode considerar" produz o que já temos — descrição
+parecida e resultado diferente. E o defeito de 2026-08-25 (garatuja de texto na
+capa) mostra que prompt de imagem só deve chegar ao provedor por um caminho
+único e sanitizado: a ficha entra nesse caminho, não por uma porta nova.
+
+---
+
 ## Como usar este arquivo
 
 Item que sair daqui vira commit e **sai da lista** (não fica marcado como
