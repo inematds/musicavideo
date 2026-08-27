@@ -105,6 +105,7 @@
     <a class="sec" href="#oque">O que é</a>
     <a class="sec" href="#fluxo">Como funciona</a>
     <a class="sec" href="#guia">Guia de uso</a>
+    <a class="sec" href="#nuvem">Acervo na web</a>
     <a class="sec" href="#exemplos">Exemplos</a>
     <a class="sec" href="#roadmap">Roadmap</a>
     <button class="tgl" id="themeToggle" aria-label="Alternar tema" title="Alternar tema">🌙</button>
@@ -121,7 +122,7 @@
       <p class="lead">O plano das três partes é escrito antes de qualquer centavo sair. Você lê, ajusta o que quiser, aprova parte por parte — e só então gera. Capa e clipe saem de graça pelo Agnes; só a música toca crédito.</p>
       <div class="cta">
         <a class="btn" href="#guia">Começar o guia</a>
-        <a class="btn ghost" href="https://github.com/inematds/musicavideo" target="_blank" rel="noopener">Ver no GitHub</a>
+        <a class="btn ghost" href="https://musicavideo-pub.vercel.app" target="_blank" rel="noopener">Ver o acervo pronto</a>
       </div>
     </div>
     <figure><img src="assets/hero.png" alt="Músico em ensaio, luz âmbar — capa do projeto musicavideo"></figure>
@@ -250,6 +251,18 @@
 <span class="k">bash musicavideo.sh busca</span> <span class="s">"rock"</span>
 <span class="k">bash musicavideo.sh custo</span> agora-eu-cobro   <span class="c"># estimado vs gasto</span></pre>
   </div></div>
+</div></section>
+
+<section id="nuvem"><div class="wrap">
+  <span class="chip">Do disco para a web</span>
+  <h2>O clipe pronto não termina na sua máquina</h2>
+  <p class="sub">São dois painéis, e é de propósito. O <strong>painel local</strong> é a bancada: é onde se ouve, se compara, se manda para a lixeira — e onde se <em>aprova o que sai da máquina</em>. A <a href="https://musicavideo-pub.vercel.app" target="_blank" rel="noopener">vitrine</a> é o que o público vê. Subir não é consequência de ficar pronto: produção pronta é material de trabalho.</p>
+  <div class="grid g3">
+    <div class="card"><h3>🎛️ O painel, sempre de pé</h3><p>Um serviço do systemd mantém a bancada no ar desde o boot, na rede local. Ficar fora do ar por esquecer de rodar o comando é o defeito, não a economia.</p><pre><span class="k">systemctl --user enable --now</span> musicavideo-painel</pre></div>
+    <div class="card"><h3>☁️ Um clique aprova, um comando publica</h3><p>O <code>publica-hf</code> sobe <strong>só o que mudou</strong>, escreve o manifesto no repo da vitrine e commita — publicar termina no push, não no meio.</p><pre><span class="k">bash musicavideo.sh publica-hf</span>
+<span class="c"># 0 produções se nada mudou</span></pre></div>
+    <div class="card"><h3>📺 Hospedagem que não custa</h3><p>Os arquivos moram num dataset público no Hugging Face, que serve <em>range request</em> — a barra do vídeo navega direto, sem proxy e sem storage pago. A vitrine só lê o manifesto.</p><pre><span class="k">bash musicavideo.sh likes</span>   <span class="c"># o ♥ do público volta</span></pre></div>
+  </div>
 </div></section>
 
 <section id="exemplos"><div class="wrap">
