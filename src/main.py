@@ -384,7 +384,11 @@ COMANDOS.update({"lista": _cmd_lista, "busca": _cmd_busca, "reindex": _cmd_reind
 
 
 def main(argv: list[str]) -> int:
-    if not argv or argv[0] in ("-h", "--help"):
+    # `-h`/`--help` em QUALQUER posição só imprime. Cada `_cmd_*` faz o próprio
+    # parsing solto (`"--x" in args`) e ignora flag que não conhece — então
+    # `publica-hf --help` chegava ao dispatch como um `publica-hf` sem alvo e
+    # começava a subir 4 GB. Pedir ajuda nunca pode executar.
+    if not argv or any(a in ("-h", "--help", "-help", "ajuda") for a in argv):
         print(USO)
         return 1
     cmd = argv[0]

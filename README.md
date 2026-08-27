@@ -142,6 +142,21 @@ tags, analise.md). Busca em tudo, na hora — a página é montada a cada reques
 então nunca fica velha. Por padrão só em `127.0.0.1`; `--lan` publica na rede local (sem senha — quem
 alcançar a porta vê o acervo inteiro).
 
+**Ele fica no ar sozinho.** O painel é a bancada de trabalho: ficar fora do ar
+por esquecer de rodar o comando é o defeito, não a economia. Um serviço do
+systemd do usuário mantém ele de pé desde o boot.
+
+```bash
+systemctl --user status  musicavideo-painel     # em que pé está
+systemctl --user restart musicavideo-painel     # depois de mexer no painel.py
+journalctl --user -u musicavideo-painel -f      # o que ele está dizendo
+```
+
+O arquivo é `~/.config/systemd/user/musicavideo-painel.service` (roda
+`painel --lan`, `Restart=always`, e exige `loginctl enable-linger $USER` para
+subir sem sessão aberta). Rodar `musicavideo painel` à mão continua valendo —
+só escolha outra porta, senão bate no serviço.
+
 **Um card por PRODUÇÃO, as duas versões dentro dele.** O Suno entrega duas
 faixas por música e cada uma vira um clipe — mas é uma produção só: uma pasta,
 um plano, uma letra, um custo, um botão de lixeira. Dois cards separados
@@ -193,8 +208,9 @@ bash $S publica-hf --manifesto   # só o manifesto, sem reenviar arquivo nenhum
 
 **Aprovar é o único gesto.** Subir não é consequência de ficar pronto: produção
 pronta é material de trabalho, vitrine é escolha. O clique marca no
-`estado.json`; quem sobe é o `publica-hf`, à mão ou pelo `cron-nuvem.sh`
-(instruções de instalação dentro do próprio arquivo).
+`estado.json`; quem sobe é o `publica-hf`, rodado à mão — e ele termina o
+serviço: sobe para o HF, escreve o `manifest.json` no repo da vitrine e
+**commita e empurra**. Publicar é um comando só.
 
 **Sobe só o final.** O `raw/` inteiro fica na máquina — 1209 dos 1365 mp4 do
 acervo são shots intermediários. E o `clipe.mp4` não sobe quando existe

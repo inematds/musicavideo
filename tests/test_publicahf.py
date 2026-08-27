@@ -92,3 +92,58 @@ def test_manifesto_ignora_quem_nao_esta_publicado(tmp_path, monkeypatch):
         "musicavideo": [{"slug": "p"}, {"slug": "outro"}], "analisevideo": []})
     man = publicahf.manifesto(tmp_path, "Conta/repo", ["p"])
     assert [x["slug"] for x in man["musicavideo"]] == ["p"]
+
+
+# --- o elo que faltava: publicar termina no push -----------------------------
+
+def _repo_app(tmp_path):
+    """Um `musicavideo-pub` de mentira, com origin em outro repo local."""
+    import subprocess
+    remoto = tmp_path / "remoto.git"
+    subprocess.run(["git", "init", "--bare", "-q", str(remoto)], check=True)
+    app = tmp_path / "app"
+    (app / "data").mkdir(parents=True)
+    (app / "package.json").write_text("{}")
+    g = lambda *a: subprocess.run(["git", "-C", str(app), *a], check=True,
+                                  capture_output=True)
+    subprocess.run(["git", "init", "-q", "-b", "main", str(app)], check=True)
+    g("config", "user.name", "t"), g("config", "user.email", "t@t")
+    g("add", "-A"), g("commit", "-qm", "base")
+    g("remote", "add", "origin", str(remoto)), g("push", "-q", "-u", "origin", "main")
+    return app, remoto
+
+
+def _man(n=2):
+    return {"musicavideo": [{"slug": f"p{i}"} for i in range(n)], "analisevideo": []}
+
+
+def test_manifesto_novo_vira_commit_e_chega_no_origin(tmp_path):
+    """Sem o push, o `publica-hf` subia gigabytes para o HF e a vitrine
+    continuava desenhando o manifesto anterior."""
+    import subprocess
+    app, remoto = _repo_app(tmp_path)
+    alvo = publicahf.gravar_no_app(_man(), app=app, log=lambda *a: None)
+    assert publicahf.subir_app(alvo, _man(), log=lambda *a: None) is True
+    r = subprocess.run(["git", "-C", str(remoto), "show", "main:data/manifest.json"],
+                       capture_output=True, text=True)
+    assert json.loads(r.stdout)["musicavideo"] == [{"slug": "p0"}, {"slug": "p1"}]
+
+
+def test_manifesto_igual_nao_vira_commit_vazio(tmp_path):
+    """Rodar duas vezes não polui o histórico da vitrine."""
+    app, _ = _repo_app(tmp_path)
+    alvo = publicahf.gravar_no_app(_man(), app=app, log=lambda *a: None)
+    publicahf.subir_app(alvo, _man(), log=lambda *a: None)
+    publicahf.gravar_no_app(_man(), app=app, log=lambda *a: None)
+    assert publicahf.subir_app(alvo, _man(), log=lambda *a: None) is False
+
+
+def test_app_sem_git_nao_explode(tmp_path):
+    """O manifesto foi escrito; não ter repo é aviso, não falha."""
+    app = tmp_path / "solto"
+    (app / "data").mkdir(parents=True)
+    (app / "package.json").write_text("{}")
+    alvo = publicahf.gravar_no_app(_man(), app=app, log=lambda *a: None)
+    ditos = []
+    assert publicahf.subir_app(alvo, _man(), log=ditos.append) is False
+    assert any("não é repo git" in d for d in ditos)

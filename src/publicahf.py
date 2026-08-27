@@ -16,6 +16,7 @@ Duas regras que economizam gigabytes e evitam divergência:
   ninguém saberia qual dos painéis está certo.
 """
 import json
+import subprocess
 import os
 import re
 from pathlib import Path
@@ -177,6 +178,43 @@ def gravar_no_app(man: dict, app: Path | None = None, log=print) -> Path | None:
     return alvo
 
 
+def subir_app(alvo: Path, man: dict, log=print) -> bool:
+    """Commita e empurra o manifesto — o elo que faltava.
+
+    Sem isto o `publica-hf` subia gigabytes para o HF e a vitrine continuava
+    desenhando o manifesto anterior: o arquivo certo ficava parado no repo
+    local, e nada no fluxo avisava. Publicar termina no `push`; o deploy é do
+    webhook git → Vercel e não é conferido aqui.
+
+    Devolve `True` se houve commit. Manifesto igual ao que já está versionado
+    não vira commit vazio — rodar duas vezes não polui o histórico.
+    """
+    app = alvo.parent.parent
+    rel = str(alvo.relative_to(app))
+    def git(*a, **kw):
+        return subprocess.run(["git", "-C", str(app), *a],
+                              capture_output=True, text=True, **kw)
+    if git("rev-parse", "--git-dir").returncode != 0:
+        log(f"{app} não é repo git — manifesto ficou só no disco")
+        return False
+    git("add", "--", rel)
+    if git("diff", "--cached", "--quiet", "--", rel).returncode == 0:
+        log("manifesto sem mudança — nada a commitar")
+        return False
+    msg = (f"manifesto: {len(man['musicavideo'])} produções, "
+           f"{len(man['analisevideo'])} análises")
+    c = git("commit", "-m", msg, "--", rel)
+    if c.returncode != 0:
+        log(f"commit falhou: {(c.stderr or c.stdout).strip()}")
+        return False
+    pu = git("push")
+    if pu.returncode != 0:
+        log(f"push falhou: {(pu.stderr or pu.stdout).strip()} — commit está local")
+        return False
+    log(f"vitrine: {msg} — commitado e empurrado")
+    return True
+
+
 def publicar(outdir: Path, repo: str = REPO_PADRAO, alvos: list[str] | None = None,
              dry: bool = False, so_manifesto: bool = False, log=print) -> dict:
     """Sobe o que está aprovado e grava o manifesto. Devolve o resumo.
@@ -225,7 +263,9 @@ def publicar(outdir: Path, repo: str = REPO_PADRAO, alvos: list[str] | None = No
     man = manifesto(outdir, repo, publicados)
     destino = outdir / "manifest.json"
     destino.write_text(json.dumps(man, ensure_ascii=False, indent=1), encoding="utf-8")
-    gravar_no_app(man, log=log)
+    alvo_app = gravar_no_app(man, log=log)
+    if alvo_app:
+        subir_app(alvo_app, man, log=log)
     log(f"manifest.json: {len(man['musicavideo'])} produções, "
         f"{len(man['analisevideo'])} análises")
     return {"slugs": slugs, "removidos": remover, "bytes": bytes_totais,

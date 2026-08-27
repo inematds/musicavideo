@@ -553,7 +553,7 @@ function abre(x){document.getElementById("dt").textContent=
  if((x.tags||[]).length)h+=`<div>`+x.tags.map(g=>`<span class=pill>${E(g)}</span>`).join("")+`</div>`;
  h+=`<p class=meta style="margin-top:12px">${E(x.slug)}${x.custo!==undefined?" · US$ "+E(x.custo):""}${x.bytes?" · "+MB(x.bytes):""}</p>`;
  // SUBIR é decisão, não consequência de ficar pronto: um clique marca, e quem
- // sobe de fato é o `publica-hf` (ou o cron). O botão diz em que pé está.
+ // sobe de fato é o `publica-hf`, rodado à mão. O botão diz em que pé está.
  if(x.fonte==="musicavideo"){const N={local:["subir para a nuvem","nuvem"],
    aprovado:["aprovado — cancelar","nuvem ok"],
    publicado:["publicado — tirar do ar","nuvem ok"],

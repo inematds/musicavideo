@@ -1,0 +1,32 @@
+# O painel V1 no ar sozinho, desde o boot.
+#
+# O painel é a BANCADA DE TRABALHO: é onde se ouve, se compara, se manda para a
+# lixeira e é onde se aprova o que vai para a nuvem. Depender de alguém lembrar
+# de rodar o comando é o defeito — o custo de deixá-lo de pé é um processo
+# parado esperando request.
+#
+# Instalar:
+#   cp musicavideo-painel.service ~/.config/systemd/user/
+#   loginctl enable-linger $USER          # sobe sem sessão aberta
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now musicavideo-painel
+#
+# `--lan` publica na rede local SEM SENHA: quem alcançar a porta vê o acervo
+# inteiro. Numa rede que não seja sua, tire o `--lan`.
+
+[Unit]
+Description=INEMA MUSICAVIDEO V1 - painel de trabalho (local/LAN)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/nmaldaner/projetos/musicavideo
+ExecStart=/usr/bin/python3 /home/nmaldaner/projetos/musicavideo/src/main.py painel --lan
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

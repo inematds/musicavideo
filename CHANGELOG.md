@@ -3,6 +3,37 @@
 Semver `vX.XX.YY`: patch incrementa o último; recurso incrementa o do meio e
 carrega o último; major zera o resto.
 
+## 1.3.0 — 2026-08-27
+
+**Recursos**
+
+- **Publicar é um comando só.** O `publica-hf` não para mais no meio: depois de
+  subir o acervo e escrever o `manifest.json` no repo da vitrine, ele **commita
+  e empurra**. Antes o arquivo certo ficava parado no repo local e a vitrine
+  continuava desenhando o manifesto anterior — foi assim que 7 produções
+  ficaram no HF e fora do manifesto. Manifesto igual ao versionado não vira
+  commit vazio; app sem repo git é aviso, não falha.
+- **O painel V1 sobe sozinho.** `musicavideo-painel.service` (systemd do
+  usuário, `Restart=always`, com `linger` ligado) serve o painel na LAN em
+  `:5400` a partir do boot. Ele é a bancada de trabalho: ficar fora do ar por
+  esquecer de rodar o comando era o defeito.
+
+**Retirado**
+
+- **`cron-nuvem.sh`.** A ideia era que aprovar fosse o único gesto, com um cron
+  subindo o aprovado de meia em meia hora. Ele nunca fechou o ciclo — parava
+  antes do `git push` do manifesto — e nunca chegou a ser instalado no
+  `crontab`. Em vez de somar um elo a uma varredura cega, o elo foi para dentro
+  do `publica-hf`, que roda quando você sabe que mudou algo.
+
+**Correção**
+
+- **Pedir ajuda não executa.** `publica-hf --help` não mostrava ajuda: começava
+  a publicação real de 27 produções / 4,13 GB. Cada `_cmd_*` faz parsing solto
+  (`"--x" in args`) e ignora flag desconhecida, e o `main()` só olhava `-h` na
+  posição 0 — a flag virava um `publica-hf` sem alvo. Agora `-h`/`--help` em
+  qualquer posição imprime o uso e sai.
+
 ## 1.2.0 — 2026-08-27
 
 **Correção que muda dado**

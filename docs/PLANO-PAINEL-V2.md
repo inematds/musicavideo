@@ -28,7 +28,7 @@ A V2 separa as duas coisas:
 | onde roda | `musicavideo painel`, local/LAN | Vercel, público |
 | de onde vêm os arquivos | disco (`~/projetos/output`) | Hugging Face |
 | escrita | move para `.lixo/`, **aprova subir** | **like** do público |
-| quando atualiza | a cada request | quando o `publica-hf` roda (manual ou cron) |
+| quando atualiza | a cada request | quando o `publica-hf` roda (à mão) |
 | código | `src/painel.py`, neste repo | repo próprio `inematds/musicavideo-pub` |
 
 **São dois apps, não uma migração.** O V1 é o painel de TRABALHO: é onde se
@@ -176,10 +176,13 @@ no V1.
 - **Desmarcar também é um clique**, e desmarcar não apaga o que já está no HF;
   gera uma pendência de remoção que o `publica-hf` executa na próxima passada.
 
-**O cron.** Com o sistema de nuvem ativo, um cron roda o `publica-hf`
-periodicamente e sobe o que estiver aprovado e ainda não publicado. Assim
-aprovar é o único gesto: o resto acontece sozinho. Sem o sistema ativo, o cron
-não existe e o comando continua rodando à mão — o V1 não depende dele para nada.
+**O cron — RETIRADO em 2026-08-27.** O plano previa um cron rodando o
+`publica-hf` de meia em meia hora, para que aprovar fosse o único gesto. Ele
+nunca fechou o ciclo: subia arquivo para o HF e parava antes do `git push` do
+manifesto, então a vitrine continuava desenhando a versão anterior — foi o que
+se viu em 27/08, com 7 produções no HF e fora do manifesto. Em vez de somar um
+elo ao cron, o elo foi para dentro do `publica-hf`, que agora commita e empurra.
+Publicar é um comando só, rodado quando você sabe que mudou algo.
 
 ---
 
@@ -256,5 +259,5 @@ nove gigas.
 | (d) | **Pastas de teste ficam locais** — não sobem. |
 | (e) | **Analisevideo: nada de binário na nuvem.** Só o texto da análise, dentro do app; vídeo de origem por embed do YouTube. |
 | (f) | **Like só na nuvem**, e as contagens voltam para o painel local. |
-| (g) | **Aprovar a subida é um clique no painel local**; com a nuvem ativa, um cron faz a subida do que está aprovado. |
+| (g) | **Aprovar a subida é um clique no painel local**; a subida é o `publica-hf`, rodado à mão (o cron foi retirado — ver seção 5). |
 | (h) | **Referência por `MVD-000`** em todo o painel. |
