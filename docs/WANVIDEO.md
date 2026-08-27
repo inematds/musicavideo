@@ -1,8 +1,23 @@
-# Wan (WanVideo) — Alibaba Cloud Model Studio
+# Wan (WanVideo) — pela Alibaba direto, ou pela Kie
 
-Notas de uso do **Wan**, o gerador de vídeo da Alibaba, servido pelo **Model
-Studio / DashScope**. Levantado em 2026-08-27 a partir da documentação oficial,
-a pedido do dono.
+Notas de uso do **Wan**, o gerador de vídeo da Alibaba. Levantado em 2026-08-27
+a partir da documentação oficial, a pedido do dono.
+
+**Há dois caminhos até o mesmo modelo**, e para este projeto eles não valem o
+mesmo:
+
+| | Alibaba direto (Model Studio / DashScope) | **Kie** (`api.kie.ai`) |
+|---|---|---|
+| conta e chave | nova, mais `{WorkspaceId}` e região | **já temos** — é a do Suno |
+| adaptador aqui | do zero | `providers/kie.py` já existe |
+| protocolo | `media[]` + header `X-DashScope-Async` | `{model, input}` num POST só |
+| lipsync | `driving_audio` no `wan2.7-i2v` | `2-2-a14b-speech-to-video-turbo` ou `reference_voice` do `2-7-r2v` |
+| referência de personagem | primeiro quadro | **`2-7-r2v`: várias refs citadas por índice** |
+| preço | tabela oficial | declara 30–50% abaixo |
+
+A leitura abaixo começa pela Alibaba (que é o que o dono mandou) e termina na
+**seção da Kie**, que é o caminho mais curto daqui — pule para lá se o que
+interessa é o que dá para fazer esta semana.
 
 > **Status: NADA AQUI FOI RODADO.** Isto é leitura de doc, não medição. As notas
 > da Agnes (`~/projetos/agnes-nei/NOTAS-API.md`) valem mais que este arquivo
@@ -180,6 +195,104 @@ Está aqui para ninguém tratar como sabido:
 - **Quais IDs de modelo estão vivos em Singapura.** Vistos na doc:
   `wan2.7-t2v`, `wan2.7-t2v-2026-06-12`, `wan2.7-i2v-2026-04-25`,
   `wan2.7-image-pro`. Confirmar no console antes de codar.
+
+## O MESMO Wan pela Kie — e é aqui que ele fica prático
+
+Levantado em 2026-08-27, a partir da observação do dono: *"no kie tem a wan, ela
+tem lipsync"*. Tem, e muda bastante o custo de entrada.
+
+**Por que muda.** A Kie é o provedor que este projeto **já usa** para a música
+(`providers/kie.py`, Suno). A `KIE_API_KEY` já está no `.env` autorizado, o
+adaptador já existe, e o padrão de tarefa assíncrona da Kie já está implementado
+aqui. Usar o Wan pela Kie dispensa conta nova, região, `{WorkspaceId}` e o
+header `X-DashScope-Async` — o payload é plano e o endpoint é um só:
+
+```
+POST https://api.kie.ai/api/v1/jobs/createTask     # { model, callBackUrl, input }
+```
+
+A Kie declara preços **30–50% abaixo das APIs oficiais** (até 80% em alguns
+modelos). *Não confirmei os números do Wan: a página de preços é renderizada no
+navegador e não veio no fetch.*
+
+### `wan/2-2-a14b-speech-to-video-turbo` — o lipsync
+
+Uma imagem parada + um áudio → vídeo com a boca sincronizada.
+
+```json
+{ "model": "wan/2-2-a14b-speech-to-video-turbo",
+  "input": { "prompt": "The lady is talking",
+             "image_url": "https://.../rosto.png",
+             "audio_url": "https://.../fala.mp3",
+             "num_frames": 80, "frames_per_second": 16,
+             "resolution": "480p", "negative_prompt": "",
+             "num_inference_steps": 27, "guidance_scale": 3.5, "shift": 5 } }
+```
+
+É **Wan 2.2**, não 2.7, e o exemplo da doc está em **480p** com 16 fps — isso
+importa: 80 frames a 16 fps são **5 segundos**. Para um refrão inteiro seriam
+várias chamadas, ou uma resolução maior se o modelo aceitar. Expõe knobs de
+difusão (`num_inference_steps`, `guidance_scale`, `shift`) que os outros
+provedores daqui escondem.
+
+### `wan/2-7-r2v` — reference-to-video, que é a FICHA DO PERSONAGEM
+
+Este é o achado. Ele aceita **várias referências de personagem ao mesmo tempo**,
+citadas por índice dentro do prompt, mais um **primeiro quadro** e uma
+**referência de voz**:
+
+```json
+{ "model": "wan/2-7-r2v",
+  "input": {
+    "prompt": "Image 1 is eating, while video 1 and image 2 are singing beside it.",
+    "negative_prompt": "low resolution, errors, worst quality, ...",
+    "reference_image": ["https://.../ref-1.png", "https://.../ref-2.png"],
+    "reference_video": ["https://.../ref-video-1.mp4"],
+    "first_frame":     "https://.../first-frame.png",
+    "reference_voice": "https://.../voz.mp3",
+    "resolution": "1080p", "aspect_ratio": "16:9", "duration": 5,
+    "prompt_extend": true, "watermark": false, "seed": 0 } }
+```
+
+Três coisas para reter:
+
+1. **O prompt cita as referências por índice** ("image 1", "video 1", "image 2").
+   Isso resolve o que ficou em aberto na ficha — *elenco*, não só um cantor. E
+   dá ao planejador uma gramática para dizer quem faz o quê.
+2. **`aspect_ratio` é declarado.** Pela API direta da Alibaba a proporção
+   **deriva** do material de entrada e não é garantida (ver acima); aqui existe
+   o campo. *Não medi se ele é obedecido.*
+3. **`reference_voice`** é a ponte com o lipsync sem sair do mesmo modelo.
+
+### As três rotas que a Kie expõe do Wan, e o que cada uma serve
+
+| modelo na Kie | entrada | serve para |
+|---|---|---|
+| `wan/2-7-image-to-video` | `first_frame_url`, `last_frame_url`, `first_clip_url` | **transição como conexão** — o plano nasce ligando duas pontas |
+| `wan/2-7-r2v` | `reference_image[]`, `reference_video[]`, `reference_voice`, `first_frame` | **ficha do personagem** e elenco |
+| `wan/2-2-a14b-speech-to-video-turbo` | `image_url` + `audio_url` | **lipsync** (boca cantando) |
+
+Há ainda `2-7-text-to-video`, `2-7-videoedit`, `2-7-image`/`2-7-image-pro`
+(imagem), a linha `2-5`/`2-6` e `3-0-video`/`3-0-video-prime`.
+
+**⚠️ Uma diferença que engana:** o `wan/2-7-image-to-video` da Kie **não expõe o
+`driving_audio`** que a API direta da Alibaba tem — a doc dela lista só três
+modos (primeiro quadro, primeiro+último, continuação). Ou seja, **o lipsync do
+2.7 não está nessa rota**: pela Kie ele vem do `2-2-a14b-speech-to-video-turbo`
+ou do `reference_voice` do `2-7-r2v`. Escolher a rota errada é descobrir isso
+depois de codar.
+
+### E não é só o Wan que faz lipsync na Kie
+
+Se o objetivo for só a boca sincronizada, há modelos dedicados no mesmo
+provedor, com a mesma chave: `infinitalk/from-audio`, `omnihuman-1-5`,
+`kling/ai-avatar-standard` e `ai-avatar-pro`, `volcengine/video-to-video-lip-sync`
+(este aplica em cima de um vídeo **já pronto** — encaixaria nos clipes que já
+existem, sem regerar) e a linha `gemini-omni-character`. Nenhum foi medido.
+
+**O empecilho registrado em 2026-08-25 continua de pé:** lipsync quer **voz
+isolada**, e o que existe aqui é a mixagem do Suno. Sem `demucs`, o caminho
+honesto é testar em UM plano de refrão antes de decidir qualquer coisa.
 
 ## Se um dia virar adaptador aqui
 
