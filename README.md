@@ -125,7 +125,15 @@ bash $S lista 10
 bash $S busca "rock"
 bash $S custo recomeco
 bash $S painel                  # abre o acervo no navegador (:5400)
+bash $S nuvem MVD-014           # aprova essa produção para a vitrine pública
+bash $S publica-hf              # sobe o aprovado para o Hugging Face
 ```
+
+**Cada produção tem um número: `MVD-001`, `MVD-002`, …** Atribuído uma vez, na
+ordem de criação, gravado no `estado.json` e nunca renumerado — nem quando a
+pasta é apagada. É o que aparece no card, o que a busca aceita e o que os
+comandos entendem no lugar do slug (`arte MVD-014 --versao 2`). O slug continua
+sendo o nome da pasta; o MVD é o nome que se diz em voz alta.
 
 **O painel** (`painel [--porta N] [--lan]`) sobe um servidor local em :5400 — só leitura,
 sem chave nenhuma — com duas abas: os pacotes do musicavideo e as análises do
@@ -165,6 +173,41 @@ comando avisa. Para refazer numa produção que já existe:
 bash $S arte <slug> --versao 2 --nova     # gera imagem nova para a versão 2
 bash $S arte <slug> --versao 2            # só recompõe a arte sobre a crua (de graça)
 ```
+
+### A nuvem (V2): Hugging Face + `musicavideo-pub`
+
+O painel local (`INEMA MUSICAVIDEO V1.x.x`) só existe onde o acervo existe. A
+vitrine é a outra metade: os finais vão para um dataset público do Hugging Face
+e o painel público roda na Vercel, em repo próprio
+([musicavideo-pub](https://github.com/inematds/musicavideo-pub),
+`INEMA MUSICAVIDEO V2.x.x`). São dois apps — ligar um não desliga o outro.
+
+```bash
+bash $S nuvem MVD-014            # aprova a subida (o mesmo que o botão no card)
+bash $S nuvem MVD-014 --cancela  # tira do ar (marca pendência de remoção)
+bash $S nuvem --todos            # aprova tudo que tem clipe e capa
+bash $S publica-hf --dry         # o que subiria, sem subir
+bash $S publica-hf               # sobe o aprovado e reescreve o manifest.json
+bash $S publica-hf --manifesto   # só o manifesto, sem reenviar arquivo nenhum
+```
+
+**Aprovar é o único gesto.** Subir não é consequência de ficar pronto: produção
+pronta é material de trabalho, vitrine é escolha. O clique marca no
+`estado.json`; quem sobe é o `publica-hf`, à mão ou pelo `cron-nuvem.sh`
+(instruções de instalação dentro do próprio arquivo).
+
+**Sobe só o final.** O `raw/` inteiro fica na máquina — 1209 dos 1365 mp4 do
+acervo são shots intermediários. E o `clipe.mp4` não sobe quando existe
+versionado: 28 dos 29 são cópia byte a byte de um `clipe-N.mp4`, e o manifesto
+guarda qual é a aprovada. Acervo de 15 GB, ~4,4 GB publicáveis.
+
+**A aba de análises sobe como TEXTO.** Nada de `fonte.mp4`: é vídeo de terceiros
+baixado do YouTube, e re-hospedar seria redistribuição. Vai a análise escrita, e
+o vídeo original aparece pelo embed oficial.
+
+**Um coletor só.** O `manifest.json` sai do mesmo `painel.coletar()` que a tela
+local usa, com as URLs reescritas para o HF — dois coletores divergiriam e
+ninguém saberia qual painel está certo.
 
 ---
 

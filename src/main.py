@@ -313,6 +313,54 @@ def _cmd_curto(args) -> int:
     return 0
 
 
+def _cmd_nuvem(args) -> int:
+    """Aprova (ou cancela) a subida de uma produção, do terminal.
+
+    O gesto normal é o botão no painel; isto existe para roteiro e para o
+    primeiro carregamento, onde marcar 30 produções a mão não faz sentido.
+    """
+    from src.mvd import resolver
+    from src.nuvem import aprovar, situacao
+    if not args:
+        print("uso: nuvem <slug|MVD-014|--todos> [--cancela]", file=sys.stderr)
+        return 1
+    cancela = "--cancela" in args
+    alvos = [a for a in args if not a.startswith("--")]
+    base = out_dir()
+    if "--todos" in args:
+        # Só produção de verdade: com clipe montado e capa pronta. Pasta de
+        # teste fica local — é decisão do plano do V2, não filtro de ocasião.
+        alvos = [w.name for w in sorted(p for p in base.iterdir() if p.is_dir())
+                 if (w / "estado.json").exists() and list(w.glob("clipe*.mp4"))
+                 and (w / "capa.png").exists()]
+    for a in alvos:
+        slug = resolver(base, a)
+        if not slug:
+            print(f"não achei '{a}'", file=sys.stderr)
+            continue
+        print(f"{slug}: {aprovar(base / slug, not cancela)}")
+    return 0
+
+
+def _cmd_publica_hf(args) -> int:
+    """Sobe o acervo aprovado para o Hugging Face e reescreve o manifesto."""
+    from src.publicahf import REPO_PADRAO, publicar
+    dry = "--dry" in args
+    alvos = [a for a in args if not a.startswith("--")]
+    repo = REPO_PADRAO
+    if "--repo" in args:
+        repo = args[args.index("--repo") + 1]
+        alvos = [a for a in alvos if a != repo]
+    try:
+        publicar(out_dir(), repo, alvos or None, dry=dry,
+                 so_manifesto="--manifesto" in args)
+    except (RuntimeError, OSError) as e:
+        print(f"erro: {e}", file=sys.stderr)
+        return 1
+    return 0
+
+
+COMANDOS.update({"nuvem": _cmd_nuvem, "publica-hf": _cmd_publica_hf})
 COMANDOS.update({"lista": _cmd_lista, "busca": _cmd_busca, "reindex": _cmd_reindex,
                  "plano": _cmd_plano, "ver": _cmd_ver, "ok": _cmd_ok, "ajusta": _cmd_ajusta,
                  "faz": _cmd_faz, "custo": _cmd_custo, "tudo": _cmd_tudo,
