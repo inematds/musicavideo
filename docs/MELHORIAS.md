@@ -169,14 +169,34 @@ passa a ser uma entidade citável, como o `MVD#N` é para a produção.
    junto das fotos)? As fotos empurram para o acervo; a citação em plano
    empurra para o repo. Provável: ficha no repo, fotos no acervo, com a ficha
    apontando para elas.
-2. **O que é "definição de imagem".** Um parágrafo de prompt reaproveitável?
-   Uma lista de traços (cabelo, pele, corpo, roupa, idade)? **Fotos de
-   referência** que vão como *image reference* para o provedor? Os três resolvem
-   coisas diferentes: texto é portátil entre provedores, foto dá consistência
-   real mas só nos motores que aceitam referência de personagem (a Magnific
-   aceita; a Agnes, que é o motor de graça e o default, precisa ser conferida —
-   **este é o ponto que decide se a ficha entrega consistência de verdade ou só
-   descrição parecida**).
+2. **O que é "definição de imagem" — RESPONDIDO em 2026-08-27, consultando o
+   provedor.** A dúvida era se a Agnes (motor de graça e default) aceita
+   referência de personagem, porque disso dependia a ficha entregar consistência
+   de verdade ou só descrição parecida. **Aceita**, e o projeto irmão
+   `~/projetos/videos-agnes` já usa isso em produção há semanas. Os fatos
+   medidos estão em `~/projetos/agnes-nei/NOTAS-API.md` §5, e valem mais que
+   qualquer decisão de gosto:
+
+   | fato | consequência para a ficha |
+   |---|---|
+   | campo é `extra_body.image` (array); os outros nomes são descartados em silêncio | o adaptador daqui **não passa nada** — `_gerar_imagem` monta só `model`/`prompt`/`size` |
+   | aceita 1–5 refs, mas o teto **ÚTIL é 2** | a ficha guarda muitas fotos e **manda no máximo 2** |
+   | **5 refs QUEBRAM**: confete de pixels e o prompt é ignorado — 16 imagens saíram assim, **todas com HTTP 200** | o status não sabe se a imagem presta; um teto no código, não na disciplina |
+   | 1 ref **não** preserva identidade; 2+ preservam | uma foto só é pior que parece — é o caso que engana |
+   | máx. 10 MB por imagem; `ratio` é ignorado (cai em 1:1) — usar `size` em pixels | a ficha guarda a foto já no formato que o provedor aceita |
+   | img2img é **2× mais rápido** que text2img (23–27s vs 56s) | usar a ficha é mais barato em tempo, não mais caro |
+   | `/v1/images/edits` existe (não documentado); `/v1/images/variations` → 501 | não inventar endpoint sem medir |
+
+   **E o método já está resolvido lá:** *model sheet se DERIVA, não se gera em
+   paralelo*. Gerar N vistas com text2img dá N personagens diferentes (text2img
+   não trava identidade). O certo é **uma âncora-mãe em text2img e as outras
+   vistas derivadas dela por img2img**. Preço registrado: a preservação de
+   composição puxa as vistas para a pose da mãe, então o model sheet sai com
+   pouca variedade de ângulo.
+
+   Fica então: a ficha tem **texto** (portátil entre provedores) **e fotos**
+   (consistência real onde o motor aceita), e o adaptador de cada provedor
+   decide o que usar — como já se faz com resolução e negativo.
 3. **Como o plano cita o personagem.** O contrato é FECHADO (`esquemas.py`:
    campo desconhecido = erro), então um `personagem: "PSG#3"` no topo do plano
    exige tocar `validar_plano` junto. E é preciso decidir se o personagem
@@ -187,6 +207,13 @@ passa a ser uma entidade citável, como o `MVD#N` é para a produção.
 4. **Personagem por produção ou por shot.** Um clipe pode ter mais de uma
    pessoa em cena. Começar por UM cantor (o sujeito da capa e do refrão) é o
    recorte honesto; elenco vem depois, se vier.
+
+**Onde o conhecimento da API mora, e por quê isto importa:** nada disso está no
+código deste repo — está em `~/projetos/agnes-nei/NOTAS-API.md` (medições) e em
+`~/projetos/videos-agnes/pipeline.py` (uso em produção). O `providers/agnes.py`
+daqui já aponta para esses dois no cabeçalho. **Antes de escrever o formato da
+ficha, consultar o provedor**: a forma da ficha é consequência do que a API
+aceita, não o contrário.
 
 **Cuidado registrado:** a ficha só vale se o planejador **for obrigado** a usá-la.
 Um campo opcional que o prompt "pode considerar" produz o que já temos — descrição
