@@ -64,12 +64,24 @@ aparecem no painel e não saem da máquina.
 
 | o quê | quantos | tamanho |
 |---|---|---|
-| `clipe*.mp4` (montados) | 115 | ~8,5 GB |
+| `clipe-N.mp4` (o clipe final de cada versão) | 55 | ~3,9 GB |
+| `clipe.mp4` **só quando não há versionado** | 1 | ~75 MB |
 | `faixa*.mp3` | ~60 | ~248 MB |
 | capas (`capa*.png`, `publicacao/capa-yt.jpg`) | 176 | ~186 MB |
 | `plano.json`, `PACOTE.md`, `PLANO.md` | ~30 × 3 | KBs |
 
-**Total: ~9 GB.**
+**Total: ~4,4 GB.**
+
+### Só os clipes finais — e o `clipe.mp4` é cópia
+
+`clipe-1.mp4` e `clipe-2.mp4` são os finais, um por versão. O `clipe.mp4` é a
+**cópia da versão aprovada**, criada para quem quer “o clipe” sem escolher — e
+medido em 2026-08-27, **28 dos 29 `clipe.mp4` do acervo são byte a byte
+idênticos** a um dos versionados. Subir os dois é pagar 2,2 GB por nada.
+
+Então sobe só o versionado, e o manifesto marca qual é o aprovado (a informação
+que o `clipe.mp4` carregava). A única exceção é a produção antiga que só tem
+`clipe.mp4`, sem versionado: essa sobe como está.
 
 **Não sobe:** `raw/` inteiro, `estado.json`, `nucleo.json`, `.lixo/` — e **as
 pastas de teste** (`teste-conserto`, `status`, recortes de experimento) **ficam
@@ -172,6 +184,13 @@ não existe e o comando continua rodando à mão — o V1 não depende dele para
   O nome “painel” continua sendo o do local.
 - **Stack:** Next.js (App Router) na Vercel. Os arquivos pesados vêm do HF; o app
   serve HTML, o manifesto e o texto das análises.
+- **O que se importa na Vercel:** o **repositório `inematds/musicavideo-pub`**,
+  com o app na **raiz** — ou seja, *Root Directory* = `./`, o default. Por isso o
+  app tem repo próprio e não uma subpasta deste: a Vercel importa um repo, e um
+  app no fundo de `~/projetos/musicavideo/algum/lugar` obrigaria a apontar a
+  raiz na mão e arrastaria os 15 GB do acervo para dentro do build. O `output/`
+  nunca entra no repo do app — ele lê o HF por HTTPS. Feita a importação uma
+  vez, publicar é `git push` e nada mais.
 - **Topo da página:** `INEMA MUSICAVIDEO V2.x.x`, versão visível, semver do
   ecossistema. O V1 recebe o mesmo tratamento: `INEMA MUSICAVIDEO V1.x.x` no
   cabeçalho, em vez do “painel INEMA — o que já foi feito” de hoje.
@@ -209,7 +228,7 @@ site estático puro.
 | 4 | Criar o dataset `inematds/musicavideo-acervo` (público, vazio) | HF | repo de pé |
 | 5 | `publica-hf --dry` | musicavideo | confere a seleção antes de gastar banda |
 | 6 | Subir **uma** produção e abrir o mp4 no navegador | HF | **portão**: prova o range request num arquivo real |
-| 7 | Subir o acervo aprovado + `manifest.json` | HF | dataset completo |
+| 7 | Subir o acervo aprovado + `manifest.json` | HF | dataset completo (~4,4 GB) |
 | 8 | Criar `musicavideo-pub` e portar a interface | app novo | painel rodando local contra o manifest |
 | 9 | Like (KV) e o retorno das contagens para o V1 | app novo + musicavideo | o sinal do público fecha o ciclo |
 | 10 | `git push` | app novo | a Vercel publica |
