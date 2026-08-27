@@ -3,6 +3,23 @@
 Semver `vX.XX.YY`: patch incrementa o último; recurso incrementa o do meio e
 carrega o último; major zera o resto.
 
+## 1.4.0 — 2026-08-27
+
+**Correção que muda comportamento**
+
+- **O `publica-hf` sobe o que falta, não o acervo inteiro.** `nuvem.pendentes`
+  devolve tudo que está *aprovado* — publicado ou não — e a docstring dizia "que
+  ainda não subiram". Não era verdade: cada passada relia 27 produções e 4,13 GB
+  do disco para reenviar o que já estava idêntico no HF, gastando ~20 minutos
+  para não mudar nada. É também o motivo real de o cron de meia em meia hora ser
+  caro. Agora `publicahf.a_subir` tira quem já subiu e não mudou, comparando o
+  mtime dos arquivos **finais** com o `publicado_em` — o `estado.json` fica de
+  fora da conta de propósito, porque `marcar_publicado` reescreve ele *depois*
+  de carimbar a hora e ele faria toda produção parecer mudada para sempre.
+  Medido no acervo real: **4,13 GB → 0,31 GB**. Carimbo ilegível sobe em vez de
+  adivinhar, e `publica-hf <slug>` continua ignorando o filtro — é como se força
+  o reenvio.
+
 ## 1.3.0 — 2026-08-27
 
 **Recursos**

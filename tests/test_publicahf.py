@@ -147,3 +147,51 @@ def test_app_sem_git_nao_explode(tmp_path):
     ditos = []
     assert publicahf.subir_app(alvo, _man(), log=ditos.append) is False
     assert any("não é repo git" in d for d in ditos)
+
+
+# --- o que precisa subir não é tudo o que está aprovado ----------------------
+
+def _aprovada(base, slug, publicado_em=None):
+    w = _producao(base, slug, ["capa.png", "clipe-1.mp4"])
+    nuvem.aprovar(w)
+    if publicado_em:
+        nuvem.marcar_publicado(w, publicado_em)
+    return w
+
+
+def test_aprovado_que_nunca_subiu_entra(tmp_path):
+    _aprovada(tmp_path, "novo")
+    assert publicahf.a_subir(tmp_path) == ["novo"]
+
+
+def test_publicado_e_intocado_fica_de_fora(tmp_path):
+    """Era daqui que vinham os 4,13 GB relidos a cada passada."""
+    _aprovada(tmp_path, "velho", publicado_em="2099-01-01T00:00:00-03:00")
+    assert publicahf.a_subir(tmp_path) == []
+
+
+def test_arquivo_final_mais_novo_faz_voltar_a_fila(tmp_path):
+    """Refazer o clipe de uma produção já publicada tem de reenviar."""
+    import datetime as dt
+    import os
+    quando = "2099-01-01T00:00:00-03:00"
+    w = _aprovada(tmp_path, "refeito", publicado_em=quando)
+    assert publicahf.a_subir(tmp_path) == []          # de fora enquanto intocado
+    depois = dt.datetime.fromisoformat(quando).timestamp() + 60
+    os.utime(w / "clipe-1.mp4", (depois, depois))
+    assert publicahf.a_subir(tmp_path) == ["refeito"]
+
+
+def test_estado_json_nao_conta_como_mudanca(tmp_path):
+    """`marcar_publicado` reescreve o `estado.json` DEPOIS de carimbar a hora.
+    Se ele entrasse na conta, toda produção pareceria mudada para sempre."""
+    _aprovada(tmp_path, "p", publicado_em="2099-01-01T00:00:00-03:00")
+    from src.estado import carregar_estado, salvar_estado
+    w = tmp_path / "p"
+    salvar_estado(w, carregar_estado(w))          # toca só o estado.json
+    assert publicahf.a_subir(tmp_path) == []
+
+
+def test_carimbo_ilegivel_sobe_em_vez_de_adivinhar(tmp_path):
+    _aprovada(tmp_path, "p", publicado_em="sei la")
+    assert publicahf.a_subir(tmp_path) == ["p"]

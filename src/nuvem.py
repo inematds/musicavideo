@@ -74,7 +74,12 @@ def marcar_removido(w: Path) -> None:
 
 
 def pendentes(outdir: Path) -> list[str]:
-    """Slugs aprovados que ainda não subiram (ou que mudaram e precisam subir)."""
+    """Slugs APROVADOS — publicados ou não. Isto é uma marcação, não uma fila.
+
+    Quem decide o que de fato precisa subir é o `publicahf.a_subir`, que tira
+    daqui quem já subiu e não mudou. Esta função dizia "que ainda não subiram",
+    e não era verdade: o `publica-hf` reenviava o acervo inteiro toda vez.
+    """
     return [w.name for w in sorted(p for p in outdir.iterdir() if p.is_dir())
             if ler(w).get("aprovado")]
 

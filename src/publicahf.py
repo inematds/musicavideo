@@ -19,6 +19,7 @@ import json
 import subprocess
 import os
 import re
+from datetime import datetime
 from pathlib import Path
 
 from src import painel
@@ -72,6 +73,41 @@ def arquivos_de(w: Path) -> list[Path]:
         # Produção antiga, sem clipe por versão: aí o `clipe.mp4` É o final.
         achados.append(w / "clipe.mp4")
     return [f for f in achados if f.is_file()]
+
+
+def _mudou_depois(w: Path, publicado_em: str) -> bool:
+    """Algum arquivo FINAL é mais novo que a última publicação?
+
+    Só os que sobem entram na conta. Incluir o `estado.json` seria o veneno:
+    `marcar_publicado` reescreve ele DEPOIS de carimbar a hora, então ele é
+    sempre mais novo que o próprio carimbo — e toda produção pareceria mudada
+    para sempre, que é exatamente o defeito que este filtro existe para tirar.
+    """
+    try:
+        quando = datetime.fromisoformat(publicado_em).timestamp()
+    except (TypeError, ValueError):
+        return True                      # carimbo ilegível: sobe, não adivinha
+    return any(f.stat().st_mtime > quando for f in arquivos_de(w))
+
+
+def a_subir(outdir: Path) -> list[str]:
+    """Os aprovados que REALMENTE precisam subir.
+
+    `nuvem.pendentes` devolve todo mundo que está aprovado — publicado ou não.
+    Rodar sobre isso relia 4,13 GB do disco a cada passada para reenviar o que
+    já estava lá idêntico: 20 minutos de nada. Aqui fica de fora quem já subiu
+    e não mudou desde então.
+
+    Para forçar o reenvio de uma produção, nomeie ela: `publica-hf <slug>`
+    ignora este filtro por completo.
+    """
+    fora = []
+    for slug in pendentes(outdir):
+        w = outdir / slug
+        quando = ler_nuvem(w).get("publicado_em")
+        if not quando or _mudou_depois(w, quando):
+            fora.append(slug)
+    return fora
 
 
 def _url_hf(repo: str, slug: str, rel: str) -> str:
@@ -225,7 +261,7 @@ def publicar(outdir: Path, repo: str = REPO_PADRAO, alvos: list[str] | None = No
     if so_manifesto:
         alvos, dry = [], False
     slugs = [] if so_manifesto else [s for s in (
-        [resolver(outdir, a) for a in alvos] if alvos else pendentes(outdir)) if s]
+        [resolver(outdir, a) for a in alvos] if alvos else a_subir(outdir)) if s]
     remover = a_remover(outdir) if not alvos else []
     plano = {s: arquivos_de(outdir / s) for s in slugs}
     bytes_totais = sum(f.stat().st_size for fs in plano.values() for f in fs)

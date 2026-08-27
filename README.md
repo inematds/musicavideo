@@ -212,6 +212,10 @@ pronta é material de trabalho, vitrine é escolha. O clique marca no
 serviço: sobe para o HF, escreve o `manifest.json` no repo da vitrine e
 **commita e empurra**. Publicar é um comando só.
 
+**E ele sobe o que falta, não o acervo.** Fica de fora quem já subiu e não mudou
+desde então (mtime dos arquivos finais contra o `publicado_em`). Para forçar o
+reenvio de uma produção, nomeie ela: `publica-hf <slug>` ignora o filtro.
+
 **Sobe só o final.** O `raw/` inteiro fica na máquina — 1209 dos 1365 mp4 do
 acervo são shots intermediários. E o `clipe.mp4` não sobe quando existe
 versionado: 28 dos 29 são cópia byte a byte de um `clipe-N.mp4`, e o manifesto
