@@ -14,6 +14,7 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from src import subida
 from src.nuvem import situacao as situacao_nuvem, aprovar as aprovar_nuvem
 from src.versao import NOME, VERSAO
 
@@ -278,6 +279,13 @@ def para_lixeira(base: Path, slug: str) -> Path:
 def coletar(raiz: Path) -> dict:
     mv = []
     base = raiz / "musicavideo"
+    # A fila se esvazia sozinha: nada subindo + alguém aprovado = começa. É o
+    # que impede `aprovado` de virar beco agora que não há cron.
+    try:
+        subida.proxima(base)   # `base` JÁ é a pasta do acervo
+    except OSError:
+        pass
+    subindo_agora = subida.em_andamento()
     for l in _linhas(base / "index.jsonl"):
         w = base / l.get("slug", "")
         if not w.is_dir():
@@ -319,7 +327,8 @@ def coletar(raiz: Path) -> dict:
             "bytes": _tamanho(w),
             "doc": _documento(w),
             "prompts": _prompts(w),
-            "nuvem": situacao_nuvem(w),
+            "nuvem": ("subindo" if subindo_agora == l.get("slug")
+                      else situacao_nuvem(w)),
             "likes": _likes(base).get(mvd_atual, 0),
             "docs": [d for d in (_url(base, f"{l['slug']}/PACOTE.md"),
                                  _url(base, f"{l['slug']}/PLANO.md")) if d],
@@ -385,6 +394,8 @@ h1 span{color:var(--amb)}
    sem ler: âmbar cheio já está lá fora, contorno âmbar está a caminho. */
 .selos .n.nv.ok{background:var(--amb);color:#1a1206;font-weight:600}
 .selos .n.nv.aguarda{background:#000a;color:var(--amb);box-shadow:inset 0 0 0 1px var(--amb)}
+.selos .n.nv.subindo{background:var(--amb);color:#1a1206;font-weight:600;animation:pulso 1.4s ease-in-out infinite}
+@keyframes pulso{50%{opacity:.55}}
 .selos .n.nv.sai{background:#000a;color:#e06c6c;box-shadow:inset 0 0 0 1px #7a3030}
 /* `local` e secundario, mas tem de ser LEGIVEL: sobre capa clara o cinza
    apagado sumia, e "nao foi para a nuvem" e metade da resposta que o selo da. */
@@ -520,7 +531,8 @@ function cardMV(m){const x=m.x,f=m.f;
  // varrendo a grade com o olho, e uma pill lá embaixo obriga a ler. Os quatro
  // estados aparecem — inclusive o `local`, apagado, porque "não foi" também é
  // resposta e sem ele a ausência de selo se confunde com card sem informação.
- const NV={publicado:["☁ na nuvem","ok"],aprovado:["☁ aprovado","aguarda"],
+ const NV={publicado:["☁ na nuvem","ok"],subindo:["☁ subindo…","subindo"],
+           aprovado:["☁ na fila","aguarda"],
            remover:["☁ sai","sai"],local:["☁ local","local"]};
  const nvi=NV[x.nuvem||"local"]||NV.local;
  const nuv=`<span class="n nv ${nvi[1]}" title="situação na vitrine">${E(nvi[0])}</span>`;
@@ -535,6 +547,15 @@ function cardMV(m){const x=m.x,f=m.f;
  return `<div class=selos>${sel}<span class=dir>${nuv}${vd}</span></div>${t}${som}<div class=b><h3>${dv}${E(x.titulo)}</h3>${id}${lk}
  <div class=meta>${x.origem?"de "+E(x.origem)+" · ":""}${E(x.genero)}${x.bpm?" · "+E(x.bpm)+" bpm":""}${x.tom?" · "+E(x.tom):""}</div>
  <div>${st}</div></div>`}
+// Enquanto houver algo subindo, a grade se atualiza sozinha. Sem isto o selo
+// `subindo…` ficaria pulsando para sempre numa página que já não é verdade —
+// e o dono teria de recarregar para descobrir que terminou.
+let relogio=null;
+function vigia(){
+ const subindo=(DADOS.musicavideo||[]).some(x=>x.nuvem==="subindo");
+ if(subindo&&!relogio){relogio=setInterval(()=>{
+   fetch("__dados.json").then(r=>r.json()).then(d=>{DADOS=d;pinta()}).catch(()=>{})},10000)}
+ if(!subindo&&relogio){clearInterval(relogio);relogio=null}}
 function MB(b){return b>=1073741824?(b/1073741824).toFixed(1)+" GB":Math.round(b/1048576)+" MB"}
 // 24 das 30 análises são do YouTube: a miniatura oficial (img.youtube.com) dá
 // a CARA do vídeo analisado no card, sem baixar nada. Quem não é YouTube cai
@@ -566,7 +587,8 @@ function pinta(){const bruto=alvo();
   // tocar não é abrir: quem clica no player (ou no link da fonte) quer ouvir/ver
   // ali mesmo. Sem isto, arrastar a barra do áudio abre o modal por cima.
   d.querySelectorAll(".nocard").forEach(el=>el.addEventListener("click",ev=>ev.stopPropagation()));
-  grade.appendChild(d)})}
+  grade.appendChild(d)});
+ vigia()}
 function abre(x,foco){document.getElementById("dt").textContent=
   (x.mvd?x.mvd+" · ":"")+(x.titulo||x.slug);
  let h="";
@@ -614,7 +636,8 @@ function abre(x,foco){document.getElementById("dt").textContent=
  // SUBIR é decisão, não consequência de ficar pronto: um clique marca, e quem
  // sobe de fato é o `publica-hf`, rodado à mão. O botão diz em que pé está.
  if(x.fonte==="musicavideo"){const N={local:["subir para a nuvem","nuvem"],
-   aprovado:["aprovado — cancelar","nuvem ok"],
+   subindo:["subindo agora…","nuvem ok"],
+   aprovado:["na fila — cancelar","nuvem ok"],
    publicado:["publicado — tirar do ar","nuvem ok"],
    remover:["marcado para sair","nuvem"]}[x.nuvem||"local"];
   h+=`<p><button id=nuvem class="pill nuvem ${E((x.nuvem||"local")!=="local"?"on":"")}"
@@ -714,7 +737,14 @@ class Handler(SimpleHTTPRequestHandler):
                 w = Path(self.directory) / "musicavideo" / (p.get("slug") or "")
                 if w.parent != Path(self.directory) / "musicavideo" or not w.is_dir():
                     raise ValueError(f"caminho fora do acervo: {p.get('slug')}")
-                estado = aprovar_nuvem(w, bool(p.get("aprovar", True)))
+                ligar = bool(p.get("aprovar", True))
+                estado = aprovar_nuvem(w, ligar)
+                # Aprovar deixa de ser só marcar: o botão diz "subir para a
+                # nuvem" e agora sobe. Sem isto o card ficava em `aprovado` para
+                # sempre — o cron que fechava esse ciclo foi retirado na v1.3.0.
+                if ligar and estado == "aprovado":
+                    subida.iniciar(w.name, outdir=w.parent)
+                    estado = "subindo"
             except (ValueError, OSError, KeyError) as e:
                 corpo = json.dumps({"ok": False, "erro": str(e)})
                 return self._envia(corpo.encode("utf-8"), "application/json; charset=utf-8")

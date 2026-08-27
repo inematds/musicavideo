@@ -3,6 +3,34 @@
 Semver `vX.XX.YY`: patch incrementa o último; recurso incrementa o do meio e
 carrega o último; major zera o resto.
 
+## 1.7.0 — 2026-08-27
+
+**Recursos**
+
+- **"Subir para a nuvem" agora SOBE.** O botão prometia uma ação e fazia outra:
+  marcava a produção e parava ali. Quem subia era o `publica-hf`, à mão — e com
+  o cron retirado na v1.3.0 nada rodava sozinho, então o card ficava em
+  `aprovado` para sempre. Agora o clique dispara a publicação **daquela
+  produção** em segundo plano, e o card mostra `☁ subindo…` pulsando até
+  terminar. A grade se atualiza sozinha enquanto houver algo subindo.
+- **A fila se esvazia sozinha.** Nada subindo + alguém aprovado = começa.
+  Uma subida por vez, com trava em arquivo — dois uploads de gigabytes
+  concorrendo só multiplicam banda e confusão. Aprovar é consentimento
+  explícito para subir; drenar a fila não inventa decisão nenhuma.
+
+**Correções encontradas testando isto**
+
+- **Zumbi contava como "subindo".** O painel é o pai do processo de upload e
+  nunca o colhia: terminado, ele virava zumbi, seguia em `/proc` e o
+  `os.kill(pid, 0)` respondia que estava vivo. O selo `subindo…` ficaria
+  pulsando para sempre numa subida concluída — foi o que aconteceu com o
+  MVD#124, já publicado no HF. Agora o estado é lido de `/proc` e o filho é
+  colhido, o que resolve as duas coisas de uma vez.
+- **A fila apontava para pasta inexistente.** `subida.proxima(base /
+  "musicavideo")` com `base` já sendo o acervo — e o `except OSError` que
+  protege o painel de acervo ausente engolia o erro em silêncio, então a fila
+  simplesmente nunca começava. Tem teste agora.
+
 ## 1.6.0 — 2026-08-27
 
 **Recursos**

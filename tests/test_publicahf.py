@@ -212,3 +212,94 @@ def test_numero_vem_do_estado_e_nao_do_indice(tmp_path):
         J.dumps({"slug": "p", "mvd": "MVD-013", "titulo": "t"}) + "\n", encoding="utf-8")
     achado = painel.coletar(tmp_path)["musicavideo"]
     assert [x["mvd"] for x in achado] == ["MVD#113"]
+
+
+# --- o botão que sobe de verdade --------------------------------------------
+
+def test_subida_sem_trava_diz_que_comecou(tmp_path, monkeypatch):
+    """O botão dizia 'subir para a nuvem' e só marcava: sem o cron (retirado na
+    v1.3.0) o card ficava em `aprovado` para sempre."""
+    from src import subida
+    monkeypatch.setattr(subida, "TRAVA", tmp_path / "trava")
+    chamadas = []
+    class FakeP:
+        pid = 4242
+    monkeypatch.setattr(subida.subprocess, "Popen", lambda *a, **k: (chamadas.append(a) or FakeP()))
+    assert subida.iniciar("p", outdir=tmp_path, log=tmp_path / "log") == "subindo:p"
+    assert "publica-hf" in chamadas[0][0] and "p" in chamadas[0][0]
+
+
+def test_uma_subida_por_vez(tmp_path, monkeypatch):
+    """Dois uploads de gigabytes concorrendo só multiplicam banda e confusão."""
+    from src import subida
+    monkeypatch.setattr(subida, "TRAVA", tmp_path / "trava")
+    monkeypatch.setattr(subida, "_pid_vivo", lambda pid: True)
+    (tmp_path / "trava").write_text("999:outra\n")
+    assert subida.iniciar("p", outdir=tmp_path, log=tmp_path / "log") == "ja-subindo:outra"
+
+
+def test_trava_de_processo_morto_nao_prende_o_painel(tmp_path, monkeypatch):
+    """kill -9 ou queda da máquina deixariam a trava para trás."""
+    from src import subida
+    monkeypatch.setattr(subida, "TRAVA", tmp_path / "trava")
+    monkeypatch.setattr(subida, "_pid_vivo", lambda pid: False)
+    (tmp_path / "trava").write_text("999:morta\n")
+    assert subida.em_andamento() is None
+
+
+def test_zumbi_nao_conta_como_subindo(tmp_path, monkeypatch):
+    """O painel é o pai e não colhe o filho: terminado, ele vira zumbi e o
+    `os.kill(pid, 0)` responde que está vivo. O selo `subindo…` ficaria pulsando
+    para sempre numa subida que já acabou — foi o que aconteceu com o MVD#124."""
+    import subprocess as sp
+    import sys as _sys
+    import time
+    from pathlib import Path as _P
+    from src import subida
+    monkeypatch.setattr(subida, "TRAVA", tmp_path / "trava")
+    filho = sp.Popen([_sys.executable, "-c", "pass"])    # de propósito: NÃO colhido
+    (tmp_path / "trava").write_text(f"{filho.pid}:p\n")
+    st = _P(f"/proc/{filho.pid}/status")
+    for _ in range(60):                                  # espera virar zumbi
+        if st.exists() and "Z" in st.read_text().split("State:")[1][:4]:
+            break
+        time.sleep(0.05)
+    assert subida.em_andamento() is None
+
+
+def test_fila_de_aprovados_se_esvazia_sozinha(tmp_path, monkeypatch):
+    """`aprovado` não pode ser um beco: sem cron, ficaria esperando alguém rodar
+    o comando à mão — a reclamação que originou a subida pelo painel."""
+    from src import subida
+    monkeypatch.setattr(subida, "TRAVA", tmp_path / "trava")
+    monkeypatch.setattr(subida, "em_andamento", lambda: None)
+    comecou = []
+    monkeypatch.setattr(subida, "iniciar", lambda slug, **k: comecou.append(slug))
+    base = tmp_path / "acervo"
+    quieto = _producao(base, "a-quieto", ["capa.png"])
+    subir = _producao(base, "b-subir", ["capa.png"])
+    nuvem.aprovar(subir)
+    nuvem.marcar_publicado(_producao(base, "c-ja-foi", ["capa.png"]))
+    assert subida.proxima(base) == "b-subir"
+    assert comecou == ["b-subir"] and quieto.name not in comecou
+
+
+def test_nada_comeca_enquanto_algo_sobe(tmp_path, monkeypatch):
+    from src import subida
+    monkeypatch.setattr(subida, "em_andamento", lambda: "outra")
+    base = tmp_path / "acervo"
+    nuvem.aprovar(_producao(base, "p", ["capa.png"]))
+    assert subida.proxima(base) is None
+
+
+def test_painel_chama_a_fila_na_pasta_certa(tmp_path, monkeypatch):
+    """Passar `base / "musicavideo"` (com `base` já sendo o acervo) aponta para
+    pasta que não existe — e o guard de OSError engolia o erro em silêncio."""
+    from src import painel, subida
+    vistos = []
+    monkeypatch.setattr(subida, "proxima", lambda outdir, **k: vistos.append(outdir))
+    monkeypatch.setattr(subida, "em_andamento", lambda: None)
+    base = tmp_path / "musicavideo"
+    _producao(base, "p", ["capa.png"])
+    painel.coletar(tmp_path)
+    assert vistos == [base] and vistos[0].is_dir()
