@@ -118,7 +118,17 @@ CAPAS = [("capa.png", "quadrada 1:1"),
          ("capa-crua.png", "sem texto")]
 
 
-def _faixas(base: Path, slug: str, aprovada: str | None) -> list[dict]:
+def _likes_da(base: Path, mvd: str, n: str) -> int:
+    """Curtidas desta FAIXA. A vitrine conta por versão (`MVD#113:1`); acervo
+    antigo tem só a chave da produção, e é ela que vale como reserva."""
+    d = _likes(base)
+    if not mvd:
+        return 0
+    return int(d.get(f"{mvd}:{n}") or (d.get(mvd, 0) if not n else 0) or 0)
+
+
+def _faixas(base: Path, slug: str, aprovada: str | None,
+            mvd: str = "") -> list[dict]:
     """TODAS as faixas do slug, não só a aprovada.
 
     O Suno entrega duas, e antes elas só apareciam quando havia dois clipes
@@ -137,6 +147,7 @@ def _faixas(base: Path, slug: str, aprovada: str | None) -> list[dict]:
         n = f.stem.rpartition("-")[2] if "-" in f.stem else ""
         saida.append({"url": url, "nome": f.name, "n": n,
                       "aprovada": f.name == aprovada,
+                      "likes": _likes_da(base, mvd, n),
                       "capa": _url(base, f"{slug}/capa-v{n}.png") if n else None,
                       "clipe": (_url(base, f"{slug}/clipe-{n}.mp4") if n else None)
                                or _url(base, f"{slug}/clipe.mp4")})
@@ -303,7 +314,7 @@ def coletar(raiz: Path) -> dict:
             "capas": _capas(base, l["slug"]),
             "clipe": _url(base, f"{l['slug']}/clipe.mp4"),
             "faixa": _url(base, f"{l['slug']}/{faixa}") if faixa else None,
-            "faixas": _faixas(base, l["slug"], faixa),
+            "faixas": _faixas(base, l["slug"], faixa, mvd_atual),
             "versoes": versoes,
             "bytes": _tamanho(w),
             "doc": _documento(w),
@@ -362,6 +373,22 @@ header{padding:20px 22px 0;position:sticky;top:0;background:var(--bg);z-index:5}
 h1{margin:0 0 12px;font-size:19px;letter-spacing:.5px}
 h1 span{color:var(--amb)}
 .tabs{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+/* Os selos ficam SOBRE a capa: a versão à esquerda, o clipe à direita. */
+.card{position:relative}
+.selos{position:absolute;top:8px;left:8px;right:8px;z-index:2;display:flex;gap:6px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;pointer-events:none}
+/* `flex:0 0 auto` + `nowrap`: sem isso, card com clipe E nuvem espremia os dois
+   selos até um cobrir o outro — o selo que some é justamente o que se queria ler. */
+.selos .n{background:#000a;color:var(--txt);font-size:10.5px;letter-spacing:.5px;border-radius:99px;padding:1px 7px;white-space:nowrap;flex:0 0 auto}
+.selos .n.ok{background:var(--amb);color:#1a1206;font-weight:600}
+.selos .dir{display:flex;gap:6px}
+/* Os quatro estados de nuvem, cada um com a sua cor — dá para varrer a grade
+   sem ler: âmbar cheio já está lá fora, contorno âmbar está a caminho. */
+.selos .n.nv.ok{background:var(--amb);color:#1a1206;font-weight:600}
+.selos .n.nv.aguarda{background:#000a;color:var(--amb);box-shadow:inset 0 0 0 1px var(--amb)}
+.selos .n.nv.sai{background:#000a;color:#e06c6c;box-shadow:inset 0 0 0 1px #7a3030}
+/* `local` e secundario, mas tem de ser LEGIVEL: sobre capa clara o cinza
+   apagado sumia, e "nao foi para a nuvem" e metade da resposta que o selo da. */
+.selos .n.nv.local{background:#000c;color:#c9c9d2;box-shadow:inset 0 0 0 1px #4a4a55}
 button.tab{background:var(--card);color:var(--dim);border:1px solid var(--linha);
 border-radius:99px;padding:7px 15px;cursor:pointer;font-size:14px}
 button.tab[aria-selected=true]{color:#1a1206;background:var(--amb);border-color:var(--amb);font-weight:600}
@@ -460,6 +487,7 @@ a{color:var(--amb)}
 <button class="tab" data-f="musicavideo" aria-selected="true">clipes &amp; músicas</button>
 <button class="tab" data-f="analisevideo" aria-selected="false">análises de vídeo</button>
 <input id="q" placeholder="buscar por título, tag, gênero, look, resumo…">
+<span id="conta" class="meta"></span>
 </div></header>
 <div id="grade"></div>
 <dialog id="dlg"><div class="dh"><h2 id="dt"></h2><button id="fecha">fechar</button></div>
@@ -471,30 +499,42 @@ const grade=document.getElementById("grade"),dlg=document.getElementById("dlg");
 function alvo(){const q=document.getElementById("q").value.toLowerCase().trim();
  let l=DADOS[aba]||[];
  if(q)l=l.filter(x=>JSON.stringify(x).toLowerCase().includes(q));return l}
-function cardMV(x){const t=x.capa?`<img class="thumb capa" loading=lazy src="${E(x.capa)}">`:`<div class=thumb></div>`;
+// UMA MÚSICA, UM CARD — o mesmo formato da vitrine (V2).
+// O Suno entrega duas faixas por pedido e cada uma é uma música diferente:
+// mesma letra, mesmo material de vídeo, outra interpretação. Empilhadas dentro
+// de um card só, obrigavam a escolher antes de ouvir. Aqui cada uma tem o seu
+// card — e as AÇÕES continuam sendo da PRODUÇÃO (a pasta), no modal: é a pasta
+// que vai para a lixeira e é a pasta que sobe para a nuvem.
+function musicas(l){const fora=[];
+ l.forEach(x=>{const fs=(x.faixas||[]);
+  if(!fs.length){fora.push({x:x,f:null});return}
+  fs.forEach(f=>fora.push({x:x,f:{...f,capa:f.capa||x.capa}}))});
+ return fora}
+function cardMV(m){const x=m.x,f=m.f;
+ const capa=(f&&f.capa)||x.capa;
+ const t=capa?`<img class="thumb capa" loading=lazy src="${E(capa)}" alt="">`:`<div class=thumb></div>`;
+ const sel=f?`<span class="n${f.aprovada?" ok":""}">v${E(f.n||"?")}${f.aprovada?" ✓":""}</span>`:"";
+ // O selo responde a pergunta que o card faz: tem vídeo aqui?
+ const vd=f&&f.clipe?`<span class="n clipe">▶ clipe</span>`:"";
+ // A NUVEM na capa, não no corpo: "já subiu ou não?" é a pergunta que se faz
+ // varrendo a grade com o olho, e uma pill lá embaixo obriga a ler. Os quatro
+ // estados aparecem — inclusive o `local`, apagado, porque "não foi" também é
+ // resposta e sem ele a ausência de selo se confunde com card sem informação.
+ const NV={publicado:["☁ na nuvem","ok"],aprovado:["☁ aprovado","aguarda"],
+           remover:["☁ sai","sai"],local:["☁ local","local"]};
+ const nvi=NV[x.nuvem||"local"]||NV.local;
+ const nuv=`<span class="n nv ${nvi[1]}" title="situação na vitrine">${E(nvi[0])}</span>`;
+ const som=f?`<audio class=nocard controls preload=none src="${E(f.url)}"></audio>`
+  :(x.faixa?`<audio class=nocard controls preload=none src="${E(x.faixa)}"></audio>`:"");
  const st=Object.entries(x.estados||{}).map(([k,v])=>
   `<span class="pill ${v==="pronto"?"ok":(v==="erro"?"err":"")}">${E(k)}: ${E(v)}</span>`).join("");
  const dv=x.derivado?`<span class="pill dv">${E(x.derivado)}</span>`:"";
- // a música TOCA no card: dá para ouvir sem abrir nada, e o clique no player
- // não abre o modal (o `onclick` do card é cancelado no `pinta`).
- const som=(x.faixas||[]).length?`<audio class=nocard controls preload=none src="${E(x.faixas[0].url)}"></audio>`
-  :(x.faixa?`<audio class=nocard controls preload=none src="${E(x.faixa)}"></audio>`:"");
- // Com as duas variantes no disco, o topo do card vira o par: capa 1 + play 1,
- // capa 2 + play 2. Sem elas, segue a capa única e um player só.
- // Produção antiga tem as duas MÚSICAS e uma capa só (a capa por versão veio
- // depois): ali o par se monta com a mesma imagem nas duas colunas — o que não
- // pode faltar é o play da segunda faixa, que antes ficava invisível no card.
- const par=(x.faixas||[]).map(f=>({...f,capa:f.capa||x.capa})).filter(f=>f.capa);
- const topo=par.length>1
-  ?`<div class=duas>`+par.map(f=>`<div><span class="n${f.aprovada?" ok":""}">v${E(f.n||"?")}${f.aprovada?" ✓":""}</span>
-     <img loading=lazy src="${E(f.capa)}" alt="capa da versão ${E(f.n)}">
-     <audio class=nocard controls preload=none src="${E(f.url)}"></audio></div>`).join("")+`</div>`
-  :`${t}${som}`;
  const id=x.mvd?`<span class="pill mvd">${E(x.mvd)}</span>`:"";
- const lk=x.likes?`<span class="pill" title="curtidas na vitrine">♥ ${E(x.likes)}</span>`:"";
- return `${topo}<div class=b><h3>${dv}${E(x.titulo)}</h3>${id}${lk}
- <div class=meta>${x.origem?"de "+E(x.origem)+" · ":""}${E(x.genero)}${x.bpm?" · "+E(x.bpm)+" bpm":""}${x.tom?" · "+E(x.tom):""}${x.bytes?" · "+MB(x.bytes):""}</div>
- <div>${st}${(x.versoes||[]).length>1?`<span class=pill>${x.versoes.length} versões</span>`:""}</div></div>`}
+ const nlk=f?(f.likes||0):(x.likes||0);
+ const lk=nlk?`<span class="pill" title="curtidas na vitrine">♥ ${E(nlk)}</span>`:"";
+ return `<div class=selos>${sel}<span class=dir>${nuv}${vd}</span></div>${t}${som}<div class=b><h3>${dv}${E(x.titulo)}</h3>${id}${lk}
+ <div class=meta>${x.origem?"de "+E(x.origem)+" · ":""}${E(x.genero)}${x.bpm?" · "+E(x.bpm)+" bpm":""}${x.tom?" · "+E(x.tom):""}</div>
+ <div>${st}</div></div>`}
 function MB(b){return b>=1073741824?(b/1073741824).toFixed(1)+" GB":Math.round(b/1048576)+" MB"}
 // 24 das 30 análises são do YouTube: a miniatura oficial (img.youtube.com) dá
 // a CARA do vídeo analisado no card, sem baixar nada. Quem não é YouTube cai
@@ -513,16 +553,21 @@ function cardAV(x){const g=(x.paleta||[]).slice(0,5);
  ${fonte}
  <div class=pal>${p}</div>
  <div>${(x.tags||[]).slice(0,4).map(g=>`<span class=pill>${E(g)}</span>`).join("")}</div></div>`}
-function pinta(){const l=alvo();
+function pinta(){const bruto=alvo();
+ const l=aba==="musicavideo"?musicas(bruto):bruto;
  grade.innerHTML=l.length?"":`<div class=vazio>nada por aqui ainda.</div>`;
- l.forEach((x,i)=>{const d=document.createElement("div");d.className="card";
-  d.innerHTML=aba==="musicavideo"?cardMV(x):cardAV(x);
-  d.onclick=()=>abre(x);
+ document.getElementById("conta").textContent=aba==="musicavideo"
+  ?`${l.length} músicas · ${bruto.length} produções`:`${l.length} análises`;
+ l.forEach((m,i)=>{const d=document.createElement("div");d.className="card";
+  d.innerHTML=aba==="musicavideo"?cardMV(m):cardAV(m);
+  // O clique abre a PRODUÇÃO, já na aba desta faixa: as ações (lixeira, nuvem)
+  // são da pasta, e comparar as duas continua a um clique de distância.
+  d.onclick=()=>abre(aba==="musicavideo"?m.x:m, aba==="musicavideo"&&m.f?m.f.n:null);
   // tocar não é abrir: quem clica no player (ou no link da fonte) quer ouvir/ver
   // ali mesmo. Sem isto, arrastar a barra do áudio abre o modal por cima.
   d.querySelectorAll(".nocard").forEach(el=>el.addEventListener("click",ev=>ev.stopPropagation()));
   grade.appendChild(d)})}
-function abre(x){document.getElementById("dt").textContent=
+function abre(x,foco){document.getElementById("dt").textContent=
   (x.mvd?x.mvd+" · ":"")+(x.titulo||x.slug);
  let h="";
  // as capas primeiro, e clicáveis: o card mostra miniatura, aqui se vê inteira
@@ -597,7 +642,10 @@ function abre(x){document.getElementById("dt").textContent=
  const mostra=i=>{pns.forEach((p,j)=>{p.hidden=j!==i;if(j!==i){const v=p.querySelector("video");if(v)v.pause()}});
   bts.forEach((b,j)=>b.setAttribute("aria-selected",j===i))};
  if(pns.length){bts.forEach((b,i)=>b.onclick=()=>mostra(i));
-  mostra(Math.max(0,vs.findIndex(v=>v.aprovada)))}
+  // Abrir já na faixa do card clicado. Sem foco (ou faixa que sumiu), vale a
+  // aprovada — que era o comportamento de antes.
+  const iFoco=foco!=null?vs.findIndex(v=>String(v.n)===String(foco)):-1;
+  mostra(iFoco>=0?iFoco:Math.max(0,vs.findIndex(v=>v.aprovada)))}
  const nb=dc.querySelector("#nuvem");
  if(nb)nb.onclick=()=>{const ligar=nb.dataset.em==="local"||nb.dataset.em==="remover";
   nb.disabled=true;

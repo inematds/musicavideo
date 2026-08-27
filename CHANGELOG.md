@@ -3,6 +3,36 @@
 Semver `vX.XX.YY`: patch incrementa o último; recurso incrementa o do meio e
 carrega o último; major zera o resto.
 
+## 1.6.0 — 2026-08-27
+
+**Recursos**
+
+- **O painel V1 adota o formato do V2: uma música, um card.** O Suno entrega
+  duas faixas por pedido e cada uma é uma música diferente — mesma letra, mesmo
+  material de vídeo, outra interpretação. Elas viviam empilhadas dentro de um
+  card só, o que obrigava a escolher antes de ouvir. Agora cada faixa tem o seu
+  card, com o selo da versão e um selo **▶ clipe** quando há vídeo. A barra
+  mostra `N músicas · M produções`, porque os dois números importam aqui.
+- **As AÇÕES continuam sendo da produção.** Lixeira e "subir para a nuvem"
+  operam sobre a PASTA, e por isso seguem no modal: o card é a peça, a pasta é a
+  unidade de trabalho. Clicar num card abre a produção **já na aba daquela
+  faixa** — comparar as duas continua a um clique.
+- **♥ por faixa.** A vitrine conta curtida por versão (`MVD#113:1`); o painel
+  passa a ler essa chave, com a da produção como reserva para o acervo antigo.
+- **A nuvem virou selo NA CAPA**, não pill no corpo: "já subiu ou não?" é a
+  pergunta que se faz varrendo a grade com o olho, e ler uma pill lá embaixo
+  custa uma parada por card. Os quatro estados aparecem — `☁ na nuvem` em âmbar
+  cheio, `☁ aprovado` em contorno, `☁ sai` em vermelho e `☁ local` apagado mas
+  **legível**, porque "não foi" é metade da resposta que o selo dá.
+
+**Correção**
+
+- **`MVD-031` → `MVD#124`.** A última produção com número local adotou o do bot.
+  A primeira tentativa não pegou porque escrevi o `estado.json` direto, por fora
+  do `salvar_estado`, e o arquivo foi sobrescrito por um processo que tinha o
+  estado antigo em memória. Escrito pelo caminho oficial, ficou — e sobrevive ao
+  `reindex`.
+
 ## 1.5.0 — 2026-08-27
 
 **Correção que muda dado**
