@@ -23,6 +23,14 @@ def raiz_output() -> Path:
                 str(Path.home() / "projetos/output")))
 
 
+def _mvd_do_estado(w: Path) -> str:
+    """O `mvd` gravado na produção, que é a fonte de verdade do número."""
+    try:
+        return str(json.loads((w / "estado.json").read_text(encoding="utf-8")).get("mvd") or "")
+    except (OSError, ValueError):
+        return ""
+
+
 def _linhas(idx: Path) -> list[dict]:
     if not idx.exists():
         return []
@@ -264,6 +272,12 @@ def coletar(raiz: Path) -> dict:
         if not w.is_dir():
             continue
         faixa = _faixa(w)
+        # O NÚMERO vem do estado, nunca do índice. O `index.jsonl` só é
+        # reescrito por quem mexe em estado ou por um `reindex`, então uma
+        # renumeração feita direto no `estado.json` ficava invisível para o
+        # painel e para a vitrine — foi assim que a vitrine passou dias
+        # mostrando `MVD-013` enquanto o disco já dizia `MVD#113`.
+        mvd_atual = _mvd_do_estado(w) or l.get("mvd") or ""
         versoes = []
         for v in sorted(w.glob("clipe-*.mp4")):
             n = v.stem.split("-")[-1]
@@ -274,7 +288,7 @@ def coletar(raiz: Path) -> dict:
         mv.append({
             "fonte": "musicavideo",
             "slug": l.get("slug"),
-            "mvd": l.get("mvd") or "",
+            "mvd": mvd_atual,
             "titulo": l.get("titulo") or l.get("slug"),
             "quando": l.get("criado_em", ""),
             "solicitacao": l.get("solicitacao", ""),
@@ -295,7 +309,7 @@ def coletar(raiz: Path) -> dict:
             "doc": _documento(w),
             "prompts": _prompts(w),
             "nuvem": situacao_nuvem(w),
-            "likes": _likes(base).get(l.get("mvd") or "", 0),
+            "likes": _likes(base).get(mvd_atual, 0),
             "docs": [d for d in (_url(base, f"{l['slug']}/PACOTE.md"),
                                  _url(base, f"{l['slug']}/PLANO.md")) if d],
         })

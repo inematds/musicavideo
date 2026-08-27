@@ -195,3 +195,20 @@ def test_estado_json_nao_conta_como_mudanca(tmp_path):
 def test_carimbo_ilegivel_sobe_em_vez_de_adivinhar(tmp_path):
     _aprovada(tmp_path, "p", publicado_em="sei la")
     assert publicahf.a_subir(tmp_path) == ["p"]
+
+
+def test_numero_vem_do_estado_e_nao_do_indice(tmp_path):
+    """O `index.jsonl` só é reescrito por quem mexe em estado ou por um
+    `reindex`. Uma renumeração feita direto no `estado.json` ficava invisível —
+    foi assim que a vitrine passou dias mostrando `MVD-013` enquanto o disco já
+    dizia `MVD#113`."""
+    import json as J
+    from src import painel
+    from src.estado import carregar_estado, salvar_estado
+    base = tmp_path / "musicavideo"
+    w = _producao(base, "p", ["capa.png", "clipe-1.mp4", "faixa-1.mp3"])
+    est = carregar_estado(w); est["mvd"] = "MVD#113"; salvar_estado(w, est)
+    (base / "index.jsonl").write_text(
+        J.dumps({"slug": "p", "mvd": "MVD-013", "titulo": "t"}) + "\n", encoding="utf-8")
+    achado = painel.coletar(tmp_path)["musicavideo"]
+    assert [x["mvd"] for x in achado] == ["MVD#113"]

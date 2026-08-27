@@ -3,6 +3,24 @@
 Semver `vX.XX.YY`: patch incrementa o último; recurso incrementa o do meio e
 carrega o último; major zera o resto.
 
+## 1.5.0 — 2026-08-27
+
+**Correção que muda dado**
+
+- **O número exibido é o do bot, mesmo depois de renumerar.** A v1.2.0 fez o
+  acervo adotar o `MVD#N` do `inemaccbot`, e o disco obedeceu: 30 das 31
+  produções já tinham `MVD#NNN` no `estado.json`. Só que painel e vitrine liam o
+  número do `index.jsonl` — que só é reescrito por quem mexe em estado ou por um
+  `reindex`. O resultado é que a renumeração ficou invisível: a vitrine seguiu
+  mostrando `MVD-013` enquanto o disco já dizia `MVD#113`. Agora `coletar` lê o
+  `mvd` do `estado.json`, que é a fonte de verdade, com o índice apenas como
+  reserva.
+- **A última pasta com número local adotou o do bot**
+  (`uma-garota-rebelde-provocante-nada-sensu`: `MVD-031` → `MVD#124`). Ela
+  escapou porque `atribuir` nunca renumera quem já tem número — invariante que
+  continua valendo, e é por isso que a adoção foi um gesto explícito, não
+  automático. As 27 produções da vitrine agora exibem o número do bot.
+
 ## 1.4.0 — 2026-08-27
 
 **Correção que muda comportamento**
