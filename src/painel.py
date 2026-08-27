@@ -14,6 +14,9 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from src.nuvem import situacao as situacao_nuvem, aprovar as aprovar_nuvem
+from src.versao import NOME, VERSAO
+
 
 def raiz_output() -> Path:
     return Path(os.environ.get("INEMA_OUTPUT",
@@ -259,6 +262,7 @@ def coletar(raiz: Path) -> dict:
         mv.append({
             "fonte": "musicavideo",
             "slug": l.get("slug"),
+            "mvd": l.get("mvd") or "",
             "titulo": l.get("titulo") or l.get("slug"),
             "quando": l.get("criado_em", ""),
             "solicitacao": l.get("solicitacao", ""),
@@ -278,6 +282,7 @@ def coletar(raiz: Path) -> dict:
             "bytes": _tamanho(w),
             "doc": _documento(w),
             "prompts": _prompts(w),
+            "nuvem": situacao_nuvem(w),
             "docs": [d for d in (_url(base, f"{l['slug']}/PACOTE.md"),
                                  _url(base, f"{l['slug']}/PLANO.md")) if d],
         })
@@ -322,7 +327,7 @@ def coletar(raiz: Path) -> dict:
 
 PAGINA = r"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Painel INEMA — clipes e análises</title><style>
+<title>{NOME_APP} V{VERSAO_APP}</title><style>
 :root{--bg:#0d0b09;--card:#171310;--linha:#2b241d;--txt:#ece5da;--dim:#a2968a;--amb:#f0a92b}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);
 font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
@@ -397,6 +402,12 @@ a.pill.nocard:hover{background:#2a1f12}
 padding:1px 8px;margin:5px 5px 0 0;color:var(--dim)}
 .pill.ok{color:#7fd18a;border-color:#2f5133}.pill.err{color:#e58b7b;border-color:#5a2f28}
 .pill.dv{color:#e0b25c;border-color:#5a4626;margin-right:7px}
+.pill.mvd{color:var(--amb);border-color:#5a4626;letter-spacing:.6px;font-size:10.5px}
+button.pill.nuvem{background:transparent;cursor:pointer;font:inherit;font-size:12px;
+padding:5px 12px;border-radius:8px;color:var(--dim);border:1px solid var(--linha)}
+button.pill.nuvem:hover{border-color:var(--amb);color:var(--txt)}
+button.pill.nuvem.on{color:#1a1206;background:var(--amb);border-color:var(--amb);font-weight:600}
+button.pill.nuvem:disabled{opacity:.6;cursor:default}
 button.perigo{background:transparent;color:#e58b7b;border:1px solid #5a2f28;border-radius:8px;
 padding:5px 12px;font:inherit;font-size:12px;cursor:pointer}
 button.perigo:hover{background:#2a1714}button.perigo:disabled{opacity:.6;cursor:default}
@@ -417,7 +428,7 @@ border-radius:10px;padding:13px;font-size:13px;color:#d6ccc0;margin-top:14px}
 a{color:var(--amb)}
 .vazio{color:var(--dim);padding:40px 22px}
 </style></head><body>
-<header><h1>painel <span>INEMA</span> — o que já foi feito</h1>
+<header><h1>{NOME_APP} <span>V{VERSAO_APP}</span></h1>
 <div class="tabs">
 <button class="tab" data-f="musicavideo" aria-selected="true">clipes &amp; músicas</button>
 <button class="tab" data-f="analisevideo" aria-selected="false">análises de vídeo</button>
@@ -452,7 +463,8 @@ function cardMV(x){const t=x.capa?`<img class="thumb capa" loading=lazy src="${E
      <img loading=lazy src="${E(f.capa)}" alt="capa da versão ${E(f.n)}">
      <audio class=nocard controls preload=none src="${E(f.url)}"></audio></div>`).join("")+`</div>`
   :`${t}${som}`;
- return `${topo}<div class=b><h3>${dv}${E(x.titulo)}</h3>
+ const id=x.mvd?`<span class="pill mvd">${E(x.mvd)}</span>`:"";
+ return `${topo}<div class=b><h3>${dv}${E(x.titulo)}</h3>${id}
  <div class=meta>${x.origem?"de "+E(x.origem)+" · ":""}${E(x.genero)}${x.bpm?" · "+E(x.bpm)+" bpm":""}${x.tom?" · "+E(x.tom):""}${x.bytes?" · "+MB(x.bytes):""}</div>
  <div>${st}${(x.versoes||[]).length>1?`<span class=pill>${x.versoes.length} versões</span>`:""}</div></div>`}
 function MB(b){return b>=1073741824?(b/1073741824).toFixed(1)+" GB":Math.round(b/1048576)+" MB"}
@@ -482,7 +494,8 @@ function pinta(){const l=alvo();
   // ali mesmo. Sem isto, arrastar a barra do áudio abre o modal por cima.
   d.querySelectorAll(".nocard").forEach(el=>el.addEventListener("click",ev=>ev.stopPropagation()));
   grade.appendChild(d)})}
-function abre(x){document.getElementById("dt").textContent=x.titulo||x.slug;
+function abre(x){document.getElementById("dt").textContent=
+  (x.mvd?x.mvd+" · ":"")+(x.titulo||x.slug);
  let h="";
  // as capas primeiro, e clicáveis: o card mostra miniatura, aqui se vê inteira
  // e o clique abre o arquivo no tamanho real, em outra aba.
@@ -525,8 +538,16 @@ function abre(x){document.getElementById("dt").textContent=x.titulo||x.slug;
  if((x.paleta||[]).length)h+=`<div class=pal style="margin-top:10px">`+x.paleta.map(c=>`<i title="${E(c)}" style="background:${E(c)}"></i>`).join("")+`</div>`;
  if((x.tags||[]).length)h+=`<div>`+x.tags.map(g=>`<span class=pill>${E(g)}</span>`).join("")+`</div>`;
  h+=`<p class=meta style="margin-top:12px">${E(x.slug)}${x.custo!==undefined?" · US$ "+E(x.custo):""}${x.bytes?" · "+MB(x.bytes):""}</p>`;
- if(x.fonte==="musicavideo")h+=`<p><button id=apagar class=perigo data-slug="${E(x.slug)}">mandar para a lixeira</button>
-  <span class=meta>não apaga: move para <code>.lixo/</code></span></p>`;
+ // SUBIR é decisão, não consequência de ficar pronto: um clique marca, e quem
+ // sobe de fato é o `publica-hf` (ou o cron). O botão diz em que pé está.
+ if(x.fonte==="musicavideo"){const N={local:["subir para a nuvem","nuvem"],
+   aprovado:["aprovado — cancelar","nuvem ok"],
+   publicado:["publicado — tirar do ar","nuvem ok"],
+   remover:["marcado para sair","nuvem"]}[x.nuvem||"local"];
+  h+=`<p><button id=nuvem class="pill nuvem ${E((x.nuvem||"local")!=="local"?"on":"")}"
+    data-slug="${E(x.slug)}" data-em="${E(x.nuvem||"local")}">${E(N[0])}</button></p>`;
+  h+=`<p><button id=apagar class=perigo data-slug="${E(x.slug)}">mandar para a lixeira</button>
+  <span class=meta>não apaga: move para <code>.lixo/</code></span></p>`}
  if((x.docs||[]).length)h+=`<p>`+x.docs.map(d=>
   `<a class="pill nocard" href="${E(d)}" target=_blank rel=noopener>abrir ${E(d.split("?")[0].split("/").pop())} ↗</a>`).join(" ")+`</p>`;
  // O que foi PEDIDO aos provedores, palavra por palavra. Fechado por padrão:
@@ -549,6 +570,14 @@ function abre(x){document.getElementById("dt").textContent=x.titulo||x.slug;
   bts.forEach((b,j)=>b.setAttribute("aria-selected",j===i))};
  if(pns.length){bts.forEach((b,i)=>b.onclick=()=>mostra(i));
   mostra(Math.max(0,vs.findIndex(v=>v.aprovada)))}
+ const nb=dc.querySelector("#nuvem");
+ if(nb)nb.onclick=()=>{const ligar=nb.dataset.em==="local"||nb.dataset.em==="remover";
+  nb.disabled=true;
+  fetch("__nuvem",{method:"POST",body:JSON.stringify({slug:nb.dataset.slug,aprovar:ligar})})
+   .then(r=>r.json()).then(r=>{if(!r.ok){nb.disabled=false;nb.textContent="falhou: "+r.erro;return}
+    return fetch("__dados.json").then(r=>r.json()).then(d=>{DADOS=d;pinta();
+      const novo=(d.musicavideo||[]).find(y=>y.slug===nb.dataset.slug);if(novo)abre(novo)})})
+   .catch(e=>{nb.disabled=false;nb.textContent="falhou: "+e})};
  const ap=dc.querySelector("#apagar");
  if(ap)ap.onclick=()=>{if(!confirm("Mandar "+ap.dataset.slug+" para a lixeira?"))return;
   ap.disabled=true;ap.textContent="movendo…";
@@ -593,7 +622,8 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):  # noqa: N802
         if self.path in ("/", "/index.html"):
-            return self._envia(PAGINA.encode("utf-8"), "text/html; charset=utf-8")
+            pagina = PAGINA.replace("{NOME_APP}", NOME).replace("{VERSAO_APP}", VERSAO)
+            return self._envia(pagina.encode("utf-8"), "text/html; charset=utf-8")
         if self.path.startswith("/__dados.json"):
             dados = json.dumps(coletar(Path(self.directory)), ensure_ascii=False)
             return self._envia(dados.encode("utf-8"), "application/json; charset=utf-8")
@@ -601,6 +631,19 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):  # noqa: N802
         """Só uma rota, e ela MOVE para a lixeira — nunca apaga de verdade."""
+        if self.path == "/__nuvem":
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+                p = json.loads(self.rfile.read(n) or b"{}")
+                w = Path(self.directory) / "musicavideo" / (p.get("slug") or "")
+                if w.parent != Path(self.directory) / "musicavideo" or not w.is_dir():
+                    raise ValueError(f"caminho fora do acervo: {p.get('slug')}")
+                estado = aprovar_nuvem(w, bool(p.get("aprovar", True)))
+            except (ValueError, OSError, KeyError) as e:
+                corpo = json.dumps({"ok": False, "erro": str(e)})
+                return self._envia(corpo.encode("utf-8"), "application/json; charset=utf-8")
+            corpo = json.dumps({"ok": True, "nuvem": estado})
+            return self._envia(corpo.encode("utf-8"), "application/json; charset=utf-8")
         if self.path != "/__apagar":
             return self.send_error(404)
         try:

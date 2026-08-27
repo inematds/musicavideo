@@ -5,7 +5,10 @@ from pathlib import Path
 
 
 def linha_de(plano: dict, estado: dict) -> dict:
-    return {"slug": plano["slug"], "titulo": plano["titulo"],
+    # O `mvd` vem do estado, que é a fonte de verdade: o índice é reescrito
+    # inteiro por vários comandos, e número que só vivesse aqui morreria no
+    # primeiro `reindex`.
+    return {"slug": plano["slug"], "mvd": estado.get("mvd"), "titulo": plano["titulo"],
             "criado_em": plano["criado_em"], "solicitacao": plano["solicitacao"],
             "estilo_ref": plano["estilo_ref"],
             "genero": plano["musica"]["estilo"]["genero"],
@@ -45,7 +48,8 @@ def busca(outdir: Path, termo: str) -> list[dict]:
     t = termo.lower()
 
     def bate(l):
-        campos = [l["slug"], l["titulo"], l["solicitacao"], str(l["genero"])] + list(l["tags"])
+        campos = [l["slug"], l.get("mvd") or "", l["titulo"], l["solicitacao"],
+                  str(l["genero"])] + list(l["tags"])
         return any(t in str(c).lower() for c in campos)
 
     return [l for l in _ler(outdir) if bate(l)]
@@ -53,6 +57,8 @@ def busca(outdir: Path, termo: str) -> list[dict]:
 
 def reindex(outdir: Path) -> int:
     from src.estado import carregar_estado
+    from src.mvd import numerar_acervo
+    numerar_acervo(outdir)      # produção sem número ganha o dela antes de indexar
     linhas = []
     for w in sorted(p for p in outdir.iterdir() if p.is_dir()):
         pj, ej = w / "plano.json", w / "estado.json"
