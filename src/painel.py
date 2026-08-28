@@ -219,6 +219,22 @@ def _tamanho(w: Path) -> int:
     return total
 
 
+def _mvd_do_ancestral(base: Path, nome: str) -> str:
+    """O MVD da produção que originou esta pasta, subindo a cadeia de sufixos.
+
+    Derivado de derivado existe (`...-dinamico-real` saiu de `...-dinamico`,
+    que saiu da produção): olhar só um nível deixava o neto sem número.
+    """
+    atual = nome
+    while "-" in atual:
+        atual = atual.rpartition("-")[0]
+        if (base / atual).is_dir():
+            n = _mvd_do_estado(base / atual)
+            if n:
+                return n
+    return ""
+
+
 def _derivados(base: Path, ja_listados: set) -> list[dict]:
     """Pasta com clipe que o índice NÃO conhece — recorte, teste, remontagem.
 
@@ -249,7 +265,7 @@ def _derivados(base: Path, ja_listados: set) -> list[dict]:
             # ganha número próprio, senão a sequência vira contagem de
             # recortes), mas sem número nenhum o card fica sem como ser citado
             # — e era o único da grade sem `MVD#`.
-            "mvd": _mvd_do_estado(base / origem) if origem else "",
+            "mvd": _mvd_do_ancestral(base, w.name),
             "derivado": rotulo, "origem": origem,
             "quando": datetime.fromtimestamp(w.stat().st_mtime).isoformat(timespec="seconds"),
             "solicitacao": "", "genero": "", "bpm": None, "tom": "",
