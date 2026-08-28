@@ -15,6 +15,7 @@ Melhorias pedidas e ainda não feitas: [`docs/MELHORIAS.md`](docs/MELHORIAS.md).
 |---|---|
 | **Guia de uso** (landing + passo a passo) | https://inematds.github.io/musicavideo/guia/ |
 | **As fases, passo a passo** | [docs/FASES.md](docs/FASES.md) |
+| **Refazer: mudar o que já foi feito** (todos os comandos e flags) | [docs/REFAZER.md](docs/REFAZER.md) |
 | **Como funciona por dentro** | [docs/COMO-FUNCIONA.md](docs/COMO-FUNCIONA.md) |
 | **Interface pro bot / skill** | [SKILL.md](SKILL.md) |
 

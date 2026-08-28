@@ -397,8 +397,37 @@ Cada parte (música, capa, clipe) tem portão próprio e sua própria máquina:
 `erro` aceita nova tentativa ou ajuste. `pronto` só volta com `ajusta --refaz` —
 e o artefato antigo vai para `raw/` com sufixo `-vN`, nunca é sobrescrito.
 
+## DEPOIS DE PRONTO
+
+As respostas do portão (`refaz`, `reprova`, `ritmo`, `correcao`) só valem
+**enquanto o portão está aberto**. Quando o fluxo termina, elas somem do chat, e
+o `/refazer` não substitui: ele só recoloca na fila as fases que FALHARAM — uma
+fase `feito` nunca é refeita por ele.
+
+Para mudar uma produção já entregue, o caminho é o terminal:
+
+| quero | comando | gasta? |
+|---|---|---|
+| a outra capa | `arte <slug> "<título>" --versao 2` | **não** |
+| outro ritmo no clipe | `recorta <slug> --ritmo dinamico` | **não** |
+| o clipe com cada faixa | `monta <slug> --completo` | **não** |
+| refazer alguns shots | `reprova <slug> clipe "4,17,23"` e depois `faz <slug> clipe --sim` | os shots |
+| outra capa, com instrução | `ajusta <slug> capa "<instrução>" --refaz` e depois `faz <slug> capa --sim` | uma geração |
+| publicar a mudança | `publica-hf <slug>` | não gera, mas PUBLICA |
+
+`ajusta ... --refaz` é obrigatório antes do `faz` numa parte já `pronto` — é ele
+que destrava. Sem isso vem `estado 'pronto' não permite faz`.
+
+⚠️ O `--dry` do `publica-hf` NÃO segura o manifesto: ele evita subir mídia para
+o Hugging Face, mas o `manifest.json` é escrito, commitado e empurrado assim
+mesmo. E ele cobre só a vitrine — vídeo já publicado no YouTube pelo `yt-pub`
+não é atualizado por aqui.
+
+Todos os comandos e todas as flags: **docs/REFAZER.md**.
+
 ## DOCS
 
+Refazer o que já foi feito: docs/REFAZER.md
 Guia de uso: https://inematds.github.io/musicavideo/guia/
 As fases em detalhe: docs/FASES.md · Por dentro: docs/COMO-FUNCIONA.md
 Interface para o bot: SKILL.md
