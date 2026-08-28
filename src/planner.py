@@ -62,7 +62,11 @@ def chamar_fable(prompt: str) -> str:
         # `cmd_plano` só pega ValueError/RuntimeError — então tem que virar um.
         raise RuntimeError("claude -p não respondeu em 900 s — o planner desistiu")
     if r.returncode != 0:
-        raise RuntimeError(f"claude -p falhou: {r.stderr[:300]}")
+        # O `claude` às vezes sai != 0 com stderr VAZIO (MVD#132) — a mensagem
+        # virava "claude -p falhou:" sem causa nenhuma. Cai pro stdout e sempre
+        # carrega o código de saída.
+        causa = (r.stderr or "").strip() or (r.stdout or "").strip()[-300:] or "sem saída"
+        raise RuntimeError(f"claude -p falhou (código {r.returncode}): {causa[:300]}")
     return r.stdout
 
 
