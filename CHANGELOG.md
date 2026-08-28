@@ -3,6 +3,27 @@
 Semver `vX.XX.YY`: patch incrementa o último; recurso incrementa o do meio e
 carrega o último; major zera o resto.
 
+## 2.1.0 — 2026-08-28
+
+- **A vitrine passa a ser escolhida faixa a faixa.** O Suno entrega duas músicas
+  por pedido, e elas são músicas diferentes: aprovar a produção obrigava a levar
+  as duas — ou nenhuma. A marca de nuvem agora mora em `nuvem.faixas.<n>`, com
+  `aprovado`/`publicado_em`/`remover` por faixa; o bloco de topo continua sendo
+  escrito como resumo, para quem só sabe perguntar pela produção.
+- **O botão saiu de dentro do modal e foi para a capa do card.** O card já é uma
+  faixa desde a v1.6.0; o selo `☁` virou o gesto. Subir (ou tirar) é um clique
+  na grade, sem abrir nada. No modal, cada música ganhou o seu botão e o do
+  rodapé agora diz o que faz: "subir as duas faixas".
+- **O reenvio deixa de olhar mtime e passa a olhar a faixa.** `publicado_em` era
+  da produção: aprovar a segunda faixa depois da primeira ter subido não mudava
+  nada no disco, e ela nunca subia. `publicahf.arquivos_a_subir` responde por
+  faixa, e `subida.proxima` pergunta a ele em vez de ao carimbo do topo.
+- **Tirar uma faixa de duas não apaga a pasta na nuvem** — some o arquivo dela
+  (`delete_file`), e o manifesto deixa de listá-la. A pasta só sai quando não
+  resta faixa nenhuma lá fora.
+- Estado antigo (`aprovado: true`, sem `faixas`) é lido como "todas as faixas":
+  o acervo já publicado continua na vitrine sem migração.
+
 ## 2.0.0 — 2026-08-28
 
 - **A versão do repo alcança a linha 2.x.** O painel e a vitrine já eram a segunda

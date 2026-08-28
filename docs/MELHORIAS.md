@@ -6,6 +6,20 @@ que já está de pé, não construção nova.
 
 ---
 
+## 2026-08-28 — miniatura pesada na grade do painel
+
+**Hoje:** o card usa a capa INTEIRA como miniatura (`capa.png` / `capa-vN.png`,
+~1,2 MB cada, 1024px). Com 45 produções e duas faixas por produção, a grade
+pede dezenas de megabytes de PNG para desenhar quadradinhos de ~260px — e a
+vitrine puxa isso do HF, não do disco local.
+
+**A rever:** gerar uma miniatura pequena por capa (ex.: `capa-thumb.jpg`, 400px,
+qualidade 80) e apontar o card para ela, deixando o PNG inteiro só para o clique
+"abrir em tamanho real" e para o modal. `loading=lazy` já está lá — o problema
+não é quando carrega, é o tamanho de cada uma.
+
+---
+
 ## 2026-08-22 — depois do MVD#89 (Born Where Winter Kills)
 
 Contexto: os dois primeiros clipes completos saíram neste dia. O material foi

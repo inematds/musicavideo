@@ -75,12 +75,18 @@ def proxima(outdir: Path, log=None) -> str | None:
     """
     if em_andamento():
         return None
-    from src.nuvem import ler as ler_nuvem
+    # QUEM DECIDE É O `publica-hf`, não o carimbo da produção. Com aprovação
+    # por faixa, `publicado_em` no topo passa a valer assim que UMA faixa sobe:
+    # perguntar por ele deixaria a segunda faixa, aprovada depois, esperando
+    # para sempre. `arquivos_a_subir` responde a pergunta certa — falta algo?
+    from src.publicahf import arquivos_a_subir
     for w in sorted(p for p in outdir.iterdir() if p.is_dir()):
-        n = ler_nuvem(w)
-        if n.get("aprovado") and not n.get("publicado_em"):
-            iniciar(w.name, outdir=outdir, log=log)
-            return w.name
+        try:
+            if arquivos_a_subir(w):
+                iniciar(w.name, outdir=outdir, log=log)
+                return w.name
+        except OSError:
+            continue
     return None
 
 

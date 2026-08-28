@@ -150,3 +150,60 @@ def test_painel_lista_as_duas_faixas_mesmo_com_um_clipe_so(tmp_path):
     fx = coletar(tmp_path)["musicavideo"][0]["faixas"]
     assert [f["nome"] for f in fx] == ["faixa-1.mp3", "faixa-2.mp3"]
     assert [f["aprovada"] for f in fx] == [False, True]
+
+
+# --- painel: a nuvem por FAIXA (v2.1) ----------------------------------------
+
+def _prod_com_duas_faixas(base, slug="p"):
+    from src.estado import novo_estado, salvar_estado
+    w = base / "musicavideo" / slug
+    w.mkdir(parents=True)
+    for nome in ("faixa-1.mp3", "faixa-2.mp3", "clipe-1.mp4", "clipe-2.mp4", "capa.png"):
+        (w / nome).write_bytes(b"x")
+    salvar_estado(w, novo_estado(slug))
+    (base / "musicavideo" / "index.jsonl").write_text(
+        '{"slug": "%s", "titulo": "T"}\n' % slug, encoding="utf-8")
+    return w
+
+
+def test_cada_faixa_carrega_a_propria_situacao_de_nuvem(tmp_path, monkeypatch):
+    """O card é de UMA faixa: o selo (e o botão) da nuvem tem de ser dela."""
+    from src import nuvem, subida
+    from src.painel import coletar
+    # `coletar` DRENA A FILA: ver o painel é o gesto que faz a subida começar.
+    # Num teste isso vira upload de verdade — travar aqui é parte do teste.
+    monkeypatch.setattr(subida, "proxima", lambda base, **k: None)
+    monkeypatch.setattr(subida, "iniciar", lambda slug, **k: "fingido")
+    w = _prod_com_duas_faixas(tmp_path)
+    nuvem.aprovar(w, faixa="1")
+    x = coletar(tmp_path)["musicavideo"][0]
+    assert {f["n"]: f["nuvem"] for f in x["faixas"]} == {"1": "aprovado", "2": "local"}
+    assert {v["n"]: v["nuvem"] for v in x["versoes"]} == {"1": "aprovado", "2": "local"}
+
+
+def test_rota_da_nuvem_aprova_so_a_faixa_pedida(tmp_path, monkeypatch):
+    """A rota é o que o botão do card chama — com `faixa`, ela não pode
+    arrastar a outra música junto."""
+    import json as _json
+    from src import nuvem, painel, subida
+    w = _prod_com_duas_faixas(tmp_path)
+    monkeypatch.setattr(subida, "iniciar", lambda slug, **k: "fingido")
+    corpo = _json.dumps({"slug": "p", "faixa": "2", "aprovar": True}).encode()
+
+    class Fingido(painel.Handler):
+        def __init__(self):                      # sem socket: só o miolo
+            self.directory = str(tmp_path)
+            self.path = "/__nuvem"
+            self.headers = {"Content-Length": str(len(corpo))}
+            self.rfile = __import__("io").BytesIO(corpo)
+            self.enviado = None
+
+        def _envia(self, dados, tipo):
+            self.enviado = _json.loads(dados)
+
+    h = Fingido()
+    h.do_POST()
+    assert h.enviado["ok"] is True
+    assert h.enviado["nuvem"] == "subindo"
+    assert nuvem.situacao_faixa(w, "2") == "aprovado"
+    assert nuvem.situacao_faixa(w, "1") == "local"

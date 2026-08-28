@@ -24,7 +24,9 @@ from pathlib import Path
 
 from src import painel
 from src.mvd import resolver
-from src.nuvem import a_remover, ler as ler_nuvem, marcar_publicado, marcar_removido, pendentes
+from src.nuvem import (a_remover, faixas_a_remover, faixas_aprovadas, faixas_publicadas,
+                       ler as ler_nuvem, marcar_publicado, marcar_removido, numeros,
+                       pendentes, situacao_faixa)
 
 # O namespace do HF é o nome EXATO da conta: `Inematds`, com maiúscula (o
 # GitHub é `inematds`, minúsculo — os dois não são a mesma string). Com a grafia
@@ -75,19 +77,64 @@ def arquivos_de(w: Path) -> list[Path]:
     return [f for f in achados if f.is_file()]
 
 
-def _mudou_depois(w: Path, publicado_em: str) -> bool:
-    """Algum arquivo FINAL é mais novo que a última publicação?
+def _numero_do(f: Path) -> str | None:
+    """A faixa a que este arquivo pertence, ou None quando é da produção.
 
-    Só os que sobem entram na conta. Incluir o `estado.json` seria o veneno:
-    `marcar_publicado` reescreve ele DEPOIS de carimbar a hora, então ele é
-    sempre mais novo que o próprio carimbo — e toda produção pareceria mudada
-    para sempre, que é exatamente o defeito que este filtro existe para tirar.
+    `faixa-2.mp3`, `clipe-2.mp4` e `capa-v2.png` são da faixa 2. `capa.png`,
+    `capa-crua.png` e a capa 16:9 do pacote são da produção inteira: sobem
+    enquanto houver uma faixa lá fora.
     """
+    m = re.fullmatch(r"(?:faixa|clipe)-(\d+)\.\w+", f.name) or \
+        re.fullmatch(r"capa-v(\d+)\.png", f.name)
+    return m.group(1) if m else None
+
+
+def arquivos_da_faixa(w: Path, n: str) -> list[Path]:
+    return [f for f in arquivos_de(w) if _numero_do(f) == str(n)]
+
+
+def arquivos_a_subir(w: Path) -> list[Path]:
+    """O que precisa ir para o HF AGORA: as faixas aprovadas que ainda não
+    foram (ou mudaram desde então), mais o que é da produção.
+
+    A conta é por faixa de propósito. Com `publicado_em` de PRODUÇÃO e um
+    filtro de mtime, aprovar a segunda faixa depois da primeira ter subido não
+    mudava nada no disco — os arquivos dela já existiam antes daquele carimbo —
+    e ela nunca subia. Aqui a pergunta é outra: esta faixa já foi?
+    """
+    aprovadas = faixas_aprovadas(w)
+    if not aprovadas:
+        return []
+    marcas = (ler_nuvem(w).get("faixas") or {})
+    quando = {n: (marcas.get(n) or {}).get("publicado_em") for n in aprovadas}
+    # A capa da produção acompanha o conjunto: enquanto faltar uma faixa para
+    # subir, ela vai junto; com todas lá fora, só volta se tiver mudado.
+    ref = min(quando.values()) if all(quando.values()) else None
+    saida = []
+    for f in arquivos_de(w):
+        n = _numero_do(f)
+        if n is None:
+            if _mais_novo(f, ref):
+                saida.append(f)
+        elif n in quando and _mais_novo(f, quando[n]):
+            saida.append(f)
+    return saida
+
+
+def _mais_novo(f: Path, publicado_em: str | None) -> bool:
+    """Este arquivo mudou depois que a faixa subiu?
+
+    O carimbo é gravado com precisão de SEGUNDOS (`timespec="seconds"`), então
+    ele é sempre um pouco anterior ao arquivo que acabou de subir — sem a folga
+    de um segundo, toda faixa recém-publicada pareceria mudada e subiria de
+    novo na passada seguinte.
+    """
+    if not publicado_em:
+        return True
     try:
-        quando = datetime.fromisoformat(publicado_em).timestamp()
-    except (TypeError, ValueError):
-        return True                      # carimbo ilegível: sobe, não adivinha
-    return any(f.stat().st_mtime > quando for f in arquivos_de(w))
+        return f.stat().st_mtime > datetime.fromisoformat(publicado_em).timestamp() + 1
+    except (TypeError, ValueError, OSError):
+        return True
 
 
 def a_subir(outdir: Path) -> list[str]:
@@ -96,18 +143,12 @@ def a_subir(outdir: Path) -> list[str]:
     `nuvem.pendentes` devolve todo mundo que está aprovado — publicado ou não.
     Rodar sobre isso relia 4,13 GB do disco a cada passada para reenviar o que
     já estava lá idêntico: 20 minutos de nada. Aqui fica de fora quem já subiu
-    e não mudou desde então.
+    e não mudou desde então — e a pergunta é feita FAIXA A FAIXA.
 
     Para forçar o reenvio de uma produção, nomeie ela: `publica-hf <slug>`
     ignora este filtro por completo.
     """
-    fora = []
-    for slug in pendentes(outdir):
-        w = outdir / slug
-        quando = ler_nuvem(w).get("publicado_em")
-        if not quando or _mudou_depois(w, quando):
-            fora.append(slug)
-    return fora
+    return [slug for slug in pendentes(outdir) if arquivos_a_subir(outdir / slug)]
 
 
 def _url_hf(repo: str, slug: str, rel: str) -> str:
@@ -136,6 +177,12 @@ def _reescreve(valor, slug: str, repo: str):
     return valor
 
 
+def _capa_de_faixa_fora(url: str, vivas: set[str]) -> bool:
+    """`capa-v2.png` de uma faixa que não subiu não pode ficar no manifesto."""
+    m = re.search(r"capa-v(\d+)\.png", url or "")
+    return bool(m) and m.group(1) not in vivas
+
+
 def manifesto(outdir: Path, repo: str, slugs: list[str]) -> dict:
     """O dicionário do painel, com URLs do HF e só o que está publicado.
 
@@ -149,6 +196,17 @@ def manifesto(outdir: Path, repo: str, slugs: list[str]) -> dict:
         if x.get("slug") not in slugs:
             continue
         item = _reescreve(x, x["slug"], repo)
+        # SÓ AS FAIXAS QUE ESTÃO LÁ. Com aprovação por faixa, uma produção pode
+        # ter a 1 na vitrine e a 2 só no disco: listar as duas faria a vitrine
+        # apontar para um mp3 que nunca subiu.
+        vivas = set(faixas_publicadas(outdir / x["slug"]))
+        if vivas:
+            item["faixas"] = [f for f in (item.get("faixas") or [])
+                              if str(f.get("n") or "") in vivas]
+            item["versoes"] = [v for v in (item.get("versoes") or [])
+                               if str(v.get("n") or "") in vivas]
+            item["capas"] = [c for c in (item.get("capas") or [])
+                             if not _capa_de_faixa_fora(c.get("url", ""), vivas)]
         item["clipe"] = None            # a cópia não sobe; quem manda é `faixas[].clipe`
         item["docs"] = []               # não há .md no HF para linkar: o texto vem aqui
         mv.append(item)                 # `doc` e `prompts` seguem inteiros, como texto
@@ -263,7 +321,8 @@ def publicar(outdir: Path, repo: str = REPO_PADRAO, alvos: list[str] | None = No
     slugs = [] if so_manifesto else [s for s in (
         [resolver(outdir, a) for a in alvos] if alvos else a_subir(outdir)) if s]
     remover = a_remover(outdir) if not alvos else []
-    plano = {s: arquivos_de(outdir / s) for s in slugs}
+    plano = {s: (arquivos_de(outdir / s) if alvos else arquivos_a_subir(outdir / s))
+             for s in slugs}
     bytes_totais = sum(f.stat().st_size for fs in plano.values() for f in fs)
     for s in slugs:
         log(f"  {s}: {len(plano[s])} arquivos")
@@ -281,11 +340,26 @@ def publicar(outdir: Path, repo: str = REPO_PADRAO, alvos: list[str] | None = No
     api.create_repo(repo, repo_type="dataset", exist_ok=True, private=False)
 
     for s in slugs:
+        w = outdir / s
         for f in plano[s]:
-            api.upload_file(path_or_fileobj=str(f), path_in_repo=f"{s}/{f.relative_to(outdir / s)}",
+            api.upload_file(path_or_fileobj=str(f), path_in_repo=f"{s}/{f.relative_to(w)}",
                             repo_id=repo, repo_type="dataset")
-        marcar_publicado(outdir / s)
-        log(f"  ✓ {s}")
+        # O carimbo é de quem subiu: as faixas presentes neste envio, e só elas.
+        subiram = {n for n in (_numero_do(f) for f in plano[s]) if n} or set(faixas_aprovadas(w))
+        for n in sorted(subiram):
+            marcar_publicado(w, faixa=n)
+        log(f"  ✓ {s} (faixa {', '.join(sorted(subiram))})")
+        # Faixa desmarcada de uma produção que continua na vitrine: some o
+        # arquivo dela, não a pasta.
+        for n in faixas_a_remover(w):
+            for f in arquivos_da_faixa(w, n):
+                try:
+                    api.delete_file(path_in_repo=f"{s}/{f.relative_to(w)}",
+                                    repo_id=repo, repo_type="dataset")
+                except Exception as e:
+                    log(f"  (remoção de {s}/{f.name}: {e})")
+            marcar_removido(w, faixa=n)
+            log(f"  ✗ {s} faixa {n} retirada")
     for s in remover:
         try:
             api.delete_folder(path_in_repo=s, repo_id=repo, repo_type="dataset")

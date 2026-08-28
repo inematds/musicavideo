@@ -15,7 +15,8 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from src import subida
-from src.nuvem import situacao as situacao_nuvem, aprovar as aprovar_nuvem
+from src.nuvem import (situacao as situacao_nuvem, situacao_faixa as situacao_faixa_nuvem,
+                       aprovar as aprovar_nuvem)
 from src.versao import NOME, VERSAO
 
 
@@ -304,6 +305,18 @@ def coletar(raiz: Path) -> dict:
             versoes.append({"n": n, "clipe": _url(base, f"{l['slug']}/{v.name}"),
                             "faixa": _url(base, f"{l['slug']}/{trilha.name}") if trilha.exists() else None,
                             "aprovada": bool(faixa) and faixa == trilha.name})
+        # A SITUAÇÃO NA VITRINE É DE CADA FAIXA. O Suno entrega duas músicas
+        # por pedido e elas são músicas diferentes: uma pode estar publicada e
+        # a outra nem ter sido escolhida. O card mostra uma faixa por vez, e é
+        # por isso que o selo (e o botão) da nuvem moram na faixa.
+        subindo = subindo_agora == l.get("slug")
+        faixas_do_card = _faixas(base, l["slug"], faixa, mvd_atual)
+        for f in faixas_do_card:
+            f["nuvem"] = ("subindo" if subindo
+                          else situacao_faixa_nuvem(w, f.get("n") or "1"))
+        for v in versoes:
+            v["nuvem"] = ("subindo" if subindo
+                          else situacao_faixa_nuvem(w, v.get("n") or "1"))
         mv.append({
             "fonte": "musicavideo",
             "slug": l.get("slug"),
@@ -322,7 +335,7 @@ def coletar(raiz: Path) -> dict:
             "capas": _capas(base, l["slug"]),
             "clipe": _url(base, f"{l['slug']}/clipe.mp4"),
             "faixa": _url(base, f"{l['slug']}/{faixa}") if faixa else None,
-            "faixas": _faixas(base, l["slug"], faixa, mvd_atual),
+            "faixas": faixas_do_card,
             "versoes": versoes,
             "bytes": _tamanho(w),
             "doc": _documento(w),
@@ -390,6 +403,11 @@ h1 span{color:var(--amb)}
 .selos .n{background:#000a;color:var(--txt);font-size:10.5px;letter-spacing:.5px;border-radius:99px;padding:1px 7px;white-space:nowrap;flex:0 0 auto}
 .selos .n.ok{background:var(--amb);color:#1a1206;font-weight:600}
 .selos .dir{display:flex;gap:6px}
+/* O selo da nuvem é BOTÃO: precisa receber o clique que a barra de selos
+   descarta (`pointer-events:none` existe para não roubar o clique da capa). */
+.selos button.n{font:inherit;font-size:10.5px;line-height:1.5;border:0;cursor:pointer;pointer-events:auto}
+.selos button.n:hover{filter:brightness(1.15)}
+.selos button.n:disabled{cursor:default}
 /* Os quatro estados de nuvem, cada um com a sua cor — dá para varrer a grade
    sem ler: âmbar cheio já está lá fora, contorno âmbar está a caminho. */
 .selos .n.nv.ok{background:var(--amb);color:#1a1206;font-weight:600}
@@ -531,11 +549,20 @@ function cardMV(m){const x=m.x,f=m.f;
  // varrendo a grade com o olho, e uma pill lá embaixo obriga a ler. Os quatro
  // estados aparecem — inclusive o `local`, apagado, porque "não foi" também é
  // resposta e sem ele a ausência de selo se confunde com card sem informação.
- const NV={publicado:["☁ na nuvem","ok"],subindo:["☁ subindo…","subindo"],
-           aprovado:["☁ na fila","aguarda"],
-           remover:["☁ sai","sai"],local:["☁ local","local"]};
- const nvi=NV[x.nuvem||"local"]||NV.local;
- const nuv=`<span class="n nv ${nvi[1]}" title="situação na vitrine">${E(nvi[0])}</span>`;
+ const NV={publicado:["☁ na nuvem","ok","tirar da vitrine"],
+           subindo:["☁ subindo…","subindo","subindo agora"],
+           aprovado:["☁ na fila","aguarda","cancelar a subida"],
+           remover:["☁ sai","sai","voltar a subir"],
+           local:["☁ subir","local","subir esta faixa para a vitrine"]};
+ // O BOTÃO NA CAPA, e por faixa. Subir era decisão que só existia dentro do
+ // modal e valia para a produção inteira — as duas músicas juntas, mesmo
+ // quando só uma prestava. Aqui cada card (que já é uma faixa) tem o seu
+ // gesto, à vista, sem abrir nada.
+ const est=(f?f.nuvem:x.nuvem)||"local";
+ const nvi=NV[est]||NV.local;
+ const nuv=`<button class="n nv ${nvi[1]} nocard" title="${E(nvi[2])}"
+   data-slug="${E(x.slug)}" data-faixa="${E(f&&f.n||"")}" data-em="${E(est)}"
+   ${est==="subindo"?"disabled":""}>${E(nvi[0])}</button>`;
  const som=f?`<audio class=nocard controls preload=none src="${E(f.url)}"></audio>`
   :(x.faixa?`<audio class=nocard controls preload=none src="${E(x.faixa)}"></audio>`:"");
  const st=Object.entries(x.estados||{}).map(([k,v])=>
@@ -552,7 +579,8 @@ function cardMV(m){const x=m.x,f=m.f;
 // e o dono teria de recarregar para descobrir que terminou.
 let relogio=null;
 function vigia(){
- const subindo=(DADOS.musicavideo||[]).some(x=>x.nuvem==="subindo");
+ const subindo=(DADOS.musicavideo||[]).some(x=>x.nuvem==="subindo"
+  ||(x.faixas||[]).some(f=>f.nuvem==="subindo"));
  if(subindo&&!relogio){relogio=setInterval(()=>{
    fetch("__dados.json").then(r=>r.json()).then(d=>{DADOS=d;pinta()}).catch(()=>{})},10000)}
  if(!subindo&&relogio){clearInterval(relogio);relogio=null}}
@@ -574,6 +602,17 @@ function cardAV(x){const g=(x.paleta||[]).slice(0,5);
  ${fonte}
  <div class=pal>${p}</div>
  <div>${(x.tags||[]).slice(0,4).map(g=>`<span class=pill>${E(g)}</span>`).join("")}</div></div>`}
+// Um só caminho para o gesto da nuvem, venha ele do card ou do modal: manda o
+// slug e (quando houver) a FAIXA, e repinta com o que o servidor respondeu.
+function nuvemToggle(b,depois){const em=b.dataset.em;
+ const ligar=em==="local"||em==="remover";
+ const antes=b.textContent;b.disabled=true;b.textContent="…";
+ return fetch("__nuvem",{method:"POST",body:JSON.stringify(
+   {slug:b.dataset.slug,faixa:b.dataset.faixa||null,aprovar:ligar})})
+  .then(r=>r.json()).then(r=>{if(!r.ok){b.disabled=false;b.textContent="falhou: "+r.erro;return}
+   return fetch("__dados.json").then(r=>r.json()).then(d=>{DADOS=d;pinta();
+     if(depois)depois(d)})})
+  .catch(e=>{b.disabled=false;b.textContent=antes+" (falhou)"})}
 function pinta(){const bruto=alvo();
  const l=aba==="musicavideo"?musicas(bruto):bruto;
  grade.innerHTML=l.length?"":`<div class=vazio>nada por aqui ainda.</div>`;
@@ -587,8 +626,22 @@ function pinta(){const bruto=alvo();
   // tocar não é abrir: quem clica no player (ou no link da fonte) quer ouvir/ver
   // ali mesmo. Sem isto, arrastar a barra do áudio abre o modal por cima.
   d.querySelectorAll(".nocard").forEach(el=>el.addEventListener("click",ev=>ev.stopPropagation()));
+  const nb=d.querySelector("button.nv");
+  if(nb)nb.onclick=()=>nuvemToggle(nb);
   grade.appendChild(d)});
  vigia()}
+// O mesmo botão nos dois lugares: no modal, ao lado de cada música (uma faixa)
+// e no rodapé (todas). `data-faixa` vazio = a produção inteira.
+function botaoNuvem(x,f){const N={local:["subir para a nuvem","nuvem"],
+  subindo:["subindo agora…","nuvem ok"],
+  aprovado:["na fila — cancelar","nuvem ok"],
+  publicado:["na vitrine — tirar do ar","nuvem ok"],
+  remover:["marcada para sair","nuvem"]};
+ const est=(f?f.nuvem:x.nuvem)||"local";const r=N[est]||N.local;
+ const rot=f?r[0].replace("para a nuvem","esta faixa"):(est==="local"?"subir as duas faixas":r[0]);
+ return `<button class="pill nuvem nocard ${E(est!=="local"?"on":"")}"
+   data-slug="${E(x.slug)}" data-faixa="${E(f&&f.n||"")}" data-em="${E(est)}"
+   ${est==="subindo"?"disabled":""}>${E(rot)}</button>`}
 function abre(x,foco){document.getElementById("dt").textContent=
   (x.mvd?x.mvd+" · ":"")+(x.titulo||x.slug);
  let h="";
@@ -624,6 +677,7 @@ function abre(x,foco){document.getElementById("dt").textContent=
    <span class=meta>${f.n?`versão ${E(f.n)} · `:""}${E(f.nome)}${f.aprovada?" · aprovada ✓":""}</span>
    <audio src="${E(f.url)}" controls preload=none></audio>
    ${f.clipe?`<a class="pill nocard" href="${E(f.clipe)}" target=_blank rel=noopener>assistir o clipe ↗</a>`:""}
+   ${botaoNuvem(x,f)}
    </div>`).join("")+`</div>`;
  else if(x.faixa)h+=`<audio src="${E(x.faixa)}" controls></audio>`;
  if(x.url)h+=`<p><a href="${E(x.url)}" target=_blank rel=noopener>fonte original</a></p>`;
@@ -635,13 +689,10 @@ function abre(x,foco){document.getElementById("dt").textContent=
  h+=`<p class=meta style="margin-top:12px">${E(x.slug)}${x.custo!==undefined?" · US$ "+E(x.custo):""}${x.bytes?" · "+MB(x.bytes):""}</p>`;
  // SUBIR é decisão, não consequência de ficar pronto: um clique marca, e quem
  // sobe de fato é o `publica-hf`, rodado à mão. O botão diz em que pé está.
- if(x.fonte==="musicavideo"){const N={local:["subir para a nuvem","nuvem"],
-   subindo:["subindo agora…","nuvem ok"],
-   aprovado:["na fila — cancelar","nuvem ok"],
-   publicado:["publicado — tirar do ar","nuvem ok"],
-   remover:["marcado para sair","nuvem"]}[x.nuvem||"local"];
-  h+=`<p><button id=nuvem class="pill nuvem ${E((x.nuvem||"local")!=="local"?"on":"")}"
-    data-slug="${E(x.slug)}" data-em="${E(x.nuvem||"local")}">${E(N[0])}</button></p>`;
+ if(x.fonte==="musicavideo"){
+  // O botão da PRODUÇÃO continua, agora dizendo o que faz: as duas faixas de
+  // uma vez. Escolher uma é o botão que fica ao lado de cada música, acima.
+  h+=`<p>${botaoNuvem(x,null)}</p>`;
   h+=`<p><button id=apagar class=perigo data-slug="${E(x.slug)}">mandar para a lixeira</button>
   <span class=meta>não apaga: move para <code>.lixo/</code></span></p>`}
  if((x.docs||[]).length)h+=`<p>`+x.docs.map(d=>
@@ -669,14 +720,10 @@ function abre(x,foco){document.getElementById("dt").textContent=
   // aprovada — que era o comportamento de antes.
   const iFoco=foco!=null?vs.findIndex(v=>String(v.n)===String(foco)):-1;
   mostra(iFoco>=0?iFoco:Math.max(0,vs.findIndex(v=>v.aprovada)))}
- const nb=dc.querySelector("#nuvem");
- if(nb)nb.onclick=()=>{const ligar=nb.dataset.em==="local"||nb.dataset.em==="remover";
-  nb.disabled=true;
-  fetch("__nuvem",{method:"POST",body:JSON.stringify({slug:nb.dataset.slug,aprovar:ligar})})
-   .then(r=>r.json()).then(r=>{if(!r.ok){nb.disabled=false;nb.textContent="falhou: "+r.erro;return}
-    return fetch("__dados.json").then(r=>r.json()).then(d=>{DADOS=d;pinta();
-      const novo=(d.musicavideo||[]).find(y=>y.slug===nb.dataset.slug);if(novo)abre(novo)})})
-   .catch(e=>{nb.disabled=false;nb.textContent="falhou: "+e})};
+ dc.querySelectorAll("button.nuvem").forEach(nb=>nb.onclick=()=>nuvemToggle(nb,d=>{
+   // reabre no mesmo lugar: o estado mudou e o modal precisa dizer a verdade
+   const novo=(d.musicavideo||[]).find(y=>y.slug===nb.dataset.slug);
+   if(novo)abre(novo,foco)}));
  const ap=dc.querySelector("#apagar");
  if(ap)ap.onclick=()=>{if(!confirm("Mandar "+ap.dataset.slug+" para a lixeira?"))return;
   ap.disabled=true;ap.textContent="movendo…";
@@ -738,7 +785,10 @@ class Handler(SimpleHTTPRequestHandler):
                 if w.parent != Path(self.directory) / "musicavideo" or not w.is_dir():
                     raise ValueError(f"caminho fora do acervo: {p.get('slug')}")
                 ligar = bool(p.get("aprovar", True))
-                estado = aprovar_nuvem(w, ligar)
+                # `faixa` vazia = a produção inteira, que é o gesto antigo e
+                # continua valendo (o botão do rodapé do modal).
+                fx = str(p.get("faixa") or "").strip() or None
+                estado = aprovar_nuvem(w, ligar, faixa=fx)
                 # Aprovar deixa de ser só marcar: o botão diz "subir para a
                 # nuvem" e agora sobe. Sem isto o card ficava em `aprovado` para
                 # sempre — o cron que fechava esse ciclo foi retirado na v1.3.0.

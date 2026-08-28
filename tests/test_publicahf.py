@@ -303,3 +303,78 @@ def test_painel_chama_a_fila_na_pasta_certa(tmp_path, monkeypatch):
     _producao(base, "p", ["capa.png"])
     painel.coletar(tmp_path)
     assert vistos == [base] and vistos[0].is_dir()
+
+
+# --------------------------------------------------- aprovação POR FAIXA (v2.1)
+#
+# O Suno entrega duas músicas por pedido, e elas são músicas diferentes. Aprovar
+# a produção inteira obrigava a levar as duas para a vitrine — ou nenhuma.
+
+
+def test_aprovar_uma_faixa_nao_leva_a_outra(tmp_path):
+    w = _producao(tmp_path, "p", ["capa.png", "faixa-1.mp3", "clipe-1.mp4",
+                                  "faixa-2.mp3", "clipe-2.mp4"])
+    nuvem.aprovar(w, faixa="1")
+    assert nuvem.situacao_faixa(w, "1") == "aprovado"
+    assert nuvem.situacao_faixa(w, "2") == "local"
+    nomes = {f.name for f in publicahf.arquivos_a_subir(w)}
+    assert "faixa-1.mp3" in nomes and "clipe-1.mp4" in nomes
+    assert "faixa-2.mp3" not in nomes and "clipe-2.mp4" not in nomes
+    assert "capa.png" in nomes            # a capa da produção é de todas
+
+
+def test_faixa_aprovada_depois_da_publicacao_ainda_sobe(tmp_path):
+    """O buraco do modelo antigo: `publicado_em` era da PRODUÇÃO, e o filtro de
+    reenvio olhava mtime. A faixa 2 nasceu antes daquele carimbo, então
+    aprová-la depois não mudava nada no disco — e ela nunca subia."""
+    w = _producao(tmp_path, "p", ["capa.png", "faixa-1.mp3", "clipe-1.mp4",
+                                  "faixa-2.mp3", "clipe-2.mp4"])
+    nuvem.aprovar(w, faixa="1")
+    nuvem.marcar_publicado(w, faixa="1")
+    assert publicahf.a_subir(tmp_path) == []
+    nuvem.aprovar(w, faixa="2")
+    assert publicahf.a_subir(tmp_path) == ["p"]
+    nomes = {f.name for f in publicahf.arquivos_a_subir(w)}
+    assert "clipe-2.mp4" in nomes
+    assert "clipe-1.mp4" not in nomes     # essa já está lá e não mudou
+
+
+def test_estado_antigo_vale_como_todas_as_faixas_aprovadas(tmp_path):
+    """Acervo já marcado antes desta versão não pode desaparecer da vitrine."""
+    w = _producao(tmp_path, "p", ["faixa-1.mp3", "faixa-2.mp3"])
+    nuvem.aprovar(w)                       # gesto antigo, sem faixa
+    assert nuvem.situacao_faixa(w, "1") == "aprovado"
+    assert nuvem.situacao_faixa(w, "2") == "aprovado"
+    assert nuvem.pendentes(tmp_path) == ["p"]
+
+
+def test_desmarcar_faixa_publicada_pede_remocao_so_dela(tmp_path):
+    w = _producao(tmp_path, "p", ["faixa-1.mp3", "clipe-1.mp4",
+                                  "faixa-2.mp3", "clipe-2.mp4"])
+    nuvem.aprovar(w)
+    nuvem.marcar_publicado(w)
+    nuvem.aprovar(w, False, faixa="2")
+    assert nuvem.situacao_faixa(w, "2") == "remover"
+    assert nuvem.situacao_faixa(w, "1") == "publicado"
+    assert nuvem.faixas_a_remover(w) == ["2"]
+    assert nuvem.a_remover(tmp_path) == []       # a pasta fica: a faixa 1 está lá
+    nuvem.aprovar(w, False, faixa="1")
+    assert nuvem.a_remover(tmp_path) == ["p"]    # sem nenhuma faixa, sai a pasta
+
+
+def test_manifesto_so_mostra_a_faixa_publicada(tmp_path, monkeypatch):
+    w = _producao(tmp_path, "p", ["faixa-1.mp3", "clipe-1.mp4",
+                                  "faixa-2.mp3", "clipe-2.mp4"])
+    nuvem.aprovar(w, faixa="1")
+    nuvem.marcar_publicado(w, faixa="1")
+    monkeypatch.setattr(publicahf.painel, "coletar", lambda raiz: {
+        "musicavideo": [{"slug": "p", "titulo": "P",
+                         "faixas": [{"n": "1", "url": "musicavideo/p/faixa-1.mp3"},
+                                    {"n": "2", "url": "musicavideo/p/faixa-2.mp3"}],
+                         "versoes": [{"n": "1", "clipe": "musicavideo/p/clipe-1.mp4"},
+                                     {"n": "2", "clipe": "musicavideo/p/clipe-2.mp4"}]}],
+        "analisevideo": []})
+    man = publicahf.manifesto(tmp_path, "Conta/repo", ["p"])
+    item = man["musicavideo"][0]
+    assert [f["n"] for f in item["faixas"]] == ["1"]
+    assert [v["n"] for v in item["versoes"]] == ["1"]

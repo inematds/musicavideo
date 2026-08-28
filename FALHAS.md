@@ -4,6 +4,7 @@ Uma linha por falha real. Mais recente no topo.
 
 | data | o que quebrou | menor correção | prompt \| infra |
 |---|---|---|---|
+| 2026-08-28 | teste novo do painel chamou `coletar`, que DRENA A FILA da nuvem: subiu uma produção falsa (`p/`) do tmp para o dataset real no HF | `monkeypatch` em `subida.proxima`/`iniciar` no teste + `delete_folder` do lixo no repo | prompt |
 | 2026-08-28 | TODA fase `plano` falhando (MVD#132, #134, #135): o planner pedia `--model fable`, e o serviço do bot roda com PATH sem `~/.local/bin`, caindo no `/usr/bin/claude` 2.1.63 — versão que não conhece o APELIDO e recusa com "may not exist or you may not have access" | pedir o ID completo `claude-fable-5` (mesmo modelo, mesmo plano); o apelido só existe no CLI novo | infra |
 | 2026-08-28 | MVD#132 de novo: `claude -p` saiu com código != 0 em ~9 s e **stderr vazio**, então a mensagem chegou ao Telegram como `claude -p falhou:` — sem causa. Falha transitória: o mesmo prompt reexecutado deu RC 0 | quando `stderr` vem vazio, a mensagem cai pro fim do `stdout` e sempre carrega o código de saída | infra |
 | 2026-08-27 | MVD#132 morreu na fase `plano` com "saiu com código 1" e um traceback sem causa: o `claude -p --model fable` pendurou 900 s e o `subprocess.TimeoutExpired` escapou — `chamar_fable` só trata `FileNotFoundError`, e `cmd_plano` só pega `ValueError`/`RuntimeError` | `except subprocess.TimeoutExpired` vira `RuntimeError` com a mensagem do teto (a proteção que faltava; o `max_tentativas: 2` do fluxo só passa a valer com isso) | infra |
