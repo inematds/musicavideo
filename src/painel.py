@@ -338,14 +338,22 @@ def coletar(raiz: Path) -> dict:
         # por pedido e elas são músicas diferentes: uma pode estar publicada e
         # a outra nem ter sido escolhida. O card mostra uma faixa por vez, e é
         # por isso que o selo (e o botão) da nuvem moram na faixa.
+        # SUBINDO É DA FAIXA, NÃO DA PASTA. A trava guarda só o slug, então
+        # carimbar a produção inteira fazia as DUAS faixas pulsarem `subindo…`
+        # quando o clique tinha sido em uma. Quem está de fato a caminho é quem
+        # está `aprovado` e ainda não publicou — que é exatamente o que o
+        # `publica-hf` leva nesta passada.
         subindo = subindo_agora == l.get("slug")
+
+        def _nv(n: str) -> str:
+            sit = situacao_faixa_nuvem(w, n or "1")
+            return "subindo" if (subindo and sit == "aprovado") else sit
+
         faixas_do_card = _faixas(base, l["slug"], faixa, mvd_atual)
         for f in faixas_do_card:
-            f["nuvem"] = ("subindo" if subindo
-                          else situacao_faixa_nuvem(w, f.get("n") or "1"))
+            f["nuvem"] = _nv(f.get("n"))
         for v in versoes:
-            v["nuvem"] = ("subindo" if subindo
-                          else situacao_faixa_nuvem(w, v.get("n") or "1"))
+            v["nuvem"] = _nv(v.get("n"))
         mv.append({
             "fonte": "musicavideo",
             "slug": l.get("slug"),

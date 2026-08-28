@@ -248,3 +248,19 @@ def test_derivado_herda_o_mvd_de_quem_o_gerou(tmp_path, monkeypatch):
     assert d["mae-variado"]["mvd"] == "MVD#7"
     assert d["mae-variado"]["derivado"] == "variado"
     assert d["mae-variado"]["nuvem"] == "local"
+
+
+def test_so_a_faixa_que_esta_indo_mostra_subindo(tmp_path, monkeypatch):
+    """A trava guarda o SLUG, e o selo `subindo…` era carimbado na produção
+    inteira: clicar em uma faixa fazia as duas pulsarem, como se as duas
+    estivessem indo."""
+    from src import nuvem, subida
+    from src.painel import coletar
+    monkeypatch.setattr(subida, "proxima", lambda base, **k: None)
+    monkeypatch.setattr(subida, "em_andamento", lambda: "p")
+    w = _prod_com_duas_faixas(tmp_path)
+    nuvem.aprovar(w, faixa="1")
+    nuvem.marcar_publicado(w, faixa="1")
+    nuvem.aprovar(w, faixa="2")            # esta é a que está subindo agora
+    x = coletar(tmp_path)["musicavideo"][0]
+    assert {f["n"]: f["nuvem"] for f in x["faixas"]} == {"1": "publicado", "2": "subindo"}

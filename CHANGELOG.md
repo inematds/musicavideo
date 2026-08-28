@@ -3,6 +3,14 @@
 Semver `vX.XX.YY`: patch incrementa o último; recurso incrementa o do meio e
 carrega o último; major zera o resto.
 
+## 2.3.2 — 2026-08-28
+
+- **`subindo…` pulsava nas duas faixas.** A trava guarda só o slug, e o selo era
+  carimbado na produção inteira: clicar em uma música fazia parecer que as duas
+  estavam indo. Agora o selo só troca para `subindo` na faixa que está de fato
+  a caminho — a que está `aprovado` e ainda não publicou, que é exatamente o
+  que o `publica-hf` leva na passada.
+
 ## 2.3.1 — 2026-08-28
 
 - **Todo card mostra o MVD.** Onze produções estavam sem número: `numerar_acervo`

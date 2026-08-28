@@ -4,6 +4,7 @@ Uma linha por falha real. Mais recente no topo.
 
 | data | o que quebrou | menor correção | prompt \| infra |
 |---|---|---|---|
+| 2026-08-28 | selo `subindo…` aparecia nas DUAS faixas ao subir uma: a trava guarda o slug e o painel carimbava a produção inteira | carimbar `subindo` só na faixa `aprovado` e ainda não publicada | prompt |
 | 2026-08-28 | clicar para subir UMA faixa publicava as duas: o botão chama `publica-hf <slug>`, e o alvo nomeado montava o pacote com `arquivos_de` (a pasta toda) | `arquivos_a_subir(w, forcar=True)` no alvo nomeado — ignora só o "já subiu", nunca a escolha de faixa | prompt |
 | 2026-08-28 | teste novo do painel chamou `coletar`, que DRENA A FILA da nuvem: subiu uma produção falsa (`p/`) do tmp para o dataset real no HF | `monkeypatch` em `subida.proxima`/`iniciar` no teste + `delete_folder` do lixo no repo | prompt |
 | 2026-08-28 | MVD#145 falhou na `musica` com "estado 'pronto' não permite faz": `derivar_slug` corta o assunto em 40 chars e só CHECAVA `exists()` — como o plano leva minutos entre escolher o nome e salvar a pasta, o #144 e o #145 (mesmo começo de assunto) escolheram o MESMO slug, o #145 sobrescreveu o plano do #144 e a música já paga do #144 barrou a fase do #145 | `derivar_slug` RESERVA a pasta com `mkdir(exist_ok=False)`, que é atômico; plano que falha devolve a reserva com `rmdir` (só se vazia) para o `/refazer` não escalar em `-2`, `-3` | infra |
