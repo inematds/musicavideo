@@ -42,7 +42,8 @@ BASE_HF = "https://huggingface.co/datasets/{repo}/resolve/main/"
 # do manifesto, que vive no repo do app: são quilobytes, são o que a vitrine
 # renderiza como HTML, e mantê-los aqui obrigaria a vitrine a fazer uma segunda
 # viagem de rede para mostrar o que já podia vir pronto na página.
-PADROES = ("capa.png", "capa-v*.png", "capa-crua.png", "publicacao/capa-yt.jpg",
+PADROES = ("capa.png", "capa-v*.png", "capa-thumb.jpg", "capa-v*-thumb.jpg",
+           "capa-crua.png", "publicacao/capa-yt.jpg",
            "faixa-*.mp3", "clipe-*.mp4")
 
 
@@ -85,7 +86,7 @@ def _numero_do(f: Path) -> str | None:
     enquanto houver uma faixa lá fora.
     """
     m = re.fullmatch(r"(?:faixa|clipe)-(\d+)\.\w+", f.name) or \
-        re.fullmatch(r"capa-v(\d+)\.png", f.name)
+        re.fullmatch(r"capa-v(\d+)(?:-thumb)?\.(?:png|jpg)", f.name)
     return m.group(1) if m else None
 
 
@@ -110,6 +111,10 @@ def arquivos_a_subir(w: Path, forcar: bool = False) -> list[Path]:
     aprovadas = faixas_aprovadas(w)
     if not aprovadas:
         return []
+    # A capa cheia continua subindo — é ela no detalhe e no vídeo. A miniatura
+    # vai JUNTO, e é só ela que o card pede: 1,2 MB de PNG viraram ~30 KB.
+    from src.arte import garantir_miniaturas
+    garantir_miniaturas(w)
     marcas = (ler_nuvem(w).get("faixas") or {})
     quando = {n: (None if forcar else (marcas.get(n) or {}).get("publicado_em"))
               for n in aprovadas}

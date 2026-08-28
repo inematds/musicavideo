@@ -149,6 +149,10 @@ def _faixas(base: Path, slug: str, aprovada: str | None,
         n = f.stem.rpartition("-")[2] if "-" in f.stem else ""
         saida.append({"url": url, "nome": f.name, "n": n,
                       "aprovada": f.name == aprovada,
+                      # o card pede a MINIATURA; a capa cheia fica para o
+                      # detalhe e para o clique "abrir em tamanho real".
+                      "thumb": (_url(base, f"{slug}/capa-v{n}-thumb.jpg") if n else None)
+                               or _url(base, f"{slug}/capa-thumb.jpg"),
                       "likes": _likes_da(base, mvd, n),
                       "capa": _url(base, f"{slug}/capa-v{n}.png") if n else None,
                       "clipe": (_url(base, f"{slug}/clipe-{n}.mp4") if n else None)
@@ -332,6 +336,7 @@ def coletar(raiz: Path) -> dict:
             "custo": l.get("custo_gasto_usd", 0),
             "tags": l.get("tags", []),
             "capa": _url(base, f"{l['slug']}/capa.png"),
+            "thumb": _url(base, f"{l['slug']}/capa-thumb.jpg"),
             "capas": _capas(base, l["slug"]),
             "clipe": _url(base, f"{l['slug']}/clipe.mp4"),
             "faixa": _url(base, f"{l['slug']}/{faixa}") if faixa else None,
@@ -540,7 +545,9 @@ function musicas(l){const fora=[];
   fs.forEach(f=>fora.push({x:x,f:{...f,capa:f.capa||x.capa}}))});
  return fora}
 function cardMV(m){const x=m.x,f=m.f;
- const capa=(f&&f.capa)||x.capa;
+ // MINIATURA no card, capa cheia só quando não houver: um PNG de 1,2 MB para
+ // desenhar 260px é o que fazia a grade pesar dezenas de megabytes.
+ const capa=(f&&(f.thumb||f.capa))||x.thumb||x.capa;
  const t=capa?`<img class="thumb capa" loading=lazy src="${E(capa)}" alt="">`:`<div class=thumb></div>`;
  const sel=f?`<span class="n${f.aprovada?" ok":""}">v${E(f.n||"?")}${f.aprovada?" ✓":""}</span>`:"";
  // O selo responde a pergunta que o card faz: tem vídeo aqui?

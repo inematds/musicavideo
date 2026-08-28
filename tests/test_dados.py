@@ -207,3 +207,22 @@ def test_rota_da_nuvem_aprova_so_a_faixa_pedida(tmp_path, monkeypatch):
     assert h.enviado["nuvem"] == "subindo"
     assert nuvem.situacao_faixa(w, "2") == "aprovado"
     assert nuvem.situacao_faixa(w, "1") == "local"
+
+
+def test_card_recebe_a_miniatura_da_capa(tmp_path, monkeypatch):
+    """O card desenha ~260px: puxar o PNG de 1,2 MB por faixa é o que fazia a
+    grade pesar dezenas de megabytes."""
+    from src import subida
+    from src.arte import garantir_miniaturas
+    from src.painel import coletar
+    monkeypatch.setattr(subida, "proxima", lambda base, **k: None)
+    w = _prod_com_duas_faixas(tmp_path)
+    from PIL import Image
+    for nome in ("capa.png", "capa-v1.png", "capa-v2.png"):
+        Image.new("RGB", (1024, 1024), (30, 30, 30)).save(w / nome)
+    garantir_miniaturas(w)
+    x = coletar(tmp_path)["musicavideo"][0]
+    assert x["thumb"].startswith("musicavideo/p/capa-thumb.jpg")
+    assert {f["n"]: f["thumb"].split("?")[0] for f in x["faixas"]} == {
+        "1": "musicavideo/p/capa-v1-thumb.jpg",
+        "2": "musicavideo/p/capa-v2-thumb.jpg"}

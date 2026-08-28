@@ -3,6 +3,16 @@
 Semver `vX.XX.YY`: patch incrementa o último; recurso incrementa o do meio e
 carrega o último; major zera o resto.
 
+## 2.2.1 — 2026-08-28
+
+- **Miniatura de verdade no card.** A grade desenha ~260px e vinha puxando a
+  capa inteira — 1024px de PNG, ~1,2 MB por faixa. Agora cada capa ganha uma
+  `-thumb.jpg` (480px, JPEG q78: 1,2 MB viram ~30 KB) e é ela que o card pede,
+  no painel e na vitrine. A capa cheia continua subindo e continua sendo o que
+  o detalhe, o poster do vídeo e o "abrir em tamanho real" mostram.
+- As miniaturas são feitas na hora de publicar (`arte.garantir_miniaturas`) e
+  só refeitas quando a capa é mais nova que elas.
+
 ## 2.1.1 — 2026-08-28
 
 - **Clicar em uma faixa mandava as duas.** O botão do painel dispara

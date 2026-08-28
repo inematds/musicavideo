@@ -475,3 +475,54 @@ def compor(bruta: Path, titulo: str, paleta, template_id: str, destino: Path, *,
         return compor_poster(bruta, titulo, destino, tagline=tagline,
                              creditos=creditos, versao=versao)
     return compor_capa(bruta, titulo, paleta, template_id, destino)
+
+
+# ------------------------------------------------------------------ miniatura
+#
+# O card da grade desenha um quadrado de ~260px e estava puxando a capa
+# INTEIRA: 1024px de PNG, ~1,2 MB cada. Com duas faixas por produção, abrir a
+# vitrine pedia dezenas de megabytes para desenhar miniaturas — e quem paga é
+# quem abre no celular. A capa cheia continua existindo: ela é o que o clique
+# "abrir em tamanho real" mostra, e é o que vai para o YouTube.
+
+MINI_LARGURA = 480
+MINI_QUALIDADE = 78
+
+
+def miniatura(origem: Path, destino: Path | None = None,
+              largura: int = MINI_LARGURA, qualidade: int = MINI_QUALIDADE) -> Path:
+    """`capa.png` -> `capa-thumb.jpg`, redimensionada e em JPEG.
+
+    JPEG e não PNG de propósito: capa é fotografia, e o PNG guarda cada pixel
+    de um material que já vai ser reduzido a um terço do tamanho na tela.
+    """
+    origem = Path(origem)
+    destino = Path(destino) if destino else origem.with_name(origem.stem + "-thumb.jpg")
+    img = Image.open(origem)
+    if img.width > largura:
+        altura = round(img.height * largura / img.width)
+        img = img.resize((largura, altura), Image.LANCZOS)
+    img.convert("RGB").save(destino, "JPEG", quality=qualidade, optimize=True,
+                            progressive=True)
+    return destino
+
+
+def garantir_miniaturas(w: Path) -> list[Path]:
+    """As miniaturas de todas as capas da produção, criando o que faltar.
+
+    Refazer só quando a capa é mais nova que a miniatura: recompor uma capa
+    (`musicavideo arte`) tem de atualizar o card, mas rodar de novo não pode
+    custar CPU à toa.
+    """
+    w = Path(w)
+    feitas = []
+    for capa in sorted(w.glob("capa.png")) + sorted(w.glob("capa-v*.png")):
+        alvo = capa.with_name(capa.stem + "-thumb.jpg")
+        try:
+            if alvo.exists() and alvo.stat().st_mtime >= capa.stat().st_mtime:
+                feitas.append(alvo)
+                continue
+            feitas.append(miniatura(capa, alvo))
+        except (OSError, ValueError):
+            continue                  # capa ilegível não derruba a publicação
+    return feitas

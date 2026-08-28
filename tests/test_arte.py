@@ -165,3 +165,43 @@ def test_poster_sem_titulo_nao_quebra(tmp_path):
     destino = tmp_path / "x.png"
     compor_poster(_fundo(tmp_path), "  ", destino, versao=1)
     assert destino.exists()
+
+
+# --- miniatura da capa (v2.2) -------------------------------------------------
+
+def _capa_falsa(p, lado=1024):
+    """Ruído, não cor chapada: PNG de cor lisa comprime a quase nada e faria o
+    teste de peso passar sem medir coisa alguma."""
+    import os
+    from PIL import Image
+    Image.frombytes("RGB", (lado, lado), os.urandom(lado * lado * 3)).save(p)
+    return p
+
+
+def test_miniatura_encolhe_e_vira_jpeg(tmp_path):
+    """O card desenha ~260px e puxava 1,2 MB de PNG por faixa."""
+    from PIL import Image
+    from src.arte import miniatura
+    capa = _capa_falsa(tmp_path / "capa.png")
+    alvo = miniatura(capa)
+    assert alvo.name == "capa-thumb.jpg"
+    with Image.open(alvo) as img:
+        assert img.width == 480
+        assert img.format == "JPEG"
+    assert alvo.stat().st_size < capa.stat().st_size / 5
+    assert alvo.stat().st_size < 120_000        # o que o card pede de rede
+
+
+def test_miniatura_so_refaz_quando_a_capa_e_mais_nova(tmp_path):
+    import os
+    from src.arte import garantir_miniaturas
+    capa = _capa_falsa(tmp_path / "capa.png")
+    _capa_falsa(tmp_path / "capa-v2.png")
+    feitas = garantir_miniaturas(tmp_path)
+    assert sorted(f.name for f in feitas) == ["capa-thumb.jpg", "capa-v2-thumb.jpg"]
+    antes = (tmp_path / "capa-thumb.jpg").stat().st_mtime_ns
+    garantir_miniaturas(tmp_path)
+    assert (tmp_path / "capa-thumb.jpg").stat().st_mtime_ns == antes   # não refez
+    os.utime(capa, (capa.stat().st_atime, capa.stat().st_mtime + 100))
+    garantir_miniaturas(tmp_path)
+    assert (tmp_path / "capa-thumb.jpg").stat().st_mtime_ns != antes   # refez
