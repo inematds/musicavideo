@@ -245,6 +245,11 @@ def _derivados(base: Path, ja_listados: set) -> list[dict]:
         faixa = _faixa(w)
         saida.append({
             "fonte": "musicavideo", "slug": w.name, "titulo": w.name,
+            # O NÚMERO É O DE QUEM GEROU. Variante não é produção nova (não
+            # ganha número próprio, senão a sequência vira contagem de
+            # recortes), mas sem número nenhum o card fica sem como ser citado
+            # — e era o único da grade sem `MVD#`.
+            "mvd": _mvd_do_estado(base / origem) if origem else "",
             "derivado": rotulo, "origem": origem,
             "quando": datetime.fromtimestamp(w.stat().st_mtime).isoformat(timespec="seconds"),
             "solicitacao": "", "genero": "", "bpm": None, "tom": "",
@@ -256,6 +261,10 @@ def _derivados(base: Path, ja_listados: set) -> list[dict]:
             "faixa": _url(base, f"{w.name}/{faixa}") if faixa else None,
             "faixas": _faixas(base, w.name, faixa),
             "versoes": versoes, "doc": None, "prompts": _prompts(w),
+            # Derivado não tem estado, então não tem marca de nuvem: dizer
+            # `local` é a verdade, e é o que impede o card de nascer sem selo.
+            "nuvem": "local", "likes": 0, "docs": [],
+            "thumb": _url(base, f"{w.name}/capa-thumb.jpg"),
         })
     return saida
 

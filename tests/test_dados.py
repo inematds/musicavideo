@@ -226,3 +226,25 @@ def test_card_recebe_a_miniatura_da_capa(tmp_path, monkeypatch):
     assert {f["n"]: f["thumb"].split("?")[0] for f in x["faixas"]} == {
         "1": "musicavideo/p/capa-v1-thumb.jpg",
         "2": "musicavideo/p/capa-v2-thumb.jpg"}
+
+
+def test_derivado_herda_o_mvd_de_quem_o_gerou(tmp_path, monkeypatch):
+    """Recorte/variante não é produção nova — não ganha número próprio, mas
+    também não pode aparecer sem número: é pelo MVD que se fala dela."""
+    from src import subida
+    from src.painel import coletar
+    monkeypatch.setattr(subida, "proxima", lambda base, **k: None)
+    pai = _prod_com_duas_faixas(tmp_path, "mae")
+    import json as _json
+    est = _json.loads((pai / "estado.json").read_text())
+    est["mvd"] = "MVD#7"
+    (pai / "estado.json").write_text(_json.dumps(est), encoding="utf-8")
+    (tmp_path / "musicavideo" / "index.jsonl").write_text(
+        '{"slug": "mae", "titulo": "T", "mvd": "MVD#7"}\n', encoding="utf-8")
+    filho = tmp_path / "musicavideo" / "mae-variado"
+    filho.mkdir()
+    (filho / "clipe-1.mp4").write_bytes(b"x")
+    d = {x["slug"]: x for x in coletar(tmp_path)["musicavideo"]}
+    assert d["mae-variado"]["mvd"] == "MVD#7"
+    assert d["mae-variado"]["derivado"] == "variado"
+    assert d["mae-variado"]["nuvem"] == "local"

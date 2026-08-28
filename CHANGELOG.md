@@ -3,6 +3,18 @@
 Semver `vX.XX.YY`: patch incrementa o último; recurso incrementa o do meio e
 carrega o último; major zera o resto.
 
+## 2.3.1 — 2026-08-28
+
+- **Todo card mostra o MVD.** Onze produções estavam sem número: `numerar_acervo`
+  só roda no `reindex`, e quem nasceu depois do último ficou sem. Rodado — e as
+  cinco que apareciam sem `MVD#` no fim da vitrine agora têm o seu.
+- **Derivado herda o número de quem o gerou.** Recorte e variante (`-variado`,
+  `-dinamico`) não são produção nova e não ganham número próprio — a sequência
+  contaria recortes, não músicas —, mas apareciam sem nada. Agora mostram o
+  `MVD#` do pai, ao lado do rótulo da variante.
+- Derivado passa a nascer com selo de nuvem (`local`) e com miniatura, como
+  qualquer outro card.
+
 ## 2.2.1 — 2026-08-28
 
 - **Miniatura de verdade no card.** A grade desenha ~260px e vinha puxando a
