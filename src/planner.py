@@ -56,10 +56,19 @@ def chamar_fable(prompt: str) -> str:
         # PATH sem ~/.local/bin e cai no /usr/bin/claude 2.1.63, que não conhece
         # o apelido e recusa com "may not exist or you may not have access"
         # (MVD#132/#134/#135). Mesmo modelo, mesmo plano — só o nome inteiro.
-        r = subprocess.run(["claude", "-p", prompt, "--model", "claude-fable-5"],
-                           capture_output=True, text=True, timeout=900)
+        # O prompt vai por STDIN, nunca em argv: o Linux limita UM argumento a
+        # 128 KB (MAX_ARG_STRLEN), e na RETENTATIVA o prompt carrega o JSON
+        # anterior inteiro + a lista de erros e estoura — o subprocess nem
+        # chega a executar o claude, e o OSError subia como traceback puro
+        # (MVD#139: "[Errno 7] Argument list too long").
+        r = subprocess.run(["claude", "-p", "--model", "claude-fable-5"],
+                           input=prompt, capture_output=True, text=True, timeout=900)
     except FileNotFoundError:
         raise RuntimeError("binário 'claude' não encontrado — o planner precisa do Claude Code no PATH")
+    except OSError as e:
+        # Rede de segurança: qualquer falha de execução vira mensagem, não
+        # traceback — o `cmd_plano` só reconhece ValueError/RuntimeError.
+        raise RuntimeError(f"não deu para executar o claude ({len(prompt)} chars de prompt): {e}")
     except subprocess.TimeoutExpired:
         # Sem isto, o estouro do timeout subia como traceback e o job morria com
         # "saiu com código 1" sem dizer por quê (MVD#132: 900,04 s exatos). O
@@ -807,6 +816,13 @@ def cmd_plano(args) -> int:
         plano = gerar_plano(solicitacao, slug, opts, out_dir())
     except (ValueError, RuntimeError) as e:
         print(f"erro: {e}", file=sys.stderr)
+        return 1
+    except Exception as e:
+        # PORTA DOS FUNDOS: qualquer exceção inesperada sai como uma linha de
+        # erro com o TIPO, nunca como traceback. O bot corta a cauda da saída,
+        # então um traceback chega ao chat só com o cabeçalho e a causa se perde
+        # (MVD#139: o OSError real estava na última linha, invisível).
+        print(f"erro: {type(e).__name__}: {e}", file=sys.stderr)
         return 1
     w = out_dir() / plano["slug"]
     if opts.get("pesquisa_md"):
