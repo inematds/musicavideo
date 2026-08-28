@@ -56,6 +56,11 @@ def chamar_fable(prompt: str) -> str:
                            capture_output=True, text=True, timeout=900)
     except FileNotFoundError:
         raise RuntimeError("binário 'claude' não encontrado — o planner precisa do Claude Code no PATH")
+    except subprocess.TimeoutExpired:
+        # Sem isto, o estouro do timeout subia como traceback e o job morria com
+        # "saiu com código 1" sem dizer por quê (MVD#132: 900,04 s exatos). O
+        # `cmd_plano` só pega ValueError/RuntimeError — então tem que virar um.
+        raise RuntimeError("claude -p não respondeu em 900 s — o planner desistiu")
     if r.returncode != 0:
         raise RuntimeError(f"claude -p falhou: {r.stderr[:300]}")
     return r.stdout

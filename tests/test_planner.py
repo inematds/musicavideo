@@ -381,3 +381,19 @@ def test_capa_manda_variar_o_olhar(tmp_path):
     for proibido in ("chin raised", "chin lifted", "head tilted back", "eyes closed"):
         assert proibido in ctx          # citados como o que NÃO repetir
     assert "capa SEM pessoa nenhuma" in ctx
+
+
+def test_chamar_fable_timeout_vira_runtime_error(monkeypatch):
+    """MVD#132: o `claude -p` pendurou 900 s e o `TimeoutExpired` subiu como
+    traceback — `cmd_plano` só pega ValueError/RuntimeError, então o job morria
+    com "saiu com código 1" sem dizer o motivo. Tem que virar RuntimeError."""
+    import subprocess
+
+    import src.planner as pl
+
+    def estoura(*a, **k):
+        raise subprocess.TimeoutExpired("claude", 900)
+
+    monkeypatch.setattr(subprocess, "run", estoura)
+    with pytest.raises(RuntimeError, match="900 s"):
+        pl.chamar_fable("qualquer prompt")
