@@ -52,7 +52,11 @@ def derivar_slug(solicitacao: str, outdir: Path) -> str:
 
 def chamar_fable(prompt: str) -> str:
     try:
-        r = subprocess.run(["claude", "-p", prompt, "--model", "fable"],
+        # ID COMPLETO, nunca o apelido "fable": o serviço do bot roda com um
+        # PATH sem ~/.local/bin e cai no /usr/bin/claude 2.1.63, que não conhece
+        # o apelido e recusa com "may not exist or you may not have access"
+        # (MVD#132/#134/#135). Mesmo modelo, mesmo plano — só o nome inteiro.
+        r = subprocess.run(["claude", "-p", prompt, "--model", "claude-fable-5"],
                            capture_output=True, text=True, timeout=900)
     except FileNotFoundError:
         raise RuntimeError("binário 'claude' não encontrado — o planner precisa do Claude Code no PATH")
