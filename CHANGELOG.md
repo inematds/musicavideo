@@ -3,6 +3,11 @@
 Semver `vX.XX.YY`: patch incrementa o último; recurso incrementa o do meio e
 carrega o último; major zera o resto.
 
+## 2.0.0 — 2026-08-28
+
+- **A versão do repo alcança a linha 2.x.** O painel e a vitrine já eram a segunda
+  geração do projeto; só o marcador em `src/versao.py` tinha ficado na 1.7.0.
+
 ## 1.7.0 — 2026-08-27
 
 **Recursos**
