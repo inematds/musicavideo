@@ -10,6 +10,7 @@ pasta, apagar produção, reindexar ou reordenar o acervo não renumera ninguém
 senão o número não serve para citar nada, que é justamente para o que ele existe.
 """
 import json
+import re
 from pathlib import Path
 
 # O NÚMERO É O DO BOT. `MVD#122` já existe: é assim que o inemaccbot numera os
@@ -39,8 +40,8 @@ def numero_de(texto: str | None) -> int | None:
         return None
 
 
-def numeros_do_bot(db: Path | None = None) -> dict[str, int]:
-    """`slug da pasta -> id do fluxo`, lido do banco do bot em SOMENTE LEITURA.
+def numeros_do_bot(db: Path | None = None) -> dict[str, list[int]]:
+    """`slug do bot -> ids dos fluxos`, lido do banco do bot em SOMENTE LEITURA.
 
     O bot guarda o slug INTEIRO (60 caracteres) e a pasta usa os 40 primeiros —
     por isso o casamento é por prefixo, não por igualdade. Banco ausente ou
@@ -61,15 +62,41 @@ def numeros_do_bot(db: Path | None = None) -> dict[str, int]:
             con.close()
         except Exception:
             pass
-    return {slug: int(i) for i, slug in linhas if slug}
+    # slug -> LISTA de ids: dois pedidos iguais geram fluxos com o MESMO slug
+    # (MVD#135 e MVD#137), e um dict de valor único apagava o primeiro — era
+    # por isso que a pasta base herdava o número do irmão.
+    mapa: dict[str, list[int]] = {}
+    for i, slug in linhas:
+        if slug:
+            mapa.setdefault(slug, []).append(int(i))
+    return {s: sorted(v) for s, v in mapa.items()}
 
 
 def numero_do_fluxo(slug: str, do_bot: dict[str, int]) -> int | None:
-    """O id do fluxo que gerou esta pasta, casando pelo prefixo do slug."""
-    for s, i in do_bot.items():
-        if s == slug or s.startswith(slug) or slug.startswith(s[:40]):
-            return i
-    return None
+    """O id do fluxo que gerou esta pasta, casando pelo prefixo do slug.
+
+    O bot guarda o slug com 60 caracteres e a pasta usa 40, então o casamento é
+    por prefixo — e DOIS pedidos iguais produzem fluxos com o mesmo prefixo
+    (MVD#135 e MVD#137 nasceram do mesmo assunto). Devolver o primeiro que
+    casasse trocava os números de lugar: o "Vivo ao Amanhã" (fluxo 135, pasta
+    base) ia receber o 137, que é do "Fika Kesho" (pasta `-2`).
+
+    O desempate é POSICIONAL, que é a mesma regra que criou as pastas: os
+    fluxos empatados entram por ordem de id, a pasta base fica com o primeiro,
+    a `-2` com o segundo, a `-3` com o terceiro. Sem irmão para a posição, não
+    há herança — a produção ganha número novo, como já ganhava.
+    """
+    candidatos = sorted(
+        i
+        for s, ids in do_bot.items()
+        if s == slug or s.startswith(slug) or slug.startswith(s[:40])
+        for i in (ids if isinstance(ids, list) else [ids])
+    )
+    if not candidatos:
+        return None
+    m = re.search(r"-([2-9]|\d{2,})$", slug)
+    pos = int(m.group(1)) - 1 if m else 0
+    return candidatos[pos] if pos < len(candidatos) else None
 
 
 # O maior número JÁ DADO, guardado fora das pastas. Sem ele, apagar a última
@@ -145,7 +172,8 @@ def atribuir(outdir: Path, slug: str, do_bot: dict[str, int] | None = None) -> s
         return est["mvd"]
     # Nasceu fora do bot: número novo, acima de tudo que já existe dos dois
     # lados — senão o próximo fluxo do bot colidiria com o que se inventou aqui.
-    topo_bot = max(do_bot.values(), default=0)
+    topo_bot = max((i for v in do_bot.values()
+                    for i in (v if isinstance(v, list) else [v])), default=0)
     proximo = max(max(usados(outdir).values(), default=0), _teto(outdir), topo_bot) + 1
     _gravar_teto(outdir, proximo)
     est["mvd"] = formatar(proximo)

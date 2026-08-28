@@ -135,3 +135,19 @@ def test_duas_pastas_do_mesmo_fluxo_nao_dividem_o_numero(tmp_path):
     _producao(tmp_path, "para-a-musica-eu-acho-que-existe-uma-nar-2")
     assert mvd.atribuir(tmp_path, "para-a-musica-eu-acho-que-existe-uma-nar", do_bot) == "MVD#91"
     assert mvd.atribuir(tmp_path, "para-a-musica-eu-acho-que-existe-uma-nar-2", do_bot) == "MVD#92"
+
+
+def test_dois_fluxos_com_o_mesmo_slug_nao_trocam_de_numero(tmp_path):
+    """MVD#135 e MVD#137 nasceram do MESMO pedido — slug idêntico no bot.
+
+    A pasta base é do primeiro fluxo e a `-2` do segundo. Antes, o dict de
+    valor único apagava o 135 e a pasta base herdava o 137 (do irmão).
+    """
+    slug_bot = "quero-contar-a-historia-da-africa-por-outro-angulo-nao-atrav"
+    db = _banco_do_bot(tmp_path, [(135, slug_bot), (137, slug_bot)])
+    do_bot = mvd.numeros_do_bot(db)
+    base = "quero-contar-a-historia-da-africa-por-ou"
+    assert mvd.numero_do_fluxo(base, do_bot) == 135
+    assert mvd.numero_do_fluxo(base + "-2", do_bot) == 137
+    # sem um terceiro fluxo, a `-3` não herda nada: ganha número novo
+    assert mvd.numero_do_fluxo(base + "-3", do_bot) is None
