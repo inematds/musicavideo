@@ -600,7 +600,13 @@ function cardMV(m){const x=m.x,f=m.f;
  // gesto, à vista, sem abrir nada.
  const est=(f?f.nuvem:x.nuvem)||"local";
  const nvi=NV[est]||NV.local;
- const nuv=`<button class="n nv ${nvi[1]} nocard" title="${E(nvi[2])}"
+ // DERIVADO NÃO TEM BOTÃO. Recorte e variante não têm `estado.json`, e é ele
+ // que guarda a marca da nuvem: o clique só podia falhar. Um selo apagado diz
+ // a verdade — está no disco, não está na vitrine — sem prometer o que a
+ // pasta não pode cumprir.
+ const nuv=x.derivado
+  ?`<span class="n nv local" title="variante local: para publicar, é a produção de origem que sobe">☁ variante</span>`
+  :`<button class="n nv ${nvi[1]} nocard" title="${E(nvi[2])}"
    data-slug="${E(x.slug)}" data-faixa="${E(f&&f.n||"")}" data-em="${E(est)}"
    ${est==="subindo"?"disabled":""}>${E(nvi[0])}</button>`;
  const som=f?`<audio class=nocard controls preload=none src="${E(f.url)}"></audio>`
@@ -717,7 +723,7 @@ function abre(x,foco){document.getElementById("dt").textContent=
    <span class=meta>${f.n?`versão ${E(f.n)} · `:""}${E(f.nome)}${f.aprovada?" · aprovada ✓":""}</span>
    <audio src="${E(f.url)}" controls preload=none></audio>
    ${f.clipe?`<a class="pill nocard" href="${E(f.clipe)}" target=_blank rel=noopener>assistir o clipe ↗</a>`:""}
-   ${botaoNuvem(x,f)}
+   ${x.derivado?"":botaoNuvem(x,f)}
    </div>`).join("")+`</div>`;
  else if(x.faixa)h+=`<audio src="${E(x.faixa)}" controls></audio>`;
  if(x.url)h+=`<p><a href="${E(x.url)}" target=_blank rel=noopener>fonte original</a></p>`;
@@ -732,7 +738,9 @@ function abre(x,foco){document.getElementById("dt").textContent=
  if(x.fonte==="musicavideo"){
   // O botão da PRODUÇÃO continua, agora dizendo o que faz: as duas faixas de
   // uma vez. Escolher uma é o botão que fica ao lado de cada música, acima.
-  h+=`<p>${botaoNuvem(x,null)}</p>`;
+  // Derivado não tem estado para marcar — só a lixeira faz sentido nele.
+  h+=x.derivado?`<p class=meta>variante de <code>${E(x.origem||"?")}</code> — a vitrine
+    recebe a produção de origem, não o recorte.</p>`:`<p>${botaoNuvem(x,null)}</p>`;
   h+=`<p><button id=apagar class=perigo data-slug="${E(x.slug)}">mandar para a lixeira</button>
   <span class=meta>não apaga: move para <code>.lixo/</code></span></p>`}
  if((x.docs||[]).length)h+=`<p>`+x.docs.map(d=>

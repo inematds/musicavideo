@@ -3,6 +3,14 @@
 Semver `vX.XX.YY`: patch incrementa o último; recurso incrementa o do meio e
 carrega o último; major zera o resto.
 
+## 2.3.3 — 2026-08-28
+
+- **Variante não oferece mais botão de nuvem.** Ao herdar o `MVD#` do pai
+  (v2.3.1), os recortes (`-variado`, `-dinamico`) passaram a parecer produções
+  esperando upload — seis cards com `☁ subir` sob o MVD#96. Eles não têm
+  `estado.json`, que é onde a marca da nuvem mora: o clique só podia falhar.
+  Agora mostram um selo apagado `☁ variante`, e o modal diz de quem são.
+
 ## 2.3.2 — 2026-08-28
 
 - **`subindo…` pulsava nas duas faixas.** A trava guarda só o slug, e o selo era
