@@ -43,11 +43,21 @@ MOTORES_DEFAULT = {"musica": "kie:suno-v4.5",
 def derivar_slug(solicitacao: str, outdir: Path) -> str:
     s = unicodedata.normalize("NFKD", solicitacao).encode("ascii", "ignore").decode()
     s = re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")[:40].rstrip("-")
+    # RESERVA a pasta com mkdir, que é atômico no POSIX — não basta CHECAR se
+    # existe. O plano leva minutos entre escolher o nome e salvar, e dois
+    # fluxos com o mesmo começo de assunto (o corte é em 40 chars) rodando em
+    # paralelo escolhiam o MESMO slug e iam escrever na mesma pasta: o segundo
+    # plano sobrescrevia o do primeiro, e a música já paga do primeiro ficava
+    # como `pronto`, barrando a fase do segundo com "estado 'pronto' não
+    # permite faz" (MVD#144 x MVD#145).
     base, n = s, 2
-    while (outdir / s).exists():
-        s = f"{base}-{n}"
-        n += 1
-    return s
+    while True:
+        try:
+            (outdir / s).mkdir(parents=True, exist_ok=False)
+            return s
+        except FileExistsError:
+            s = f"{base}-{n}"
+            n += 1
 
 
 def chamar_fable(prompt: str) -> str:
@@ -384,7 +394,7 @@ def _impor_deterministicos(plano: dict, slug: str, solicitacao: str, opts: dict)
 
 
 def gerar_plano(solicitacao, slug, opts, outdir, chamar_llm=None) -> dict:
-    chamar_llm = chamar_llm or chamar_fable
+    """Resolve o slug (reservando a pasta) e devolve a reserva se o plano falhar."""
     # A FAIXA é conferida ANTES de qualquer coisa: caminho errado tem que
     # aparecer agora, e não depois de uma chamada de modelo — que custa tempo e
     # devolveria um erro do ffprobe, que não diz o que fazer.
@@ -392,9 +402,32 @@ def gerar_plano(solicitacao, slug, opts, outdir, chamar_llm=None) -> dict:
         raise ValueError(f"faixa pronta não encontrada: {opts['faixa_pronta']}")
     outdir = Path(outdir)
     outdir.mkdir(parents=True, exist_ok=True)
-    slug = slug or derivar_slug(solicitacao, outdir)
+    slug_dado = slug is not None
+    reservada = None
+    if not slug_dado:
+        slug = derivar_slug(solicitacao, outdir)
+        reservada = outdir / slug
+    try:
+        return _gerar_plano(solicitacao, slug, opts, outdir, chamar_llm, slug_dado)
+    except BaseException:
+        # Plano que falhou não pode deixar a reserva pra trás: sem isto, cada
+        # `/refazer` acharia a pasta vazia ocupada e iria para `-2`, `-3`... O
+        # `rmdir` só apaga pasta VAZIA — o que tem artefato pago fica de pé.
+        if reservada is not None:
+            try:
+                reservada.rmdir()
+            except OSError:
+                pass
+        raise
+
+
+def _gerar_plano(solicitacao, slug, opts, outdir, chamar_llm, slug_dado) -> dict:
+    chamar_llm = chamar_llm or chamar_fable
+    outdir = Path(outdir)
+    # Um slug DERIVADO já vem com a pasta reservada (vazia) por `derivar_slug`,
+    # então o portão do `--forca` abaixo só vale para o slug que a pessoa passou.
     w = outdir / slug
-    if w.exists():
+    if slug_dado and w.exists():
         if not opts.get("forca"):
             raise ValueError(f"slug '{slug}' já existe — use --forca para replanejar")
         if (w / "estado.json").exists():   # --forca não destrói o que já foi gerado e pago

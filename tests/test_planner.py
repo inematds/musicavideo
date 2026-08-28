@@ -11,10 +11,30 @@ def _fake_llm(plano_ok):
 
 
 def test_derivar_slug(outdir):
+    # Derivar RESERVA a pasta (mkdir atômico) — é o que impede dois planos
+    # concorrentes de escolherem o mesmo slug e escreverem um por cima do outro.
     s = derivar_slug("Música de VIRADA, rock feminino!!", outdir)
     assert s == "musica-de-virada-rock-feminino"
-    (outdir / s).mkdir()
+    assert (outdir / s).is_dir()
     assert derivar_slug("Música de VIRADA, rock feminino!!", outdir) == s + "-2"
+    assert (outdir / (s + "-2")).is_dir()
+
+
+def test_derivar_slug_nao_repete_sob_concorrencia(outdir):
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        slugs = list(ex.map(lambda _: derivar_slug("mesmo assunto", outdir), range(8)))
+    assert len(set(slugs)) == 8, f"slug repetido sob concorrência: {slugs}"
+
+
+def test_plano_que_falha_devolve_a_reserva(outdir):
+    from src.planner import gerar_plano
+    def explode(_):
+        raise RuntimeError("modelo caiu")
+    with pytest.raises(RuntimeError):
+        gerar_plano("um assunto qualquer", None, {}, outdir, chamar_llm=explode)
+    # nenhuma pasta vazia largada para trás — o próximo /refazer reusa o slug
+    assert list(outdir.iterdir()) == []
 
 
 def test_gerar_plano_grava_tudo(outdir, plano_ok):
