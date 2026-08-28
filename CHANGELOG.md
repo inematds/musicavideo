@@ -3,6 +3,14 @@
 Semver `vX.XX.YY`: patch incrementa o último; recurso incrementa o do meio e
 carrega o último; major zera o resto.
 
+## 2.1.1 — 2026-08-28
+
+- **Clicar em uma faixa mandava as duas.** O botão do painel dispara
+  `publica-hf <slug>`, e o alvo nomeado montava o pacote com `arquivos_de` — a
+  pasta inteira. Ele existe para ignorar o filtro de "já subiu e não mudou",
+  nunca a escolha de faixa. Agora nomear um slug reenvia só as faixas
+  aprovadas (`arquivos_a_subir(..., forcar=True)`).
+
 ## 2.1.0 — 2026-08-28
 
 - **A vitrine passa a ser escolhida faixa a faixa.** O Suno entrega duas músicas

@@ -378,3 +378,17 @@ def test_manifesto_so_mostra_a_faixa_publicada(tmp_path, monkeypatch):
     item = man["musicavideo"][0]
     assert [f["n"] for f in item["faixas"]] == ["1"]
     assert [v["n"] for v in item["versoes"]] == ["1"]
+
+
+def test_slug_nomeado_reenvia_mas_nao_inventa_faixa(tmp_path):
+    """`publica-hf <slug>` ignora o "já subiu e não mudou" — é o que o botão do
+    painel usa. O que ele NÃO pode ignorar é a escolha: com a faixa 2 fora, o
+    alvo nomeado mandava a pasta inteira e as duas músicas apareciam na
+    vitrine."""
+    w = _producao(tmp_path, "p", ["capa.png", "faixa-1.mp3", "clipe-1.mp4",
+                                  "faixa-2.mp3", "clipe-2.mp4"])
+    nuvem.aprovar(w, faixa="1")
+    nuvem.marcar_publicado(w, faixa="1")
+    nomes = {f.name for f in publicahf.arquivos_a_subir(w, forcar=True)}
+    assert "faixa-1.mp3" in nomes and "clipe-1.mp4" in nomes   # reenvia a dela
+    assert "faixa-2.mp3" not in nomes and "clipe-2.mp4" not in nomes

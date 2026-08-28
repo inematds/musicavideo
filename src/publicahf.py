@@ -93,9 +93,14 @@ def arquivos_da_faixa(w: Path, n: str) -> list[Path]:
     return [f for f in arquivos_de(w) if _numero_do(f) == str(n)]
 
 
-def arquivos_a_subir(w: Path) -> list[Path]:
+def arquivos_a_subir(w: Path, forcar: bool = False) -> list[Path]:
     """O que precisa ir para o HF AGORA: as faixas aprovadas que ainda não
     foram (ou mudaram desde então), mais o que é da produção.
+
+    `forcar` reenvia as aprovadas mesmo já publicadas — é o `publica-hf <slug>`,
+    que existe para dizer "manda esta de novo". Ele ignora o filtro de "já
+    subiu", NUNCA a escolha de faixa: mandar a pasta inteira era como o clique
+    em uma faixa acabava publicando as duas.
 
     A conta é por faixa de propósito. Com `publicado_em` de PRODUÇÃO e um
     filtro de mtime, aprovar a segunda faixa depois da primeira ter subido não
@@ -106,7 +111,8 @@ def arquivos_a_subir(w: Path) -> list[Path]:
     if not aprovadas:
         return []
     marcas = (ler_nuvem(w).get("faixas") or {})
-    quando = {n: (marcas.get(n) or {}).get("publicado_em") for n in aprovadas}
+    quando = {n: (None if forcar else (marcas.get(n) or {}).get("publicado_em"))
+              for n in aprovadas}
     # A capa da produção acompanha o conjunto: enquanto faltar uma faixa para
     # subir, ela vai junto; com todas lá fora, só volta se tiver mudado.
     ref = min(quando.values()) if all(quando.values()) else None
@@ -321,8 +327,7 @@ def publicar(outdir: Path, repo: str = REPO_PADRAO, alvos: list[str] | None = No
     slugs = [] if so_manifesto else [s for s in (
         [resolver(outdir, a) for a in alvos] if alvos else a_subir(outdir)) if s]
     remover = a_remover(outdir) if not alvos else []
-    plano = {s: (arquivos_de(outdir / s) if alvos else arquivos_a_subir(outdir / s))
-             for s in slugs}
+    plano = {s: arquivos_a_subir(outdir / s, forcar=bool(alvos)) for s in slugs}
     bytes_totais = sum(f.stat().st_size for fs in plano.values() for f in fs)
     for s in slugs:
         log(f"  {s}: {len(plano[s])} arquivos")
