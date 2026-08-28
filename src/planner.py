@@ -455,6 +455,18 @@ def _gerar_plano(solicitacao, slug, opts, outdir, chamar_llm, slug_dado) -> dict
     w.mkdir(parents=True, exist_ok=True)
     gravar_plano(w, plano, reg)
     estado = novo_estado(slug)
+    # O NÚMERO NASCE COM A PRODUÇÃO. O bot manda `--mvd {{ref}}` (`MVD146`), e é
+    # ele quem numera — o fluxo já tem o número, e é esse que a pessoa cita.
+    # Antes o número só aparecia num `reindex` posterior, e até lá o painel e a
+    # vitrine mostravam a produção sem identificação nenhuma; pior, quem numerava
+    # depois tinha de ADIVINHAR de qual fluxo a pasta veio, casando prefixo de
+    # slug — e errava quando dois pedidos começavam igual.
+    from src.mvd import numero_de, formatar, _gravar_teto, _teto
+    n_mvd = numero_de(opts.get("mvd"))
+    if n_mvd is not None:
+        estado["mvd"] = formatar(n_mvd)
+        # o teto sobe junto: quem nascer FORA do bot tem de continuar acima disto
+        _gravar_teto(outdir, max(n_mvd, _teto(outdir)))
     if opts.get("faixa_pronta"):
         # A FAIXA JÁ EXISTE: copiada para dentro do slug e marcada `pronto`, com
         # custo zero. Copiar (e não referenciar) é o que faz o pacote e a
@@ -786,7 +798,7 @@ def _parse_opts(args: list[str]) -> tuple[list[str], dict]:
             i += 1
             opts["faixa"] = int(args[i])
         elif a in ("--estilo", "--letra", "--teto", "--idioma", "--versao", "--tagline",
-                   "--ritmo", "--inicio"):
+                   "--ritmo", "--inicio", "--mvd"):
             i += 1
             opts[a[2:]] = args[i]
         elif a == "--motor":

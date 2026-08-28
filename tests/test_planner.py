@@ -417,3 +417,26 @@ def test_chamar_fable_timeout_vira_runtime_error(monkeypatch):
     monkeypatch.setattr(subprocess, "run", estoura)
     with pytest.raises(RuntimeError, match="900 s"):
         pl.chamar_fable("qualquer prompt")
+
+
+def test_o_numero_mvd_nasce_com_a_producao(outdir, plano_ok):
+    """O bot manda `--mvd {{ref}}` (`MVD146`) e o estado já nasce numerado.
+
+    Antes o número só chegava num `reindex` posterior — até lá o painel e a
+    vitrine mostravam a produção sem identificação, e quem numerava depois tinha
+    de adivinhar de qual fluxo a pasta veio.
+    """
+    plano = gerar_plano("uma cantora sertaneja", None, {"mvd": "MVD146"}, outdir,
+                        chamar_llm=_fake_llm(plano_ok))
+    est = json.loads((outdir / plano["slug"] / "estado.json").read_text(encoding="utf-8"))
+    assert est["mvd"] == "MVD#146"
+    # o teto acompanha, para quem nascer fora do bot continuar acima disto
+    assert int((outdir / ".mvd-contador").read_text().strip()) >= 146
+
+
+def test_sem_mvd_a_producao_nasce_sem_numero(outdir, plano_ok):
+    """Rodado à mão, sem o bot: continua sendo o `reindex` que numera."""
+    plano = gerar_plano("uma cantora sertaneja", None, {}, outdir,
+                        chamar_llm=_fake_llm(plano_ok))
+    est = json.loads((outdir / plano["slug"] / "estado.json").read_text(encoding="utf-8"))
+    assert est.get("mvd") is None

@@ -22,7 +22,7 @@
           "{{artefato:plano}}"
         ]
       },
-      "comando": "bash {{repo}}/musicavideo.sh plano {{input}} --bruto"
+      "comando": "bash {{repo}}/musicavideo.sh plano {{input}} --bruto --mvd {{ref}}"
     },
     {
       "id": "musica",

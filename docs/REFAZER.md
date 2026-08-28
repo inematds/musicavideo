@@ -196,5 +196,7 @@ Disponíveis no kling: `kling-v2_5`, `kling-v2_6`, `kling-v3_0_turbo`.
 - **Pedido repetido vira pasta irmã.** O slug sai dos 40 primeiros caracteres da
   solicitação; dois pedidos que começam igual geram `...`, `...-2`, `...-3`. São
   produções diferentes, com faixa e clipe próprios.
+- **`aprova` não vale em `planejado`.** A transição é `ok`: `ok <slug> clipe` e
+  só então `faz`. O `aprova` serve para fechar uma parte já gerada.
 - **O número MVD nunca muda.** Renomear pasta, reindexar ou republicar não
   renumera — é o que permite citar o número depois.
