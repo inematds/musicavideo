@@ -440,3 +440,46 @@ def test_sem_mvd_a_producao_nasce_sem_numero(outdir, plano_ok):
                         chamar_llm=_fake_llm(plano_ok))
     est = json.loads((outdir / plano["slug"] / "estado.json").read_text(encoding="utf-8"))
     assert est.get("mvd") is None
+
+
+def _acervo(tmp_path):
+    import json
+    w = tmp_path / "agora-eu-cobro"
+    (w / "raw").mkdir(parents=True)
+    for n in ("faixa-1.mp3", "faixa-2.mp3"):
+        (w / n).write_bytes(b"id3")
+    (w / "estado.json").write_text(json.dumps(
+        {"slug": "agora-eu-cobro", "mvd": "MVD#125",
+         "partes": {"musica": {"artefato": "faixa-2.mp3"}}}), encoding="utf-8")
+    return tmp_path
+
+
+def test_faixa_pronta_aceita_referencia_de_acervo(tmp_path):
+    """No bot ninguem digita caminho absoluto: o acervo ja e' endereçavel."""
+    from src.planner import resolver_faixa_pronta as R
+    base = _acervo(tmp_path)
+    alvo2 = str(base / "agora-eu-cobro/faixa-2.mp3")
+    assert R("MVD#125:2", base) == alvo2
+    assert R("MVD#125 faixa 2", base) == alvo2
+    assert R("mvd125:2", base) == alvo2
+    assert R("agora-eu-cobro:2", base) == alvo2
+    assert R("MVD#125:1", base) == str(base / "agora-eu-cobro/faixa-1.mp3")
+    # sem numero: a faixa APROVADA da producao
+    assert R("MVD#125", base) == alvo2
+
+
+def test_faixa_pronta_ainda_aceita_caminho(tmp_path):
+    from src.planner import resolver_faixa_pronta as R
+    base = _acervo(tmp_path)
+    caminho = str(base / "agora-eu-cobro/faixa-1.mp3")
+    assert R(caminho, base) == caminho
+
+
+def test_faixa_pronta_erra_com_recado_util(tmp_path):
+    import pytest
+    from src.planner import resolver_faixa_pronta as R
+    base = _acervo(tmp_path)
+    with pytest.raises(ValueError, match="não achei"):
+        R("MVD#999:1", base)
+    with pytest.raises(ValueError, match="não tem faixa-9"):
+        R("MVD#125:9", base)

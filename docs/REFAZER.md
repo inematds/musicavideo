@@ -145,7 +145,7 @@ O `publica-hf` cobre só a **vitrine**. Um vídeo já publicado no YouTube pelo
 | `--idioma X` | `plano` | `pt-BR`, `en-US`, `sw`… |
 | `--letra arq` | `plano` | usa a sua letra |
 | `--letra-final` | `plano` | a letra é definitiva, não replaneja |
-| `--faixa-pronta a.mp3` | `plano` | entra com música pronta (só capa e clipe) |
+| `--faixa-pronta a.mp3` \| `MVD#125:2` | `plano` | entra com música pronta (só capa e clipe); aceita caminho ou referência ao acervo |
 | `--pesquisa` | `plano` | pesquisa antes de planejar |
 | `--motor parte=prov:modelo` | `plano`, `faz` | troca o motor de uma parte |
 | `--autorizo-pago` | `faz` | libera motor pago fora do padrão |

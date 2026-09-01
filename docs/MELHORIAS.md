@@ -6,6 +6,50 @@ que já está de pé, não construção nova.
 
 ---
 
+## 2026-08-28 — chat com o planejamento, dentro do painel
+
+**Pedido do dono:** ter um **chat no painel** para trocar ideia com o planejamento —
+conversar sobre a produção antes/depois de rodar, em vez de só mandar comando.
+
+Irmão do item da crítica logo abaixo: a crítica é um recado seco ("o ator não
+combina"); o chat é a conversa ("por que você escolheu esse ator?", "e se fosse
+mais velho?", "me mostra outra letra nesse estilo"). Um alimenta o outro.
+
+**A rever quando for implementar:**
+- onde vive a conversa (por MVD? geral? histórico em `chat.jsonl` na pasta da produção)
+- o chat tem que enxergar o contexto da produção (plano, letra, artista, capa,
+  críticas já escritas) — chat cego não serve
+- resultado da conversa precisa virar ação: refazer letra, trocar artista, novo
+  plano — senão é só papo que não muda arquivo nenhum
+- quem responde: o mesmo planejador que gera o plano, não um chat solto.
+
+---
+
+## 2026-08-28 — crítica em texto no painel, que volta pro planejamento
+
+**Pedido do dono:** poder escrever uma **crítica livre em texto** no painel, sobre
+uma produção já feita, e essa crítica **chegar ao planejamento** para ele entender
+o que fez errado. Exemplos do que se quer escrever:
+
+- "o ator não combina com a música"
+- "a letra não combina com o estilo"
+- "a capa não tem nada a ver com a faixa"
+- "o ritmo do corte está lento demais pro andamento"
+
+**Não é** nota/estrela nem checkbox: é texto solto, na linguagem do dono, sobre o
+que ficou errado — o planejador é que traduz isso em decisão (trocar artista,
+refazer letra, mudar estilo, refazer capa).
+
+**A rever quando for implementar:**
+- onde guardar (por MVD, algo como `critica.md`/`criticas.json` na pasta da produção)
+- caixa de texto no card/modal do painel + salvar
+- o planejamento **ler** a crítica das produções anteriores antes de planejar a
+  próxima (é aí que a coisa vale: crítica que ninguém lê não corrige nada)
+- crítica é por produção, mas o aprendizado é do artista — ver se acumula por
+  artista/estilo também.
+
+---
+
 ## 2026-08-28 — miniatura pesada na grade do painel
 
 **Hoje:** o card usa a capa INTEIRA como miniatura (`capa.png` / `capa-vN.png`,

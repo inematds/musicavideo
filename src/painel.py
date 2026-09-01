@@ -33,6 +33,28 @@ def _mvd_do_estado(w: Path) -> str:
         return ""
 
 
+def _atualizado(w: Path) -> str:
+    """Quando a produção mexeu pela última vez — NÃO quando nasceu.
+
+    A grade era ordenada por `criado_em`, que é a data do plano e nunca mais
+    muda: uma produção rodando AGORA, cujo plano é de duas semanas atrás, caía
+    no fim da lista. Quem está olhando o painel quer ver o que está andando.
+
+    O `atualizado_em` do estado é reescrito por todo comando que muda fase; se
+    faltar (derivado não tem `estado.json`), vale o mtime da pasta.
+    """
+    try:
+        e = json.loads((w / "estado.json").read_text(encoding="utf-8"))
+        if e.get("atualizado_em"):
+            return str(e["atualizado_em"])
+    except (OSError, ValueError):
+        pass
+    try:
+        return datetime.fromtimestamp(w.stat().st_mtime).isoformat(timespec="seconds")
+    except OSError:
+        return ""
+
+
 def _linhas(idx: Path) -> list[dict]:
     if not idx.exists():
         return []
@@ -268,6 +290,7 @@ def _derivados(base: Path, ja_listados: set) -> list[dict]:
             "mvd": _mvd_do_ancestral(base, w.name),
             "derivado": rotulo, "origem": origem,
             "quando": datetime.fromtimestamp(w.stat().st_mtime).isoformat(timespec="seconds"),
+            "atualizado": _atualizado(w),
             "solicitacao": "", "genero": "", "bpm": None, "tom": "",
             "estados": {}, "motores": {}, "custo": 0, "tags": [],
             "bytes": _tamanho(w),
@@ -360,6 +383,7 @@ def coletar(raiz: Path) -> dict:
             "mvd": mvd_atual,
             "titulo": l.get("titulo") or l.get("slug"),
             "quando": l.get("criado_em", ""),
+            "atualizado": _atualizado(w),
             "solicitacao": l.get("solicitacao", ""),
             "genero": l.get("genero", ""),
             "bpm": l.get("bpm"),
@@ -418,7 +442,9 @@ def coletar(raiz: Path) -> dict:
             "doc": _texto(w / "analise.md"),
         })
 
-    mv.sort(key=lambda x: x.get("quando") or "", reverse=True)
+    # ORDEM É POR ÚLTIMA ATUALIZAÇÃO, não por criação: o painel serve para ver
+    # o que está andando agora.
+    mv.sort(key=lambda x: x.get("atualizado") or x.get("quando") or "", reverse=True)
     av.sort(key=lambda x: x.get("quando") or "", reverse=True)
     return {"musicavideo": mv, "analisevideo": av}
 
@@ -611,6 +637,11 @@ function cardMV(m){const x=m.x,f=m.f;
    ${est==="subindo"?"disabled":""}>${E(nvi[0])}</button>`;
  const som=f?`<audio class=nocard controls preload=none src="${E(f.url)}"></audio>`
   :(x.faixa?`<audio class=nocard controls preload=none src="${E(x.faixa)}"></audio>`:"");
+ // "há quanto tempo" no card: a grade agora vem ordenada por última
+ // atualização, e sem mostrar o dado a ordem parece arbitrária.
+ const HA=(iso)=>{if(!iso)return"";const s=(Date.now()-new Date(iso).getTime())/1000;
+  if(s<90)return"agora";if(s<5400)return"há "+Math.round(s/60)+" min";
+  if(s<172800)return"há "+Math.round(s/3600)+" h";return"há "+Math.round(s/86400)+" d"};
  const st=Object.entries(x.estados||{}).map(([k,v])=>
   `<span class="pill ${v==="pronto"?"ok":(v==="erro"?"err":"")}">${E(k)}: ${E(v)}</span>`).join("");
  const dv=x.derivado?`<span class="pill dv">${E(x.derivado)}</span>`:"";
@@ -618,7 +649,7 @@ function cardMV(m){const x=m.x,f=m.f;
  const nlk=f?(f.likes||0):(x.likes||0);
  const lk=nlk?`<span class="pill" title="curtidas na vitrine">♥ ${E(nlk)}</span>`:"";
  return `<div class=selos>${sel}<span class=dir>${nuv}${vd}</span></div>${t}${som}<div class=b><h3>${dv}${E(x.titulo)}</h3>${id}${lk}
- <div class=meta>${x.origem?"de "+E(x.origem)+" · ":""}${E(x.genero)}${x.bpm?" · "+E(x.bpm)+" bpm":""}${x.tom?" · "+E(x.tom):""}</div>
+ <div class=meta>${x.atualizado?E(HA(x.atualizado))+" · ":""}${x.origem?"de "+E(x.origem)+" · ":""}${E(x.genero)}${x.bpm?" · "+E(x.bpm)+" bpm":""}${x.tom?" · "+E(x.tom):""}</div>
  <div>${st}</div></div>`}
 // Enquanto houver algo subindo, a grade se atualiza sozinha. Sem isto o selo
 // `subindo…` ficaria pulsando para sempre numa página que já não é verdade —

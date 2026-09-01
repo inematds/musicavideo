@@ -393,13 +393,54 @@ def _impor_deterministicos(plano: dict, slug: str, solicitacao: str, opts: dict)
     return plano
 
 
+def resolver_faixa_pronta(ref: str, outdir: Path) -> str:
+    """Aceita caminho de arquivo OU referência ao acervo: `MVD#125:2`.
+
+    O `--faixa-pronta` só entendia caminho, e no bot isso vira uma linha
+    impossível de digitar no celular. O acervo JÁ é endereçável por `MVD#N`
+    (`src/mvd.py`), que é como se fala das produções no chat — faltava só ligar
+    as duas pontas. Formatos aceitos, todos equivalentes:
+
+        MVD#125:2   MVD#125 2   mvd125:2   <slug>:2   MVD#125   <caminho.mp3>
+
+    Sem número de faixa, vale a faixa APROVADA da produção de origem (o que a
+    pessoa quer dizer com "a música do MVD#125"), com `faixa-1.mp3` de reserva.
+    """
+    from src import mvd as mvd_mod
+    texto = str(ref).strip()
+    if Path(texto).exists():
+        return texto
+    if "/" in texto or texto.lower().endswith((".mp3", ".wav", ".m4a", ".flac")):
+        raise ValueError(f"faixa pronta não encontrada: {texto}")
+    corpo, _, n = texto.replace(" faixa ", ":").replace(" ", ":").partition(":")
+    slug = mvd_mod.resolver(Path(outdir), corpo)
+    if not slug:
+        raise ValueError(f"faixa pronta: não achei produção nem arquivo em {ref!r}")
+    w = Path(outdir) / slug
+    candidatos = [w / f"faixa-{n}.mp3"] if n.strip().isdigit() else []
+    if not candidatos:
+        try:
+            e = json.loads((w / "estado.json").read_text(encoding="utf-8"))
+            aprovada = e["partes"]["musica"].get("artefato")
+            if aprovada:
+                candidatos.append(w / aprovada)
+        except (OSError, ValueError, KeyError):
+            pass
+        candidatos += [w / "faixa-1.mp3", w / "faixa.mp3"]
+    for c in candidatos:
+        if c.exists():
+            return str(c)
+    raise ValueError(f"faixa pronta: {slug} não tem {candidatos[0].name}")
+
+
 def gerar_plano(solicitacao, slug, opts, outdir, chamar_llm=None) -> dict:
     """Resolve o slug (reservando a pasta) e devolve a reserva se o plano falhar."""
     # A FAIXA é conferida ANTES de qualquer coisa: caminho errado tem que
     # aparecer agora, e não depois de uma chamada de modelo — que custa tempo e
     # devolveria um erro do ffprobe, que não diz o que fazer.
-    if opts.get("faixa_pronta") and not Path(opts["faixa_pronta"]).exists():
-        raise ValueError(f"faixa pronta não encontrada: {opts['faixa_pronta']}")
+    if opts.get("faixa_pronta"):
+        # aceita `MVD#125:2` além de caminho — resolvido ANTES do modelo
+        opts["faixa_pronta"] = resolver_faixa_pronta(opts["faixa_pronta"], outdir)
     outdir = Path(outdir)
     outdir.mkdir(parents=True, exist_ok=True)
     slug_dado = slug is not None

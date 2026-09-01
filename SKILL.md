@@ -58,7 +58,10 @@ Solicitação em texto livre. Opcionais:
 - `--estilo X` — estilo/gênero (livre ou id do `data/estilos.json`)
 - `--idioma X` — idioma da letra (default `pt-BR`). Vai para a letra E para o
   prompt do Suno, que são dois lugares e precisam concordar
-- `--faixa-pronta <arq>` — a MÚSICA já existe. A faixa é copiada para dentro do
+- `--faixa-pronta <arq|MVD#N[:faixa]>` — a MÚSICA já existe. Aceita caminho de
+  arquivo **ou referência ao acervo**: `MVD#125:2` (faixa 2 daquela produção),
+  `MVD#125 faixa 2`, `<slug>:2`, ou só `MVD#125` (usa a faixa aprovada dela) —
+  que é o formato digitável no chat do bot. A faixa é copiada para dentro do
   slug e nasce `pronto` (custo zero), a duração real do arquivo ancora a
   decupagem do clipe, e o planejador é avisado para descrever a música como ela
   é em vez de inventar estrutura e letra. Sobra o trabalho de US$ 0: capa e clipe
