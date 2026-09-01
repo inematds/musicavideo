@@ -6,6 +6,37 @@ que já está de pé, não construção nova.
 
 ---
 
+## 2026-09-01 — TRÊS ENTRADAS DE MÚSICA NO BOT (pedido do dono)
+
+**Pedido do dono:** poder entrar com a música de três jeitos, todos pelo chat do
+bot — **(a)** referência do acervo (`MVD#125:2`), **(b)** **anexo** de um arquivo
+de áudio, **(c)** um **link válido** (YouTube, Drive, URL direta de mp3).
+
+Hoje só (a) funciona, e foi feito em 2026-09-01: o `--faixa-pronta` passou a
+aceitar `MVD#125:2`, `MVD#125 faixa 2`, `<slug>:2` e `MVD#125` (faixa aprovada),
+além de caminho. Ver `resolver_faixa_pronta()` em `src/planner.py`.
+
+**O que falta, e onde:**
+
+- **(b) anexo** — o buraco NÃO é aqui, é no `flow.json`/inemaccbot: a fase
+  `plano {{input}} --bruto` só passa o TEXTO do chat adiante. Um MP3 anexado no
+  Telegram não chega ao CLI. Precisa: o bot baixar o anexo, salvar em algum
+  lugar estável e injetar `--faixa-pronta <caminho>` no comando. O CLI já aceita
+  caminho — não muda nada deste lado.
+- **(c) link** — este lado é nosso: `resolver_faixa_pronta()` teria de aceitar
+  URL e baixar. O `inemavox` já tem downloader (dlp) e é a fonte declarada de
+  música/áudio do dono; usar ele em vez de reimplementar. Cuidados: baixar para
+  dentro do slug (a faixa tem de viver na produção, como no `--faixa-pronta`),
+  medir a duração REAL com ffprobe (é ela que ancora a decupagem), e recusar
+  link que não vira áudio com recado claro em vez de stacktrace.
+
+**Detalhe que decide o resto:** nos três casos a música nasce `pronto` com custo
+zero e o planejador é avisado para DESCREVER a faixa em vez de inventar
+estrutura e letra — o contrato já existe, as três entradas só precisam
+desembocar nele.
+
+---
+
 ## 2026-08-28 — chat com o planejamento, dentro do painel
 
 **Pedido do dono:** ter um **chat no painel** para trocar ideia com o planejamento —
