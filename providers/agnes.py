@@ -3,7 +3,9 @@
 Fatos que importam:
 - prompt DEVE ser em inglês (a API filtra português legítimo com 400);
 - imagem: `size` sempre em PIXELS ("1024x1024"), nunca ratio;
-- vídeo: `num_frames` segue 8n+1 com teto 441; rate limit real de 5 req/min;
+- vídeo: `num_frames` segue 8n+1 com teto POR RESOLUÇÃO (720p=481 → 20,0s
+  @24fps; 480p=961; 1080p=241) e rate limit real de 6 req/min — os três
+  medidos em 2026-08-31 contra a API, ver `videos-agnes/README.md`;
 - a resposta do vídeo MENTE o tamanho — conferir o arquivo com ffprobe;
 - URLs de saída são temporárias: baixar na hora;
 - **404 no poll não é falha**: o POST devolve o id na hora, mas o endpoint de
@@ -35,7 +37,73 @@ from providers.base import (Provider, Resultado, ProviderError, ler_env_chave,
 
 AGNES_BASE = "https://apihub.agnes-ai.com"
 FPS = 24
-MAX_FRAMES = 441
+# Teto de frames POR RESOLUÇÃO, medido 2026-08-31 (a própria API devolve a
+# tabela no erro 400): 480p=961, 720p=481, 1080p=241 — a proporção não altera.
+# `PADRAO_WH` é 720p, daí o default 481. Era 441, número que não existe na API:
+# custava ~1,7s de teto por shot.
+MAX_FRAMES_POR_ALTURA = ((1000, 241), (700, 481), (0, 961))
+MAX_FRAMES = 481
+
+# A FAMÍLIA 2.5 TEM OUTRO CONTRATO DE REQUEST — não é o v2.0 com outro nome.
+# Medido 2026-09-01 contra a API (o v2.0 continua exatamente como estava):
+#   v2.0  : num_frames (8n+1) + frame_rate + width/height
+#   2.5-* : mode ("text" | "keyframe") + seconds STRING em [4,12] + n
+#           + size ("720P") + aspect_ratio ("16:9"); `frame_rate` responde
+#           `not an allowed request field` e `width` responde `is a forbidden
+#           field`. Mandar o corpo do v2.0 dá 400 — que o `_barrou` lê como
+#           filtro de conteúdo, e o shot cai na cascata como se tivesse sido
+#           censurado. Foi o que aconteceu na primeira tentativa de re-render.
+# `mode:"keyframe"` exige first_frame e/ou last_frame (não usamos: aqui é t2v).
+SEGUNDOS_MIN_25, SEGUNDOS_MAX_25 = 4, 12
+
+
+def url_status(modelo: str, vid: str) -> str:
+    """O POLL da 2.5 é OUTRO ENDPOINT — e o do v2.0 responde `404 task not
+    found` para uma task 2.5, que o código lê como "ainda não registrada" e
+    espera o timeout inteiro. Custou 45 min de polling num vídeo que já estava
+    pronto em 49 s (2026-09-01)."""
+    if familia_25(modelo):
+        return f"{AGNES_BASE}/v1/videos/{vid}"
+    return f"{AGNES_BASE}/agnesapi?video_id={vid}"
+
+
+def url_do_video(st: dict) -> str | None:
+    """v2.0: `video_url`/`url` na raiz. 2.5: dentro de `metadata.url`."""
+    return (st.get("video_url") or st.get("url")
+            or (st.get("metadata") or {}).get("url")
+            or (st.get("data") or [{}])[0].get("url"))
+
+
+def familia_25(modelo: str) -> bool:
+    return "2.5" in modelo
+
+
+def segundos_25(duracao_s: float) -> str:
+    """A 2.5 só aceita 4..12 s inteiros, como STRING."""
+    return str(int(min(max(round(duracao_s), SEGUNDOS_MIN_25), SEGUNDOS_MAX_25)))
+
+
+def _tamanho_25(altura: int) -> str:
+    return "1080P" if altura > 1000 else ("480P" if altura <= 500 else "720P")
+
+
+def _proporcao_25(w: int, h: int) -> str:
+    from fractions import Fraction
+    conhecidas = {(16, 9): "16:9", (9, 16): "9:16", (1, 1): "1:1",
+                  (4, 3): "4:3", (3, 4): "3:4"}
+    alvo = w / h
+    return min(conhecidas.items(), key=lambda kv: abs(kv[0][0] / kv[0][1] - alvo))[1]
+
+
+def corpo_video(modelo: str, prompt: str, duracao_s: float, w: int, h: int) -> dict:
+    """O corpo certo para CADA família — ver o bloco acima."""
+    if familia_25(modelo):
+        return {"model": modelo, "prompt": prompt, "mode": "text",
+                "seconds": segundos_25(duracao_s), "n": 1,
+                "size": _tamanho_25(h), "aspect_ratio": _proporcao_25(w, h)}
+    return {"model": modelo, "prompt": prompt,
+            "num_frames": num_frames_para(duracao_s, altura=h),
+            "frame_rate": FPS, "width": w, "height": h}
 # 45 min, e o número não é chute: é o `ESPERA_VIDEO` do `videos-agnes`
 # (`pipeline.py`), projeto irmão que roda esta mesma API há mais tempo. Lá o
 # comentário registra o porquê — "30min deixava job lento virar buraco no
@@ -71,11 +139,20 @@ def _resolucao_agnes(valor) -> tuple[str, str]:
     return PADRAO_WH
 
 
-def num_frames_para(duracao_s: float, fps: int = FPS) -> int:
-    """Regra 8n+1, teto 441 (18,4s @24fps)."""
-    alvo = min(int(round(duracao_s * fps)), MAX_FRAMES)
+def max_frames_para(altura: int) -> int:
+    """Teto de frames da resolução usada (a API valida por altura de saída)."""
+    for minimo, teto in MAX_FRAMES_POR_ALTURA:
+        if altura > minimo:
+            return teto
+    return MAX_FRAMES
+
+
+def num_frames_para(duracao_s: float, fps: int = FPS, altura: int = 736) -> int:
+    """Regra 8n+1, teto conforme a resolução (720p = 481 = 20,0s @24fps)."""
+    teto = max_frames_para(altura)
+    alvo = min(int(round(duracao_s * fps)), teto)
     n = max(1, round((alvo - 1) / 8))
-    return min(8 * n + 1, MAX_FRAMES)
+    return min(8 * n + 1, teto)
 
 
 def concat_ffmpeg(shots: list, alvo: Path) -> Path:
@@ -182,8 +259,8 @@ class Agnes(Provider):
     def gerar(self, modelo, params, workdir: Path) -> Resultado:
         if modelo == "agnes-image-2.1-flash":
             return self._gerar_imagem(params, workdir)
-        if modelo == "agnes-video-v2.0":
-            return self._gerar_video(params, workdir)
+        if modelo.startswith("agnes-video-"):
+            return self._gerar_video(params, workdir, modelo)
         raise ProviderError(f"agnes: modelo desconhecido {modelo}")
 
     def _gerar_imagem(self, params, workdir: Path) -> Resultado:
@@ -199,11 +276,12 @@ class Agnes(Provider):
         return Resultado(alvo, 0.0, {"size": corpo["size"]})
 
     def _um_shot(self, prompt: str, shot: dict, w: str, h: str, workdir: Path,
-                 sufixo: str = "") -> Path:
-        """Gera UM shot. Levanta ProviderError se barrar ou falhar."""
-        corpo = {"model": "agnes-video-v2.0", "prompt": prompt,
-                 "num_frames": num_frames_para(shot["duracao_s"]),
-                 "frame_rate": FPS, "width": int(w), "height": int(h)}
+                 sufixo: str = "", modelo: str = "agnes-video-v2.0") -> Path:
+        """Gera UM shot. Levanta ProviderError se barrar ou falhar.
+
+        `modelo` vem do plano/`--motor`: o corpo hardcodava `agnes-video-v2.0` e
+        um pedido de re-render em 2.5-flash renderizaria em v2.0 em silêncio."""
+        corpo = corpo_video(modelo, prompt, shot["duracao_s"], int(w), int(h))
         # FILA CHEIA NÃO É FALHA. O POST responde
         # `503 video_queue_full: video queue is full, please retry later` quando
         # a fila da Agnes lota — e o `http_json` até repete, mas na exponencial
@@ -247,7 +325,7 @@ class Agnes(Provider):
         inicio = time.time()
         while True:
             if time.time() - inicio > TIMEOUT_POLL_S:
-                raise ProviderError(f"agnes: timeout de polling (15 min) no shot {shot['n']}")
+                raise ProviderError(f"agnes: timeout de polling ({TIMEOUT_POLL_S // 60} min) no shot {shot['n']}")
             # 404 NO POLL NÃO É FALHA — é a task ainda não visível no endpoint de
             # status. O POST já devolveu o id; o backend só registra a task com
             # algum atraso, e nesse intervalo o status responde
@@ -262,12 +340,12 @@ class Agnes(Provider):
             # Só antes do primeiro `completed`: task que some DEPOIS de ter
             # aparecido é outra história, e aí o timeout de 15 min fecha.
             #
-            # E 429 é rate limit (5 req/min, real): espera LONGA, não a
+            # E 429 é rate limit (6 req/min, real): espera LONGA, não a
             # exponencial curta do `http_json` (2s, 4s, 8s — que devolve para
             # dentro da mesma janela e leva outro 429). O `videos-agnes` dorme
             # 70s aqui, e é o número que sobreviveu ao uso.
             try:
-                st = http_json(f"{AGNES_BASE}/agnesapi?video_id={vid}", headers=self._headers())
+                st = http_json(url_status(modelo, vid), headers=self._headers())
             except ProviderError as e:
                 if "404" in str(e):
                     time.sleep(10)
@@ -276,14 +354,18 @@ class Agnes(Provider):
                     time.sleep(70)
                     continue
                 raise
-            if st.get("status") == "completed":
-                url = st.get("video_url") or st.get("url")
+            if str(st.get("status", "")).lower() in ("completed", "succeeded", "success", "done"):
+                url = url_do_video(st)
+                if not url:
+                    raise ProviderError(
+                        f"agnes: shot {shot['n']} completou sem url: {str(st)[:200]}")
                 return baixar(url, workdir / "raw" / f"shot-{shot['n']:02d}.mp4")
             if st.get("status") == "failed":
                 raise ProviderError(f"agnes: shot {shot['n']} failed: {st.get('error', '')}")
             time.sleep(10)
 
-    def _gerar_video(self, params, workdir: Path) -> Resultado:
+    def _gerar_video(self, params, workdir: Path,
+                     modelo: str = "agnes-video-v2.0") -> Resultado:
         """Cascata por shot: prompt → prompt_alt → reescrita → vizinho da seção.
 
         A duração total é sagrada: é ela que mantém imagem e música alinhadas.
@@ -317,7 +399,7 @@ class Agnes(Provider):
                 _progresso()
                 continue
             if i > 0:
-                time.sleep(12)                # rate limit real: 5 req/min
+                time.sleep(12)                # rate limit real: 6 req/min
 
             tentativas = [("prompt", shot["prompt"])]
             if shot.get("prompt_alt"):
@@ -327,7 +409,8 @@ class Agnes(Provider):
             for origem, prompt in tentativas:
                 try:
                     feitos[n] = self._um_shot(prompt, shot, w, h, workdir,
-                                              "" if origem == "prompt" else f"-{origem}")
+                                              "" if origem == "prompt" else f"-{origem}",
+                                              modelo=modelo)
                     if origem == "alt":
                         com_alt.append(n)
                         print(f"agnes: shot {n} barrado — entrou pelo prompt_alt")
@@ -345,7 +428,8 @@ class Agnes(Provider):
                     novo_prompt = reescrever(shot, str(erro_final))
                     if novo_prompt:
                         time.sleep(12)
-                        feitos[n] = self._um_shot(novo_prompt, shot, w, h, workdir, "-reescrito")
+                        feitos[n] = self._um_shot(novo_prompt, shot, w, h, workdir, "-reescrito",
+                                                  modelo=modelo)
                         reescritos.append(n)
                         print(f"agnes: shot {n} entrou com prompt reescrito na hora")
                         continue

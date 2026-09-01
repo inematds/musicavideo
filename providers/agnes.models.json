@@ -33,7 +33,24 @@
     },
     "duracao_shot_s": {
      "default": 5,
-     "max": 18
+     "max": 20
+    }
+   }
+  },
+  {
+   "id": "agnes-video-2.5-flash",
+   "capacidade": "video",
+   "custo": {
+    "base_usd": 0.0,
+    "por": "segundo"
+   },
+   "params": {
+    "resolucao": {
+     "default": "1312x736"
+    },
+    "duracao_shot_s": {
+     "default": 5,
+     "max": 20
     }
    }
   }

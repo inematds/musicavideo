@@ -4,6 +4,11 @@ Uma linha por falha real. Mais recente no topo.
 
 | data | o que quebrou | menor correção | prompt \| infra |
 |---|---|---|---|
+| 2026-09-01 | re-render em `agnes-video-2.5-flash` renderizava em v2.0: o corpo do `_um_shot` hardcodava o modelo, ignorando o `--motor` | `corpo_video(modelo, ...)` — o modelo do plano chega no request | prompt |
+| 2026-09-01 | 2.5 recusa o corpo do v2.0 (`frame_rate not allowed`, `width forbidden`, `mode is required`) e o 400 caiu no `_barrou()` como filtro de conteúdo: shot virou "BARRADO" | corpo próprio da família 2.5 (`mode:"text"`, `seconds` string 4–12, `size`, `aspect_ratio`, `n`) | infra |
+| 2026-09-01 | poll da 2.5 no `/agnesapi` do v2.0 dá 404, lido como "task ainda não registrada": 45 min de espera num vídeo pronto em 49s | `url_status()` — 2.5 pollea em `/v1/videos/<id>`, url em `metadata.url` | infra |
+| 2026-09-01 | clipe 19,2s mais longo que a faixa: a 2.5 entrega ~0,5s a mais que os `seconds` pedidos (o v2.0 batia exato pelo `num_frames`) | aparar cada shot na duração planejada antes do concat | infra |
+| 2026-09-01 | teto de `num_frames` era 441 no código, número que não existe na API (real: 720p=481) — perdia 1,7s por shot | `MAX_FRAMES_POR_ALTURA`, medido contra a API | prompt |
 | 2026-08-28 | selo `subindo…` aparecia nas DUAS faixas ao subir uma: a trava guarda o slug e o painel carimbava a produção inteira | carimbar `subindo` só na faixa `aprovado` e ainda não publicada | prompt |
 | 2026-08-28 | clicar para subir UMA faixa publicava as duas: o botão chama `publica-hf <slug>`, e o alvo nomeado montava o pacote com `arquivos_de` (a pasta toda) | `arquivos_a_subir(w, forcar=True)` no alvo nomeado — ignora só o "já subiu", nunca a escolha de faixa | prompt |
 | 2026-08-28 | teste novo do painel chamou `coletar`, que DRENA A FILA da nuvem: subiu uma produção falsa (`p/`) do tmp para o dataset real no HF | `monkeypatch` em `subida.proxima`/`iniciar` no teste + `delete_folder` do lixo no repo | prompt |

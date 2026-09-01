@@ -56,3 +56,23 @@ def test_reajuste_recusa_decupagem_que_nao_cobre(outdir, plano_ok):
 
     with pytest.raises(ValueError, match="cobre"):
         reajustar_decupagem(w, 210.0, chamar_llm=llm_teimoso)
+
+
+def test_retimar_respeita_piso_teto_e_fecha_no_alvo():
+    from src.planner import retimar_decupagem_para
+    d = [{"n": i, "duracao_s": v} for i, v in enumerate([7, 5, 3, 3, 4, 6, 12, 20], 1)]
+    r = retimar_decupagem_para(d, 60, minimo=4, maximo=12)
+    durs = [s["duracao_s"] for s in r]
+    assert sum(durs) == 60
+    assert all(4 <= x <= 12 for x in durs)
+    assert all(isinstance(x, int) for x in durs)
+    # os mais longos batem no teto, os mais curtos no piso
+    assert durs[7] == 12 and durs[6] == 12
+    assert durs[2] == durs[3] == 4
+
+
+def test_retimar_nao_inventa_shot_nem_perde_campo():
+    from src.planner import retimar_decupagem_para
+    d = [{"n": 1, "duracao_s": 3, "prompt": "p", "secao": "intro"}]
+    r = retimar_decupagem_para(d, 4)
+    assert len(r) == 1 and r[0]["prompt"] == "p" and r[0]["duracao_s"] == 4

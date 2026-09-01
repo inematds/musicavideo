@@ -952,3 +952,40 @@ def cmd_ver(args) -> int:
     else:
         print((w / "PLANO.md").read_text(encoding="utf-8"))
     return 0
+
+
+def retimar_decupagem_para(decupagem: list, alvo_s: float,
+                           minimo: int = 4, maximo: int = 12) -> list:
+    """Reescala as durações dos shots para caber num motor com piso e teto.
+
+    Determinístico, sem LLM: a decupagem já foi decidida, o que muda é só o
+    relógio. Nasceu do `agnes-video-2.5-flash`, que só aceita `seconds` inteiro
+    em [4, 12] — um shot de 3 s planejado para o v2.0 viraria 4 s no pedido, e
+    49 arredondamentos desses empurram o clipe para longe da música.
+
+    Preserva o PESO relativo de cada shot e fecha a soma no alvo (a duração
+    real da faixa), distribuindo o resto nos shots com mais folga. Se o alvo não
+    couber entre `n*minimo` e `n*maximo`, entrega o extremo possível — encurtar
+    o clipe é problema da montagem, não deste cálculo.
+    """
+    if not decupagem:
+        return decupagem
+    n = len(decupagem)
+    alvo = int(round(max(n * minimo, min(n * maximo, alvo_s))))
+    pesos = [max(0.1, float(s.get("duracao_s") or 0)) for s in decupagem]
+    total = sum(pesos)
+    novas = [min(maximo, max(minimo, int(round(p / total * alvo)))) for p in pesos]
+    # fecha a soma exata, um segundo por vez, em quem tem folga
+    while sum(novas) != alvo:
+        passo = 1 if sum(novas) < alvo else -1
+        cands = [i for i, v in enumerate(novas) if minimo <= v + passo <= maximo]
+        if not cands:
+            break
+        i = max(cands, key=lambda i: pesos[i] / novas[i] * passo)
+        novas[i] += passo
+    saida = []
+    for shot, dur in zip(decupagem, novas):
+        s = dict(shot)
+        s["duracao_s"] = dur
+        saida.append(s)
+    return saida

@@ -9,7 +9,31 @@ def test_num_frames_regra_8n1():
     from providers.agnes import num_frames_para
     assert num_frames_para(5, 24) == 121
     assert num_frames_para(3.4, 24) == 81
-    assert num_frames_para(30, 24) == 441
+    # teto por resolucao, medido 2026-08-31: 720p=481, 1080p=241, 480p=961
+    assert num_frames_para(30, 24) == 481
+    assert num_frames_para(30, 24, altura=736) == 481
+    assert num_frames_para(30, 24, altura=1080) == 241
+    assert num_frames_para(60, 24, altura=480) == 961
+
+
+def test_modelo_do_plano_chega_no_corpo():
+    """O corpo hardcodava agnes-video-v2.0: pedir 2.5-flash renderizava em v2.0."""
+    from providers.agnes import corpo_video
+    assert corpo_video("agnes-video-v2.0", "p", 7, 1312, 736)["model"] == "agnes-video-v2.0"
+    assert corpo_video("agnes-video-2.5-flash", "p", 7, 1312, 736)["model"] == "agnes-video-2.5-flash"
+
+
+def test_corpo_da_familia_25_e_outro_contrato():
+    """2.5 nao aceita frame_rate/width/num_frames e exige mode+seconds string."""
+    from providers.agnes import corpo_video
+    c = corpo_video("agnes-video-2.5-flash", "p", 7, 1312, 736)
+    assert c["mode"] == "text" and c["seconds"] == "7" and c["n"] == 1
+    assert c["size"] == "720P" and c["aspect_ratio"] == "16:9"
+    assert not {"frame_rate", "width", "height", "num_frames"} & set(c)
+    # seconds e' limitado a [4, 12] pela API
+    assert corpo_video("agnes-video-2.5-flash", "p", 3, 1312, 736)["seconds"] == "4"
+    assert corpo_video("agnes-video-2.5-flash", "p", 18, 1312, 736)["seconds"] == "12"
+    assert corpo_video("agnes-video-2.5-flash", "p", 5, 736, 1312)["aspect_ratio"] == "9:16"
 
 
 def test_gerar_video_shots_poll_concat(tmp_path, monkeypatch):
@@ -386,3 +410,14 @@ def test_indisponivel_so_quando_nao_ha_chave_nenhuma(monkeypatch):
     ag = agnes.Agnes({"env_keys": ["AGNES_API_KEY", "AGNES_API_KEY_2"], "modelos": []})
     ok, motivo = ag.disponivel()
     assert ok is False and "AGNES_API_KEY" in motivo
+
+
+def test_poll_da_25_e_outro_endpoint():
+    """O /agnesapi do v2.0 responde 404 para task da 2.5 — e 404 ali significa
+    'ainda nao registrada', entao o codigo esperava o timeout inteiro."""
+    from providers.agnes import url_status, url_do_video
+    assert url_status("agnes-video-v2.0", "V1").endswith("/agnesapi?video_id=V1")
+    assert url_status("agnes-video-2.5-flash", "V1").endswith("/v1/videos/V1")
+    assert url_do_video({"video_url": "u1"}) == "u1"
+    assert url_do_video({"metadata": {"url": "u2"}}) == "u2"
+    assert url_do_video({"status": "completed"}) is None
