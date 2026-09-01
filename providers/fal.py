@@ -4,7 +4,8 @@ import time
 from pathlib import Path
 
 from providers.base import (Provider, Resultado, ProviderError, ler_env_chave,
-                            motivo_indisponivel, http_json, baixar, gravar_raw)
+                            motivo_indisponivel, http_json, baixar, gravar_raw,
+                            adaptar_prompt, regras_de_prompt)
 from providers.agnes import concat_ffmpeg
 
 TIMEOUT_POLL_S = 15 * 60
@@ -34,7 +35,8 @@ class Fal(Provider):
         shots_arq, custo = [], 0.0
         inicio = time.time()
         for shot in params["decupagem"]:
-            corpo = {"prompt": shot["prompt"], "duration": str(int(shot["duracao_s"]))}
+            corpo = {"prompt": adaptar_prompt(regras_de_prompt(self.decl, modelo), shot["prompt"]),
+                     "duration": str(int(shot["duracao_s"]))}
             resp = http_json(f"https://queue.fal.run/{m['api_path']}", "POST", corpo, h)
             st_url, resp_url = resp.get("status_url"), resp.get("response_url")
             if not (st_url and resp_url):

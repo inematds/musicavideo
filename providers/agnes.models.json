@@ -18,6 +18,9 @@
     "tamanho": {
      "default": "1024x1024"
     }
+   },
+   "prompt": {
+    "idioma": "en"
    }
   },
   {
@@ -35,6 +38,9 @@
      "default": 5,
      "max": 20
     }
+   },
+   "prompt": {
+    "idioma": "en"
    }
   },
   {
@@ -52,6 +58,14 @@
      "default": 5,
      "max": 20
     }
+   },
+   "prompt": {
+    "remover": [
+     "cinematic 24fps",
+     "24fps"
+    ],
+    "acrescentar": [],
+    "idioma": "en"
    }
   }
  ]

@@ -2,7 +2,8 @@
 import base64
 from pathlib import Path
 
-from providers.base import Provider, Resultado, ProviderError, http_json, gravar_raw
+from providers.base import (Provider, Resultado, ProviderError, http_json, gravar_raw,
+                            adaptar_prompt, regras_de_prompt)
 
 BASE_URL = "http://localhost:8000"
 
@@ -30,7 +31,8 @@ class Inemaimg(Provider):
 
     def gerar(self, modelo, params, workdir: Path) -> Resultado:
         largura, _, altura = (params.get("tamanho") or "1024x1024").partition("x")
-        corpo = {"model": modelo, "prompt": params["prompt"],
+        corpo = {"model": modelo,
+                 "prompt": adaptar_prompt(regras_de_prompt(self.decl, modelo), params["prompt"]),
                  "negative_prompt": params.get("prompt_negativo", ""),
                  "width": int(largura), "height": int(altura)}
         resp = http_json(f"{BASE_URL}/generate", "POST", corpo, timeout=600)

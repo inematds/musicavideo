@@ -18,6 +18,15 @@ Fatos que importam:
   adaptador — `1080p".split("x")` estourou o clipe do MVD#90 com 47 shots
   planejados e a música já paga.
 
+ADAPTAÇÃO DO TEXTO (não só dos números): cada modelo declara no
+`agnes.models.json` um bloco `prompt` — `remover`, `acrescentar`, `idioma` —
+aplicado em `_um_shot`, o único ponto por onde a cascata inteira passa. O v2.0
+é IDENTIDADE de propósito (o acervo foi escrito para ele); a 2.5 remove
+`cinematic 24fps`, que é referência a um campo (`frame_rate`) que ela recusa.
+Sem bloco, o texto passa intacto. O `acrescentar` da 2.5 está VAZIO: tirar
+referência a parâmetro morto é tradução, acrescentar guarda criativa seria
+engenharia de prompt sem medição.
+
 ONDE ESTÁ O RESTO DO CONHECIMENTO desta API, que não cabe aqui:
 - `~/projetos/videos-agnes/pipeline.py` — o irmão que roda esta API há mais
   tempo, e de onde vieram o teto de polling (45 min) e a espera de 70s no 429.
@@ -33,7 +42,8 @@ import time
 from pathlib import Path
 
 from providers.base import (Provider, Resultado, ProviderError, ler_env_chave,
-                            motivo_indisponivel, http_json, baixar, gravar_raw)
+                            motivo_indisponivel, http_json, baixar, gravar_raw,
+                            adaptar_prompt, regras_de_prompt)
 
 AGNES_BASE = "https://apihub.agnes-ai.com"
 FPS = 24
@@ -281,6 +291,11 @@ class Agnes(Provider):
 
         `modelo` vem do plano/`--motor`: o corpo hardcodava `agnes-video-v2.0` e
         um pedido de re-render em 2.5-flash renderizaria em v2.0 em silêncio."""
+        # ADAPTAÇÃO DO TEXTO no único ponto por onde os três caminhos da
+        # cascata passam (prompt, prompt_alt e o reescrito na hora). Feita
+        # ANTES do `gravar_raw` mais abaixo, para o log guardar o que foi
+        # mesmo enviado.
+        prompt = adaptar_prompt(regras_de_prompt(self.decl, modelo), prompt)
         corpo = corpo_video(modelo, prompt, shot["duracao_s"], int(w), int(h))
         # FILA CHEIA NÃO É FALHA. O POST responde
         # `503 video_queue_full: video queue is full, please retry later` quando

@@ -22,7 +22,8 @@ import time
 import uuid
 from pathlib import Path
 
-from providers.base import Provider, Resultado, ProviderError, baixar, gravar_raw
+from providers.base import (Provider, Resultado, ProviderError, baixar, gravar_raw,
+                            adaptar_prompt, regras_de_prompt)
 from providers.agnes import concat_ffmpeg
 
 POLL_S = 10
@@ -156,7 +157,8 @@ class Kling(Provider):
             if nome in aceitos:
                 flags += [f"--{nome}", str(valor)]
         antes = creditos()
-        resp = _kling_json(["text_to_video", "--model", m["api_model"], *flags, shot["prompt"]])
+        texto = adaptar_prompt(regras_de_prompt(self.decl, modelo), shot["prompt"])
+        resp = _kling_json(["text_to_video", "--model", m["api_model"], *flags, texto])
         if resp.get("ok") is False:
             raise ProviderError(f"kling recusou: {json.dumps(resp.get('body', resp))[:300]}")
         corpo = resp.get("body") or resp

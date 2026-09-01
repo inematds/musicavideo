@@ -107,3 +107,69 @@ def gravar_raw(workdir: Path, nome: str, payload: dict) -> None:
         alvo = raw / f"{nome}-v{n}.json"
         n += 1
     alvo.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+# ---------------------------------------------------------------- prompt
+# TRADUZIR O TEXTO TAMBÉM É PAPEL DO ADAPTADOR.
+#
+# O plano nasce antes de se saber qual motor vai rodar — é o que já vale para
+# resolução e duração, traduzidas em cada provider. O TEXTO do prompt era a
+# exceção: saía do planejador e ia byte por byte para qualquer API.
+#
+# Só que ele nunca foi neutro. Sai em inglês porque a Agnes recusa português
+# com 400; termina em "cinematic 24fps" porque o v2.0 tem `frame_rate` (o 2.5
+# recusa esse campo); e carrega defesas contra defeitos medidos NO v2.0. Trocar
+# de motor mantinha a redação escrita para o motor antigo.
+#
+# Aqui cada modelo declara, no seu `.models.json`, o que fazer com o texto:
+#
+#   "prompt": {"remover": ["cinematic 24fps"], "acrescentar": [], "idioma": "en"}
+#
+# Sem bloco `prompt` o texto passa intacto — que é o comportamento de sempre,
+# e é de propósito o default.
+PT_MARCADORES = (" que ", " para ", " uma ", " com ", " dos ", " nas ", "ção ", "ções ")
+
+
+def parece_portugues(texto: str) -> bool:
+    """Heurística de palavra funcional — NÃO é detecção de idioma.
+
+    Só existe para transformar um 400 mudo em erro que fala: prompt em
+    português morre na Agnes como `HTTP 400`, que o `_barrou()` lê como filtro
+    de conteúdo, e o shot aparece no log como "BARRADO". Acento não serve de
+    sinal (nome próprio tem acento e passa) — por isso, palavra funcional.
+    """
+    t = f" {(texto or '').lower()} "
+    return sum(1 for m in PT_MARCADORES if m in t) >= 2
+
+
+def adaptar_prompt(regras: dict | None, prompt: str) -> str:
+    """Aplica as regras de texto do modelo. Sem regras, devolve igual."""
+    if not regras or not prompt:
+        return prompt
+    if regras.get("idioma") == "en" and parece_portugues(prompt):
+        raise ProviderError(
+            "prompt em português para um modelo que exige inglês — a API "
+            f"responderia 400 e o erro pareceria censura. Trecho: {prompt[:80]!r}")
+    texto = prompt
+    for alvo in regras.get("remover") or []:
+        baixo = texto.lower()
+        i = baixo.find(alvo.lower())
+        while i >= 0:
+            fim = i + len(alvo)
+            # come a vírgula/espaço que sobra dos dois lados do trecho removido
+            while i > 0 and texto[i - 1] in " ,":
+                i -= 1
+            texto = texto[:i] + texto[fim:]
+            baixo = texto.lower()
+            i = baixo.find(alvo.lower())
+    for extra in regras.get("acrescentar") or []:
+        if extra.lower() not in texto.lower():
+            texto = f"{texto.rstrip().rstrip(',')}, {extra}"
+    return texto.strip().strip(",").strip()
+
+
+def regras_de_prompt(decl: dict, modelo: str) -> dict:
+    """O bloco `prompt` do modelo no `.models.json` (vazio se não houver)."""
+    for m in decl.get("modelos") or []:
+        if m.get("id") == modelo:
+            return m.get("prompt") or {}
+    return {}
