@@ -211,6 +211,21 @@ def numerar_acervo(outdir: Path) -> list[tuple[str, str]]:
     return novos
 
 
+def resolver_todos(outdir: Path, ref: str) -> list[str]:
+    """TODAS as produções com aquele número — normalmente uma, às vezes duas.
+
+    Número repetido existe no acervo (MVD#146 a #150 têm duas produções cada,
+    2026-09-01) e quem só devolve a primeira escolhe em silêncio: o
+    `--faixa-pronta MVD#147:2` copiou a faixa de "Gold on the Water" quando
+    havia também "Não Quero Esquecer" com o mesmo número. Quem chama decide o
+    que fazer com a ambiguidade — mas precisa poder VER que ela existe.
+    """
+    n = numero_de(ref)
+    if n is None:
+        return [ref] if (outdir / ref).is_dir() else []
+    return sorted(slug for slug, num in usados(outdir).items() if num == n)
+
+
 def resolver(outdir: Path, ref: str) -> str | None:
     """Aceita `MVD-014` ou o slug, e devolve sempre o slug.
 

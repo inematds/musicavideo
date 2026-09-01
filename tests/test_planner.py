@@ -483,3 +483,25 @@ def test_faixa_pronta_erra_com_recado_util(tmp_path):
         R("MVD#999:1", base)
     with pytest.raises(ValueError, match="não tem faixa-9"):
         R("MVD#125:9", base)
+
+
+def test_faixa_pronta_recusa_mvd_ambiguo(tmp_path):
+    """Numero repetido existe no acervo: MVD#147 tinha DUAS producoes, e o
+    --faixa-pronta copiou a faixa de uma delas sem avisar (2026-09-01)."""
+    import json, pytest
+    from src.planner import resolver_faixa_pronta as R
+    for nome in ("gold-on-the-water", "nao-quero-esquecer"):
+        w = tmp_path / nome
+        w.mkdir()
+        (w / "faixa-1.mp3").write_bytes(b"a")
+        (w / "faixa-2.mp3").write_bytes(b"b")
+        (w / "estado.json").write_text(json.dumps({"slug": nome, "mvd": "MVD#147",
+                                                   "partes": {"musica": {}}}), encoding="utf-8")
+    with pytest.raises(ValueError) as err:
+        R("MVD#147:2", tmp_path)
+    msg = str(err.value)
+    assert "2 produções" in msg
+    assert "gold-on-the-water" in msg and "nao-quero-esquecer" in msg
+    assert "Use o slug" in msg
+    # pelo slug continua funcionando, sem ambiguidade
+    assert R("gold-on-the-water:2", tmp_path) == str(tmp_path / "gold-on-the-water/faixa-2.mp3")

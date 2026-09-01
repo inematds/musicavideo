@@ -413,7 +413,16 @@ def resolver_faixa_pronta(ref: str, outdir: Path) -> str:
     if "/" in texto or texto.lower().endswith((".mp3", ".wav", ".m4a", ".flac")):
         raise ValueError(f"faixa pronta não encontrada: {texto}")
     corpo, _, n = texto.replace(" faixa ", ":").replace(" ", ":").partition(":")
-    slug = mvd_mod.resolver(Path(outdir), corpo)
+    achados = mvd_mod.resolver_todos(Path(outdir), corpo)
+    if len(achados) > 1:
+        # AMBIGUIDADE NÃO SE ESCOLHE EM SILÊNCIO: copiar a faixa errada é
+        # invisível — o plano sai coerente, com a música errada dentro.
+        raise ValueError(
+            f"{corpo} está em {len(achados)} produções: "
+            + ", ".join(achados)
+            + ". Use o slug em vez do número (ex.: "
+            + f"--faixa-pronta {achados[0]}:{n or '1'})")
+    slug = achados[0] if achados else None
     if not slug:
         raise ValueError(f"faixa pronta: não achei produção nem arquivo em {ref!r}")
     w = Path(outdir) / slug
