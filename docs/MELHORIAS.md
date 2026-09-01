@@ -6,6 +6,45 @@ que já está de pé, não construção nova.
 
 ---
 
+## 2026-09-01 — ENFILEIRA / COLHE: separar o envio da colheita (proposto, não decidido)
+
+**Problema medido:** o render é sequencial — cria um shot, ESPERA ele ficar
+pronto, cria o próximo. Um clipe de 49 shots levou ~90 min. O gargalo não é a
+API: é a espera. Medições de 2026-09-01:
+
+- criação aceita ~6/min (e o teto VARIA: era 1/min em 28/08 — quem manda é o 429);
+- cada shot fica pronto em ~50 s, e o render roda no servidor deles;
+- a task e o MP4 continuam buscáveis MUITO depois: 3,5 h e 12 dias medidos,
+  `expires_at: null`. Uma task de 2,8 dias deu 404 sem explicação — não é TTL
+  limpo, então colher no mesmo dia.
+
+**Proposta:** dois comandos.
+- `enfileira <slug>` — só faz os POSTs, no ritmo de 6/min, gravando
+  `raw/fila.json` com `shot -> {task_id, modelo, chave}`. 49 shots em ~8 min, e
+  o processo morre.
+- `colhe <slug>` — lê a fila, baixa o que estiver `completed`, diz o que falta.
+  Roda depois, em outra sessão, por outro agente, quantas vezes quiser.
+
+Estimativa: ~90 min por clipe viram ~10; 10 clipes numa madrugada em vez de um
+dia. E sobrevive a queda de sessão: o que hoje é "perdi 45 min de polling"
+vira "rodo o colhe de novo".
+
+**O que decide o desenho:**
+- **não existe listagem** (`/v1/videos` e `/v1/videos/list` dão 404): quem não
+  gravar o `task_id` perde o vídeo, mesmo ele existindo. Hoje o id só sobrevive
+  por acidente, dentro do log `raw/agnes-shot-NN.json`;
+- a fila tem de guardar o MODELO: id do v2.0 (`video_...`) só responde em
+  `/agnesapi`, id da 2.5 (`task_...`) só em `/v1/videos/<id>`;
+- e a CHAVE usada, por causa da cascata de contas;
+- no `colhe`, **404 significa "perdi este shot, reenvia"** — não "espera mais".
+  Confundir isso custou 45 min de polling num vídeo pronto em 49 s;
+- o polling também tem rate limit (`video status query rate limit`), então
+  consulta em lote e espaçada;
+- a cascata de qualidade (prompt -> prompt_alt -> reescrita -> vizinho) vira
+  RODADA: envia todos, colhe, e o que barrou entra na rodada seguinte.
+
+---
+
 ## 2026-09-01 — TRÊS ENTRADAS DE MÚSICA NO BOT (pedido do dono)
 
 **Pedido do dono:** poder entrar com a música de três jeitos, todos pelo chat do
