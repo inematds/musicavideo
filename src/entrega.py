@@ -15,6 +15,11 @@ PARTES = ("musica", "capa", "clipe")
 ROTULO = {"musica": "Faixa", "capa": "Capa", "clipe": "Clipe"}
 
 
+def _origem(plano: dict) -> str:
+    from src.planner import descreve_origem
+    return descreve_origem(plano.get("origem"))
+
+
 def gerar_pacote(outdir: Path, slug: str) -> Path:
     outdir = Path(outdir)
     w = outdir / slug
@@ -22,6 +27,7 @@ def gerar_pacote(outdir: Path, slug: str) -> Path:
     estado = carregar_estado(w)
     linhas = [f"# {plano['titulo']}", "",
               f"**slug:** `{slug}`  ·  **solicitação:** {plano['solicitacao']}", "",
+              *( [f"**música de:** {_origem(plano)}", ""] if plano.get("origem") else [] ),
               "| parte | estado | arquivo | motor | custo (US$) |", "|---|---|---|---|---|"]
     faltando = []
     for p in PARTES:

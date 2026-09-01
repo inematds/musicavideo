@@ -384,6 +384,10 @@ def coletar(raiz: Path) -> dict:
             "titulo": l.get("titulo") or l.get("slug"),
             "quando": l.get("criado_em", ""),
             "atualizado": _atualizado(w),
+            # "de <origem>" no card: o mesmo campo que os derivados já usavam,
+            # agora alimentado pela procedência declarada no plano.
+            "origem": (l.get("origem") or {}).get("slug", ""),
+            "origem_mvd": (l.get("origem") or {}).get("mvd", ""),
             "solicitacao": l.get("solicitacao", ""),
             "genero": l.get("genero", ""),
             "bpm": l.get("bpm"),

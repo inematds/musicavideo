@@ -16,6 +16,9 @@ def linha_de(plano: dict, estado: dict) -> dict:
             "tom": plano["musica"]["estilo"]["tom"],
             "motores": {p: plano[p]["motor"] for p in ("musica", "capa", "clipe")},
             "estados": {p: estado["partes"][p]["estado"] for p in ("musica", "capa", "clipe")},
+            # ORIGEM no índice porque o card do painel se monta a partir dele:
+            # produção que empresta a música de outra tem de dizer isso na grade.
+            "origem": plano.get("origem"),
             "custo_gasto_usd": estado["custo_total_usd"]["gasto"],
             "tags": plano["musica"]["estilo"]["mood"]}
 

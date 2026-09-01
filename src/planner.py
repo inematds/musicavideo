@@ -215,6 +215,13 @@ def montar_contexto(solicitacao: str, opts: dict, outdir: Path) -> str:
             "e o que não aparece na medição não deve virar recurso do clipe:\n" + refs)
     if opts.get("estilo"):
         partes.append(f"ESTILO PEDIDO: {opts['estilo']}")
+    if opts.get("origem") and not pedido_tem_assunto(solicitacao):
+        # SEM ASSUNTO NOVO, quem descreve a música é a origem — senão o
+        # planejador escreve sobre uma faixa que não conhece, sabendo só a
+        # duração. Com assunto, o texto do pedido manda e isto não entra.
+        ctx = contexto_da_origem(opts["origem"], outdir)
+        if ctx:
+            partes.append(ctx)
     if opts.get("faixa_pronta"):
         partes.append(
             f"MÚSICA JÁ EXISTE: o usuário trouxe a faixa pronta "
@@ -442,6 +449,88 @@ def resolver_faixa_pronta(ref: str, outdir: Path) -> str:
     raise ValueError(f"faixa pronta: {slug} não tem {candidatos[0].name}")
 
 
+def pedido_tem_assunto(solicitacao: str) -> bool:
+    """O texto do pedido diz alguma coisa além das flags?
+
+    `--faixa-pronta MVD#125:2` e nada mais é pedido VAZIO: o `--bruto` entrega
+    o texto do chat inteiro, e quando a pessoa só cola a flag, o que sobra como
+    "solicitação" é a própria flag. Quem manda um assunto junto ("clipe mais
+    escuro, foco na cantora") continua mandando no plano.
+    """
+    texto = re.sub(r"--[\w-]+(\s+\S+)?", " ", str(solicitacao or ""))
+    return len(texto.split()) >= 3
+
+
+def origem_de(caminho_faixa, outdir) -> dict | None:
+    """De onde veio a faixa, quando ela veio do próprio acervo.
+
+    Devolve `{mvd, slug, faixa, titulo}` — ou None se o arquivo não mora numa
+    produção. Guarda SLUG e número: o número é o nome humano (é o que se cita
+    no chat) mas muda — cinco produções foram renumeradas em 2026-09-01 —,
+    então quem precisa achar a origem depois usa o slug, que é a chave durável.
+    O número é lido AGORA do estado da origem, nunca deduzido do nome da pasta.
+    """
+    arq = Path(caminho_faixa)
+    outdir = Path(outdir)
+    try:
+        w = arq.parent.resolve()
+        if w.parent.resolve() != outdir.resolve() or not (w / "estado.json").exists():
+            return None
+    except OSError:
+        return None
+    dados = {"slug": w.name, "faixa": arq.name, "mvd": None, "titulo": None}
+    try:
+        dados["mvd"] = json.loads((w / "estado.json").read_text(encoding="utf-8")).get("mvd")
+    except (OSError, ValueError):
+        pass
+    try:
+        dados["titulo"] = json.loads((w / "plano.json").read_text(encoding="utf-8")).get("titulo")
+    except (OSError, ValueError):
+        pass
+    return dados
+
+
+def descreve_origem(origem: dict | None) -> str:
+    """`MVD#125 — Construí em Silêncio (agora-eu-cobro), faixa 2`."""
+    if not origem:
+        return ""
+    n = (origem.get("faixa") or "").replace("faixa-", "").replace(".mp3", "")
+    partes = [x for x in (origem.get("mvd"), origem.get("titulo")) if x]
+    txt = " — ".join(partes) if partes else origem.get("slug", "?")
+    if origem.get("slug") and origem.get("titulo"):
+        txt += f" ({origem['slug']})"
+    return txt + (f", faixa {n}" if n and n.isdigit() else "")
+
+
+def contexto_da_origem(origem: dict | None, outdir) -> str:
+    """O que a origem sabe sobre a música — para quando o pedido não diz nada.
+
+    Uma cópia sem texto (`--faixa-pronta MVD#125:2` e mais nada) deixava o
+    planejador sem assunto: ele conhecia a duração do áudio e nada mais. Aqui a
+    origem empresta solicitação, estilo, letra e título — que descrevem a MESMA
+    música — e o pedido explícito é uma decupagem NOVA. A decupagem da origem
+    NÃO entra: mostrar o que não se deve copiar é como se copia.
+    """
+    if not origem:
+        return ""
+    w = Path(outdir) / origem["slug"]
+    try:
+        p = json.loads((w / "plano.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ""
+    letra = ((p.get("musica") or {}).get("letra") or {}).get("texto") or ""
+    est = json.dumps((p.get("musica") or {}).get("estilo") or {}, ensure_ascii=False)
+    return ("A MÚSICA VEM DE OUTRA PRODUÇÃO e o pedido não trouxe assunto novo — "
+            f"use o que a origem sabe sobre ELA MESMA ({descreve_origem(origem)}):\n"
+            f"- pedido original: {p.get('solicitacao')}\n"
+            f"- título: {p.get('titulo')}\n"
+            f"- estilo medido: {est}\n"
+            f"- letra:\n{letra}\n"
+            "ESCREVA UMA DECUPAGEM NOVA para esta música: outro recorte visual, outros "
+            "planos. Não é para repetir o clipe da origem — é o mesmo áudio ganhando "
+            "leitura própria. Capa idem.")
+
+
 def gerar_plano(solicitacao, slug, opts, outdir, chamar_llm=None) -> dict:
     """Resolve o slug (reservando a pasta) e devolve a reserva se o plano falhar."""
     # A FAIXA é conferida ANTES de qualquer coisa: caminho errado tem que
@@ -450,6 +539,9 @@ def gerar_plano(solicitacao, slug, opts, outdir, chamar_llm=None) -> dict:
     if opts.get("faixa_pronta"):
         # aceita `MVD#125:2` além de caminho — resolvido ANTES do modelo
         opts["faixa_pronta"] = resolver_faixa_pronta(opts["faixa_pronta"], outdir)
+        # DE ONDE VEIO fica registrado: sem isso, a única pista de que duas
+        # produções compartilham a música é reconhecer a letra ouvindo.
+        opts["origem"] = origem_de(opts["faixa_pronta"], outdir)
     outdir = Path(outdir)
     outdir.mkdir(parents=True, exist_ok=True)
     slug_dado = slug is not None
@@ -525,6 +617,9 @@ def _gerar_plano(solicitacao, slug, opts, outdir, chamar_llm, slug_dado) -> dict
         estado["mvd"] = formatar(n_mvd)
         # o teto sobe junto: quem nascer FORA do bot tem de continuar acima disto
         _gravar_teto(outdir, max(n_mvd, _teto(outdir)))
+    if opts.get("origem"):
+        plano["origem"] = opts["origem"]
+        print(f"origem: {descreve_origem(opts['origem'])}")
     if opts.get("faixa_pronta"):
         # A FAIXA JÁ EXISTE: copiada para dentro do slug e marcada `pronto`, com
         # custo zero. Copiar (e não referenciar) é o que faz o pacote e a
@@ -629,6 +724,7 @@ def render_plano_md(plano: dict, disp: dict) -> str:
     cab = [f"# {plano['titulo']}", "",
            f"**slug:** `{plano['slug']}`  ·  **criado:** {plano['criado_em']}",
            f"**solicitação:** {plano['solicitacao']}",
+           *( [f"**origem:** {descreve_origem(plano['origem'])}"] if plano.get("origem") else [] ),
            f"**estilo de referência:** {plano['estilo_ref']}  ·  "
            f"**pesquisa:** {'sim' if plano['pesquisa'] else 'não'}", ""]
     corpo = [render_secao(plano, p) for p in PARTES]
