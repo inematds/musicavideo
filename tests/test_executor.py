@@ -184,3 +184,26 @@ def test_a_instrucao_de_limpeza_nao_nomeia_letra():
     saida = prompt_sem_tipografia("a barn at dusk").lower()
     for palavra in ("text", "letter", "typograph", "writing", "word"):
         assert palavra not in saida
+
+
+def test_parte_ja_pronta_sai_com_recibo_e_zero(tmp_path, capsys, monkeypatch):
+    """MVD#157: com --faixa-pronta a musica nasce `pronto`, e a fase `musica`
+    do bot dispara `faz <slug> musica` do mesmo jeito. A recusa saia SEM
+    recibo, o portao nao achava `musica: <arquivo>` e o fluxo morria com a
+    faixa ja no disco."""
+    import json
+    from src.executor import _recibo
+    from pathlib import Path
+    w = tmp_path / "s"
+    w.mkdir()
+    (w / "faixa-1.mp3").write_bytes(b"a")
+    (w / "faixa-2.mp3").write_bytes(b"b")
+    estado = {"partes": {"musica": {"estado": "pronto", "artefato": "faixa-1.mp3"},
+                         "capa": {"estado": "planejado", "artefato": None},
+                         "clipe": {"estado": "planejado", "artefato": None}}}
+    assert _recibo("s", estado, w) == 0
+    saida = capsys.readouterr().out
+    assert "slug: s" in saida
+    assert "musica: " in saida and "faixa-1.mp3" in saida
+    assert "musica_alt: " in saida and "faixa-2.mp3" in saida
+    assert "capa:" not in saida       # parte nao pronta nao entra no recibo

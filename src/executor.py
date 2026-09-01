@@ -334,11 +334,23 @@ def faz(outdir, slug, partes=None, sim=False, telegram=False,
             return 1
         else:
             partes = prontas
+    # PARTE JÁ PRONTA NÃO É ERRO — É NADA A FAZER. Com `--faixa-pronta`, a
+    # música nasce `pronto`, e a fase `musica` do bot dispara `faz <slug>
+    # musica` do mesmo jeito: a recusa saía sem RECIBO, o portão não achava
+    # `musica: <arquivo>` e o fluxo morria com a faixa já no disco (MVD#157,
+    # 2026-09-01). Sair 0 e imprimir o recibo é o que "já está feito" quer
+    # dizer para quem lê a saída — e continua sem refazer nada.
+    ja_prontas = [p for p in partes if estado["partes"][p]["estado"] == "pronto"]
+    for p in ja_prontas:
+        print(f"{p}: já está pronto — nada a fazer")
+    partes = [p for p in partes if p not in ja_prontas]
     for p in partes:
         if estado["partes"][p]["estado"] not in ("aprovado", "erro"):
             print(f"{p}: estado '{estado['partes'][p]['estado']}' não permite faz "
                   f"(precisa aprovado ou erro)")
             return 1
+    if not partes:
+        return _recibo(slug, estado, w)
     if motor_override:   # o override vale de verdade: persiste no contrato
         (w / "plano.json").write_text(json.dumps(plano, ensure_ascii=False, indent=2),
                                       encoding="utf-8")
@@ -422,11 +434,19 @@ def faz(outdir, slug, partes=None, sim=False, telegram=False,
     if all(x["estado"] == "pronto" for x in estado["partes"].values()):
         from src.entrega import entregar
         entregar(outdir, slug)
-    # RECIBO em `campo: valor`: é o que o bot lê da saída da fase (o portão
-    # mostra, e a fase seguinte usa `{{anterior:slug}}`). Uma linha por parte
-    # que ficou pronta, com o caminho REAL do artefato — nome de arquivo é
-    # decisão do provider (`faixa-1.mp3`, não `faixa.mp3`), e adivinhar isso já
-    # entregou o arquivo errado antes.
+    _recibo(slug, estado, w)
+    return 3 if houve_teto else (2 if houve_erro else 0)
+
+
+def _recibo(slug: str, estado: dict, w: Path) -> int:
+    """RECIBO em `campo: valor`: é o que o bot lê da saída da fase (o portão
+    mostra, e a fase seguinte usa `{{anterior:slug}}`). Uma linha por parte que
+    ficou pronta, com o caminho REAL do artefato — nome de arquivo é decisão do
+    provider (`faixa-1.mp3`, não `faixa.mp3`), e adivinhar isso já entregou o
+    arquivo errado antes.
+
+    Devolve 0: quem imprime recibo tem o que mostrar, e isso é sucesso.
+    """
     print(f"\nslug: {slug}")
     for p in PARTES:
         d = estado["partes"][p]
@@ -442,7 +462,7 @@ def faz(outdir, slug, partes=None, sim=False, telegram=False,
                 for alt in sorted(w.glob("faixa-*.mp3")):
                     if alt.name != d["artefato"]:
                         print(f"musica_alt: {alt}")
-    return 3 if houve_teto else (2 if houve_erro else 0)
+    return 0
 
 
 # ---------------------------------------------------------------- comandos CLI
