@@ -153,7 +153,7 @@ def test_dois_fluxos_com_o_mesmo_slug_nao_trocam_de_numero(tmp_path):
     assert mvd.numero_do_fluxo(base + "-3", do_bot) is None
 
 
-def _producao(base, slug, mvd):
+def _producao_num(base, slug, mvd):
     import json
     w = base / slug
     w.mkdir(parents=True)
@@ -168,8 +168,8 @@ def test_liberar_numero_move_quem_ocupava(tmp_path):
     numero com --mvd, sem olhar quem ja o tinha."""
     import json
     from src.mvd import liberar_numero, usados
-    _producao(tmp_path, "nasceu-local", "MVD#146")
-    _producao(tmp_path, "veio-do-bot", "MVD#146")
+    _producao_num(tmp_path, "nasceu-local", "MVD#146")
+    _producao_num(tmp_path, "veio-do-bot", "MVD#146")
     mexidos = liberar_numero(tmp_path, 146, "veio-do-bot")
     assert len(mexidos) == 1
     slug, antes, depois = mexidos[0]
@@ -184,7 +184,7 @@ def test_liberar_numero_move_quem_ocupava(tmp_path):
 
 def test_liberar_numero_nao_mexe_em_quem_nao_colide(tmp_path):
     from src.mvd import liberar_numero, usados
-    _producao(tmp_path, "outra", "MVD#140")
-    _producao(tmp_path, "veio-do-bot", "MVD#146")
+    _producao_num(tmp_path, "outra", "MVD#140")
+    _producao_num(tmp_path, "veio-do-bot", "MVD#146")
     assert liberar_numero(tmp_path, 146, "veio-do-bot") == []
     assert usados(tmp_path)["outra"] == 140
