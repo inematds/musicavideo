@@ -514,6 +514,14 @@ def _gerar_plano(solicitacao, slug, opts, outdir, chamar_llm, slug_dado) -> dict
     from src.mvd import numero_de, formatar, _gravar_teto, _teto
     n_mvd = numero_de(opts.get("mvd"))
     if n_mvd is not None:
+        # UM NÚMERO, UMA PRODUÇÃO. Gravar `--mvd` sem olhar quem já tem o
+        # número foi o que criou MVD#146..#150 com duas produções cada: uma
+        # nascida fora do bot pega `topo_bot + 1`, e horas depois o bot cria
+        # esse fluxo e força o mesmo número aqui.
+        from src.mvd import liberar_numero
+        for slug_mex, antes, depois in liberar_numero(outdir, n_mvd, slug):
+            print(f"mvd: {slug_mex} saiu de {antes} para {depois} "
+                  f"— {formatar(n_mvd)} é do fluxo do bot")
         estado["mvd"] = formatar(n_mvd)
         # o teto sobe junto: quem nascer FORA do bot tem de continuar acima disto
         _gravar_teto(outdir, max(n_mvd, _teto(outdir)))

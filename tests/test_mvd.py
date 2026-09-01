@@ -151,3 +151,40 @@ def test_dois_fluxos_com_o_mesmo_slug_nao_trocam_de_numero(tmp_path):
     assert mvd.numero_do_fluxo(base + "-2", do_bot) == 137
     # sem um terceiro fluxo, a `-3` não herda nada: ganha número novo
     assert mvd.numero_do_fluxo(base + "-3", do_bot) is None
+
+
+def _producao(base, slug, mvd):
+    import json
+    w = base / slug
+    w.mkdir(parents=True)
+    (w / "estado.json").write_text(json.dumps({"slug": slug, "mvd": mvd, "partes": {},
+                                               "historico": []}), encoding="utf-8")
+    return w
+
+
+def test_liberar_numero_move_quem_ocupava(tmp_path):
+    """MVD#146..#150 tinham DUAS producoes cada: uma nascida fora do bot pega
+    `topo_bot + 1` — o proximo numero do bot — e horas depois o bot forca esse
+    numero com --mvd, sem olhar quem ja o tinha."""
+    import json
+    from src.mvd import liberar_numero, usados
+    _producao(tmp_path, "nasceu-local", "MVD#146")
+    _producao(tmp_path, "veio-do-bot", "MVD#146")
+    mexidos = liberar_numero(tmp_path, 146, "veio-do-bot")
+    assert len(mexidos) == 1
+    slug, antes, depois = mexidos[0]
+    assert slug == "nasceu-local" and antes == "MVD#146" and depois != "MVD#146"
+    nums = usados(tmp_path)
+    assert nums["veio-do-bot"] == 146
+    assert nums["nasceu-local"] != 146
+    # a renumeracao fica registrada na producao, com o motivo
+    h = json.loads((tmp_path / "nasceu-local/estado.json").read_text())["historico"]
+    assert h[-1]["evento"] == "renumeracao" and "veio-do-bot" in h[-1]["detalhe"]
+
+
+def test_liberar_numero_nao_mexe_em_quem_nao_colide(tmp_path):
+    from src.mvd import liberar_numero, usados
+    _producao(tmp_path, "outra", "MVD#140")
+    _producao(tmp_path, "veio-do-bot", "MVD#146")
+    assert liberar_numero(tmp_path, 146, "veio-do-bot") == []
+    assert usados(tmp_path)["outra"] == 140

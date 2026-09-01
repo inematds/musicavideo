@@ -11,6 +11,7 @@ senão o número não serve para citar nada, que é justamente para o que ele ex
 """
 import json
 import re
+from datetime import datetime
 from pathlib import Path
 
 # O NÚMERO É O DO BOT. `MVD#122` já existe: é assim que o inemaccbot numera os
@@ -180,6 +181,39 @@ def atribuir(outdir: Path, slug: str, do_bot: dict[str, int] | None = None) -> s
     from src.estado import salvar_estado
     salvar_estado(w, est)
     return est["mvd"]
+
+
+def liberar_numero(outdir: Path, n: int, para_slug: str) -> list[tuple[str, str, str]]:
+    """Tira `n` de quem o ocupa hoje, para `para_slug` poder usá-lo.
+
+    O número do BOT manda: é o que aparece no Telegram, no `/aprovar MVD#N` e
+    no que a pessoa fala. Quem já estava com ele nasceu fora do bot e pegou
+    `topo_bot + 1` — que é, literalmente, o próximo número que o bot vai dar.
+    Foi assim que MVD#146 a #150 acabaram com duas produções cada (27-28/08),
+    e a colisão só apareceu quando um `--faixa-pronta MVD#147:2` copiou a
+    música da produção errada.
+
+    Devolve o que foi renumerado: `(slug, antes, depois)`.
+    """
+    from src.estado import salvar_estado
+    mexidos = []
+    ocupantes = [s for s, num in usados(outdir).items() if num == n and s != para_slug]
+    for slug in ocupantes:
+        w = outdir / slug
+        est = _estado_bruto(w)
+        if est is None:
+            continue
+        novo = max(max(usados(outdir).values(), default=0), _teto(outdir)) + 1
+        antes = est.get("mvd")
+        est["mvd"] = formatar(novo)
+        est.setdefault("historico", []).append({
+            "quando": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "evento": "renumeracao",
+            "detalhe": f"{antes} -> {est['mvd']}: o numero foi para {para_slug} (fluxo do bot)"})
+        salvar_estado(w, est)
+        _gravar_teto(outdir, novo)
+        mexidos.append((slug, str(antes), est["mvd"]))
+    return mexidos
 
 
 def numerar_acervo(outdir: Path) -> list[tuple[str, str]]:

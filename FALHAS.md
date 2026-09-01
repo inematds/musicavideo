@@ -4,6 +4,7 @@ Uma linha por falha real. Mais recente no topo.
 
 | data | o que quebrou | menor correção | prompt \| infra |
 |---|---|---|---|
+| 2026-09-01 | MVD#146 a #150 com DUAS produções cada: produção fora do bot pega `topo_bot+1` (o próximo número do bot) e horas depois o `--mvd` do fluxo grava o mesmo número sem checar ocupante | `liberar_numero()` no caminho do `--mvd`: o número do bot manda, o ocupante local é renumerado e avisado | prompt |
 | 2026-09-01 | `--faixa-pronta MVD#147:2` copiou a faixa de "Gold on the Water" havendo DUAS produções com o número 147 — escolha silenciosa, plano sai coerente com a música errada dentro | `resolver_todos()` + erro que lista as candidatas e manda usar o slug | prompt |
 | 2026-09-01 | MVD#144 morreu no 1º POST com `429 rate limit` (1 req/min naquele dia): o laço tolerava fila cheia e cota diária, mas deixava o 429 comum subir e derrubar a produção com música e capa pagas | `_rate_limit_criacao()` — espera 65s e repete, como já fazia no polling | infra |
 | 2026-09-01 | re-render em `agnes-video-2.5-flash` renderizava em v2.0: o corpo do `_um_shot` hardcodava o modelo, ignorando o `--motor` | `corpo_video(modelo, ...)` — o modelo do plano chega no request | prompt |
