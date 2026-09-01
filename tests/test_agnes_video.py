@@ -421,3 +421,41 @@ def test_poll_da_25_e_outro_endpoint():
     assert url_do_video({"video_url": "u1"}) == "u1"
     assert url_do_video({"metadata": {"url": "u2"}}) == "u2"
     assert url_do_video({"status": "completed"}) is None
+
+
+def test_429_de_rate_limit_na_criacao_nao_e_falha():
+    """MVD#144: um 429 no POST do shot 1 derrubou a producao inteira, com
+    musica e capa ja pagas. O teto por minuto VARIA (1/min em 2026-08-28,
+    6/min em 2026-09-01) — quem manda e' o 429, nao um numero no codigo."""
+    from providers.agnes import _rate_limit_criacao, _cota_diaria, ProviderError
+    minuto = ProviderError('HTTP 429: {"error":{"message":"video generation rate '
+                           'limit exceeded: allows 1 requests per 1 minute(s)"}}')
+    diaria = ProviderError('HTTP 429: Daily API usage limit reached. Please try '
+                           'again after 2026-08-26 00:00 UTC')
+    assert _rate_limit_criacao(minuto) and not _cota_diaria(minuto)
+    assert _cota_diaria(diaria) and not _rate_limit_criacao(diaria)
+    assert not _rate_limit_criacao(ProviderError("HTTP 503 video_queue_full"))
+
+
+def test_post_espera_o_rate_limit_e_segue(tmp_path, monkeypatch):
+    import providers.agnes as ag
+    tentativas = []
+
+    def fake_http(url, metodo="GET", corpo=None, headers=None, **kw):
+        if metodo == "POST":
+            tentativas.append(1)
+            if len(tentativas) == 1:
+                raise ag.ProviderError('HTTP 429: {"error":{"message":"video '
+                                       'generation rate limit exceeded: allows 1 '
+                                       'requests per 1 minute(s)"}}')
+            return {"video_id": "V1"}
+        return {"status": "completed", "video_url": "http://x/s.mp4"}
+
+    dormiu = []
+    monkeypatch.setattr(ag, "http_json", fake_http)
+    monkeypatch.setattr(ag.time, "sleep", lambda s: dormiu.append(s))
+    monkeypatch.setattr(ag, "ler_env_chave", lambda n: "k")
+    monkeypatch.setattr(ag, "baixar", lambda u, alvo: alvo)
+    p = ag.Agnes(DECL)
+    p._um_shot("prompt em ingles", {"n": 1, "duracao_s": 5}, "1312", "736", tmp_path)
+    assert len(tentativas) == 2 and 65 in dormiu

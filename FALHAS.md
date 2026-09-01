@@ -4,6 +4,7 @@ Uma linha por falha real. Mais recente no topo.
 
 | data | o que quebrou | menor correção | prompt \| infra |
 |---|---|---|---|
+| 2026-09-01 | MVD#144 morreu no 1º POST com `429 rate limit` (1 req/min naquele dia): o laço tolerava fila cheia e cota diária, mas deixava o 429 comum subir e derrubar a produção com música e capa pagas | `_rate_limit_criacao()` — espera 65s e repete, como já fazia no polling | infra |
 | 2026-09-01 | re-render em `agnes-video-2.5-flash` renderizava em v2.0: o corpo do `_um_shot` hardcodava o modelo, ignorando o `--motor` | `corpo_video(modelo, ...)` — o modelo do plano chega no request | prompt |
 | 2026-09-01 | 2.5 recusa o corpo do v2.0 (`frame_rate not allowed`, `width forbidden`, `mode is required`) e o 400 caiu no `_barrou()` como filtro de conteúdo: shot virou "BARRADO" | corpo próprio da família 2.5 (`mode:"text"`, `seconds` string 4–12, `size`, `aspect_ratio`, `n`) | infra |
 | 2026-09-01 | poll da 2.5 no `/agnesapi` do v2.0 dá 404, lido como "task ainda não registrada": 45 min de espera num vídeo pronto em 49s | `url_status()` — 2.5 pollea em `/v1/videos/<id>`, url em `metadata.url` | infra |

@@ -182,6 +182,20 @@ def _barrou(e: Exception) -> bool:
     return "content_policy" in t or "HTTP 400" in t or "failed" in t
 
 
+def _rate_limit_criacao(e: Exception) -> bool:
+    """`429 video generation rate limit exceeded` — teto por MINUTO, não do dia.
+
+    NÃO É FALHA, é "espere um minuto". O laço do POST já tolerava fila cheia e
+    cota diária, mas deixava este subir: um 429 no shot 1 derrubava a produção
+    inteira, com música e capa já pagas. Foi o que matou o MVD#144 (2026-08-28),
+    e o teto naquele dia era de 1 req/min — o valor VARIA, então o código não
+    pode assumir nenhum: quem manda é o 429.
+    """
+    txt = str(e).lower()
+    return "429" in txt and not _cota_diaria(e) and (
+        "rate limit" in txt or "rate_limit" in txt)
+
+
 def _cota_diaria(e: Exception) -> bool:
     """`429 Daily API usage limit reached` — cota do dia, não falha."""
     txt = str(e).lower()
@@ -326,6 +340,11 @@ class Agnes(Provider):
                           flush=True)
                     time.sleep(espera)
                     limite = time.time() + TIMEOUT_POLL_S    # o relógio da fila recomeça
+                    continue
+                if _rate_limit_criacao(e) and time.time() < limite:
+                    print(f"agnes: rate limit na criação do shot {shot['n']} — "
+                          f"esperando 65s", flush=True)
+                    time.sleep(65)
                     continue
                 cheia = "503" in str(e) or "queue_full" in str(e) or "queue is full" in str(e)
                 if not cheia or time.time() > limite:
