@@ -80,13 +80,25 @@ def http_json(url: str, metodo: str = "GET", corpo: dict | None = None,
                 time.sleep(2 ** (i + 1))
                 continue
             raise ProviderError(f"rede indisponível em {url}: {e.reason}") from e
+        except TimeoutError as e:
+            # TIMEOUT DE LEITURA NÃO É FALHA — é o provedor engasgado. O
+            # `urlopen` embrulha timeout de CONEXÃO em URLError, mas o de
+            # LEITURA (conectou, e ficou >timeout sem devolver byte) sobe como
+            # `TimeoutError` cru, que não era pego aqui nem no adaptador, e
+            # derrubava o clipe com música e capa já pagas. Custou MVD#103,
+            # #119, #122 (ago/2026) e #174, #175 (2026-09-13) — a Agnes engasga
+            # de vez em quando por minutos e volta sozinha.
+            if i < tentativas - 1:
+                time.sleep(2 ** (i + 1))
+                continue
+            raise ProviderError(f"timeout de leitura ({timeout}s) em {url}") from e
     raise ProviderError(f"esgotou tentativas em {url}")
 
 
 UA = "Mozilla/5.0 (X11; Linux x86_64) musicavideo/1.0"
 
 
-def baixar(url: str, destino: Path, timeout: int = 300) -> Path:
+def baixar(url: str, destino: Path, timeout: int = 300, tentativas: int = 3) -> Path:
     """Baixa NA HORA (URLs de provedores expiram).
 
     O User-Agent não é enfeite: o CDN do Suno (tempfile.aiquickdraw.com)
@@ -94,9 +106,18 @@ def baixar(url: str, destino: Path, timeout: int = 300) -> Path:
     """
     destino.parent.mkdir(parents=True, exist_ok=True)
     req = urllib.request.Request(url, headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        destino.write_bytes(r.read())
-    return destino
+    for i in range(tentativas):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                destino.write_bytes(r.read())
+            return destino
+        except (TimeoutError, urllib.error.URLError) as e:
+            # mesma proteção do `http_json`: CDN engasgado se repete, não aborta
+            if i < tentativas - 1:
+                time.sleep(2 ** (i + 1))
+                continue
+            raise ProviderError(f"download falhou em {url[:120]}: {e}") from e
+    raise ProviderError(f"esgotou tentativas de download em {url[:120]}")
 
 
 def gravar_raw(workdir: Path, nome: str, payload: dict) -> None:

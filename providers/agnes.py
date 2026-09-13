@@ -347,7 +347,10 @@ class Agnes(Provider):
                     time.sleep(65)
                     continue
                 cheia = "503" in str(e) or "queue_full" in str(e) or "queue is full" in str(e)
-                if not cheia or time.time() > limite:
+                # engasgo de rede no POST (timeout de leitura / handshake) recebe
+                # a mesma espera longa da fila cheia — custou MVD#174 no shot 1
+                engasgo = "timeout de leitura" in str(e) or "rede indisponível" in str(e)
+                if not (cheia or engasgo) or time.time() > limite:
                     raise
                 print(f"agnes: fila cheia no shot {shot['n']} — esperando 60s", flush=True)
                 time.sleep(60)
@@ -386,6 +389,15 @@ class Agnes(Provider):
                     continue
                 if "429" in str(e):
                     time.sleep(70)
+                    continue
+                # TIMEOUT DE LEITURA no poll = provedor engasgado, não task
+                # perdida. O `http_json` já repetiu 4x; aqui o teto de 45 min
+                # fecha. Custou MVD#175 (2026-09-13): shot 11 aceito, poll
+                # travou >120s e o clipe caiu com 10 shots prontos no disco.
+                if "timeout de leitura" in str(e) or "rede indisponível" in str(e):
+                    print(f"agnes: poll do shot {shot['n']} sem resposta ({e}) — "
+                          f"esperando 30s e insistindo", flush=True)
+                    time.sleep(30)
                     continue
                 raise
             if str(st.get("status", "")).lower() in ("completed", "succeeded", "success", "done"):
