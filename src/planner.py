@@ -7,6 +7,7 @@ import unicodedata
 from pathlib import Path
 
 from src.esquemas import validar_plano, campos_prompt_en
+from src.modelos import CLAUDE_BIN, CLAUDE_TOPO
 from src.estado import (novo_estado, salvar_estado, carregar_estado, transicao, _agora)
 from src.indexer import linha_de, gravar_linha, contexto_acervo
 from src.referencias import referencias_visuais, resumir_para_contexto
@@ -62,16 +63,18 @@ def derivar_slug(solicitacao: str, outdir: Path) -> str:
 
 def chamar_fable(prompt: str) -> str:
     try:
-        # ID COMPLETO, nunca o apelido "fable": o serviço do bot roda com um
-        # PATH sem ~/.local/bin e cai no /usr/bin/claude 2.1.63, que não conhece
-        # o apelido e recusa com "may not exist or you may not have access"
-        # (MVD#132/#134/#135). Mesmo modelo, mesmo plano — só o nome inteiro.
+        # Modelo e binário vêm do arquivo central (src/modelos.py). ID COMPLETO
+        # e binário explícito: o serviço roda com um PATH sem ~/.local/bin e
+        # cairia no /usr/bin/claude 2.1.63, que não conhece apelidos (MVD#132/
+        # #134/#135) e é recusado pela API no Opus 5.5 (exige >= 2.1.280).
+        # `--effort high`: o plano rodava no Fable com effort high (settings);
+        # sem ele cairia no `low` global.
         # O prompt vai por STDIN, nunca em argv: o Linux limita UM argumento a
         # 128 KB (MAX_ARG_STRLEN), e na RETENTATIVA o prompt carrega o JSON
         # anterior inteiro + a lista de erros e estoura — o subprocess nem
         # chega a executar o claude, e o OSError subia como traceback puro
         # (MVD#139: "[Errno 7] Argument list too long").
-        r = subprocess.run(["claude", "-p", "--model", "claude-fable-5"],
+        r = subprocess.run([CLAUDE_BIN, "-p", "--model", CLAUDE_TOPO, "--effort", "high"],
                            input=prompt, capture_output=True, text=True, timeout=900)
     except FileNotFoundError:
         raise RuntimeError("binário 'claude' não encontrado — o planner precisa do Claude Code no PATH")
