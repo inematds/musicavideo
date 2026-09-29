@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>musicavideo — music, cover, and video from a sentence</title>
+<meta content="CLI that turns a free-form request into music, cover art, and a clip — in stages, with an approval gate for each part and an estimated cost shown before spending." name="description"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;800&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<style>
+  :root{
+    --bg:#0c0c10; --bg2:#14141b; --card:#16161e; --line:#272730;
+    --txt:#e9e9ee; --mut:#9a9aa6; --amb:#E2A23B; --amb2:#f0c070; --sky:#38bdf8; --pro:#cbd5e1;
+    color-scheme:dark;
+  }
+  body.light{
+    --bg:#f6f7f9; --bg2:#eceef2; --card:#ffffff; --line:#e1e3ea;
+    --txt:#1a1a22; --mut:#5b5b68; --amb:#b9791d; --amb2:#a16207; --sky:#0369a1; --pro:#b45309;
+    color-scheme:light;
+  }
+  body.light .hero .glow{opacity:.5}
+  body.light pre{background:#0e0e14;color:#d6d6e0}
+  body.light pre .c{color:#8a8a98}
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.65 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  h1,h2,h3{font-family:Sora,sans-serif;line-height:1.15;margin:0}
+  a{color:var(--amb);text-decoration:none}
+  code,pre{font-family:"JetBrains Mono",monospace}
+  .wrap{max-width:1160px;margin:0 auto;padding:0 22px}
+  .mut{color:var(--mut)} .amb{color:var(--amb)}
+  .chip{display:inline-block;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--amb);font-weight:600;font-family:Sora}
+  nav{position:sticky;top:0;z-index:30;backdrop-filter:blur(12px);background:rgba(12,12,16,.78);border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex;align-items:center;gap:22px;height:60px}
+  nav .brand{display:flex;align-items:center;gap:8px;font-family:Sora;font-weight:800;letter-spacing:-.02em;color:var(--amb)}
+  nav .brand .emoji{font-size:1.25rem}
+  nav .sep{color:var(--mut);opacity:.45}
+  nav .inema{color:var(--sky);font-weight:600;font-size:.88rem;font-family:Sora}
+  nav .inema:hover{filter:brightness(1.15)}
+  nav .pro{color:var(--pro);font-weight:600;font-size:.88rem;font-family:Sora}
+  nav .pro:hover{filter:brightness(1.15)}
+  nav .clubpro{display:inline-flex;align-items:center;gap:6px}
+  nav .links{margin-left:auto;display:flex;align-items:center;gap:20px;font-size:.92rem}
+  nav .links a.sec{color:var(--mut)} nav .links a.sec:hover{color:var(--txt)}
+  .tgl{background:var(--bg2);border:1px solid var(--line);color:var(--txt);width:38px;height:38px;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:1.05rem}
+  .tgl:hover{border-color:var(--amb)}
+  .btn{display:inline-block;background:var(--amb);color:#1a1206;font-weight:600;padding:.6em 1.05em;border-radius:10px;font-family:Sora}
+  .btn.ghost{background:transparent;color:var(--txt);border:1px solid var(--line)}
+  @media(max-width:760px){nav .links a.sec{display:none}}
+  .hero{position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
+  .hero .glow{position:absolute;inset:-40% -20% auto auto;width:70%;height:600px;background:radial-gradient(closest-side,rgba(226,162,59,.22),transparent 70%);pointer-events:none}
+  .hero .wrap{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center;padding:74px 22px}
+  .hero h1{font-size:clamp(2.2rem,5vw,3.5rem);font-weight:800;letter-spacing:-.025em}
+  .hero p.lead{font-size:1.18rem;color:var(--mut);margin:1.1em 0 1.6em;max-width:34ch}
+  .hero .cta{display:flex;gap:12px;flex-wrap:wrap}
+  .hero figure{margin:0;border-radius:16px;overflow:hidden;border:1px solid var(--line);box-shadow:0 30px 80px -30px #000}
+  .hero figure img{width:100%;display:block}
+  @media(max-width:780px){.hero .wrap{grid-template-columns:1fr;padding:48px 22px}}
+  section{padding:62px 0;border-bottom:1px solid var(--line)}
+  section h2{font-size:clamp(1.5rem,3.4vw,2.1rem);font-weight:800;letter-spacing:-.02em}
+  section .sub{color:var(--mut);margin:.6em 0 2em;max-width:62ch}
+  .grid{display:grid;gap:16px}
+  .g3{grid-template-columns:repeat(3,1fr)} .g4{grid-template-columns:repeat(4,1fr)} .g2{grid-template-columns:repeat(2,1fr)}
+  @media(max-width:820px){.g3,.g4{grid-template-columns:1fr 1fr}}
+  @media(max-width:540px){.g2,.g3,.g4{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}
+  .card h3{font-size:1.05rem;margin-bottom:.4em}
+  .card p{color:var(--mut);font-size:.92rem;margin:0}
+  .num{display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center;border-radius:8px;background:rgba(226,162,59,.14);color:var(--amb);font-family:Sora;font-weight:800;font-size:.9rem;margin-bottom:.7em}
+  .flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+  .flow span{background:var(--bg2);border:1px solid var(--line);border-radius:999px;padding:.45em .9em;font-size:.85rem;font-family:Sora;font-weight:600}
+  .flow .arr{color:var(--amb);border:none;background:none;padding:0 .1em}
+  pre{background:#0a0a0e;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;font-size:.86rem;line-height:1.6;color:#d6d6e0}
+  pre .c{color:#6f6f7c} pre .k{color:var(--amb2)} pre .s{color:#9ece6a}
+  .step{display:grid;grid-template-columns:46px 1fr;gap:16px;margin-bottom:26px}
+  .step .b{width:46px;height:46px;border-radius:12px;background:var(--amb);color:#1a1206;font-family:Sora;font-weight:800;font-size:1.25rem;display:flex;align-items:center;justify-content:center}
+  .step h3{font-size:1.12rem;margin-bottom:.3em}
+  .step p{color:var(--mut);margin:.2em 0 .7em}
+  .ex{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:680px){.ex{grid-template-columns:1fr}}
+  .ex figure{margin:0;border-radius:14px;overflow:hidden;border:1px solid var(--line)}
+  .ex figure img{width:100%;display:block}
+  .ex figcaption{padding:12px 14px;font-size:.88rem;color:var(--mut);background:var(--card)}
+  .phase{display:flex;gap:14px;padding:16px 0;border-bottom:1px solid var(--line)}
+  .phase:last-child{border:none}
+  .phase .tag{flex:0 0 92px;font-family:Sora;font-weight:800;color:var(--amb)}
+  .phase .d strong{display:block;margin-bottom:.2em}
+  .phase .d span{color:var(--mut);font-size:.92rem}
+  footer{padding:46px 0;text-align:center;color:var(--mut);font-size:.9rem}
+  .pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:.3em .8em;font-size:.78rem;color:var(--mut);margin:0 4px}
+</style>
+<link href="https://inematds.github.io/musicavideo/guia/" hreflang="pt-BR" rel="alternate"/><link href="https://inematds.github.io/musicavideo/guia/en/" hreflang="en" rel="alternate"/><link href="https://inematds.github.io/musicavideo/guia/es/" hreflang="es" rel="alternate"/></head>
+<body><div class="inema-lang" style="position:fixed;right:14px;bottom:14px;z-index:9999;display:flex;gap:2px;padding:4px;border-radius:10px;background:rgba(12,12,16,.82);border:1px solid rgba(226,162,59,.45);font:600 12px/1 Sora,Inter,system-ui,sans-serif;backdrop-filter:blur(8px)" translate="no"><a href="../" hreflang="pt-BR" style="padding:6px 8px;border-radius:7px;text-decoration:none;color:#e9e9ee">PT</a><a href="./" hreflang="en" style="padding:6px 8px;border-radius:7px;text-decoration:none;color:#1a1206;background:#E2A23B">EN</a><a href="../es/" hreflang="es" style="padding:6px 8px;border-radius:7px;text-decoration:none;color:#e9e9ee">ES</a></div>
+<nav><div class="wrap">
+<a class="brand" href="#top"><span class="emoji">🎬</span> musicavideo</a>
+<span class="sep">|</span>
+<span class="clubpro">
+<a class="inema" href="https://inema.club" rel="noopener" target="_blank">INEMA.CLUB</a>
+<span class="sep">-</span>
+<a class="pro" href="https://inema.pro" rel="noopener" target="_blank">PRO</a>
+</span>
+<div class="links">
+<a class="sec" href="#oque">What it is</a>
+<a class="sec" href="#fluxo">How it works</a>
+<a class="sec" href="#guia">User guide</a>
+<a class="sec" href="#nuvem">Web collection</a>
+<a class="sec" href="#exemplos">Examples</a>
+<a class="sec" href="#roadmap">Roadmap</a>
+<button aria-label="Switch theme" class="tgl" id="themeToggle" title="Switch theme">🌙</button>
+<a class="btn" href="https://github.com/inematds/musicavideo" rel="noopener" target="_blank">GitHub</a>
+</div>
+</div></nav>
+<header class="hero" id="top">
+<div class="glow"></div>
+<div class="wrap">
+<div>
+<span class="chip">music + cover + video, in phases</span>
+<h1>A sentence goes in. Out comes <span class="amb">music, cover, and video</span> — with you approving each part.</h1>
+<p class="lead">The plan for all three parts is written before a single cent is spent. You read it, adjust whatever you want, approve each part individually — and only then generate. The cover and clip are free through Agnes; only the music uses credits.</p>
+<div class="cta">
+<a class="btn" href="#guia">Start the guide</a>
+<a class="btn ghost" href="https://musicavideo-pub.vercel.app" rel="noopener" target="_blank">View the finished collection</a>
+</div>
+</div>
+<figure><img alt="Musician rehearsing, amber light — musicavideo project cover" src="../assets/hero.png"/></figure>
+</div>
+</header>
+<section id="oque"><div class="wrap">
+<span class="chip">What it is</span>
+<h2>Planning is cheap. Execution is expensive.</h2>
+<p class="sub">Asking a generic agent to "make a song about X" gives you a random track, a cover that doesn't fit it, and no clip. The three come out disconnected because there was never a shared plan. Here, the plan is the product.</p>
+<div class="grid g3">
+<div class="card"><h3>📋 The plan comes first</h3><p>A <code>plano.json</code> with a closed schema decides the song structure, cover concept, and video breakdown together — using a style database measured from real material (BPM, key, instrumentation, vocal type).</p></div>
+<div class="card"><h3>🚦 Gate for each part</h3><p>Each part has its own cycle: <code>ver</code> → <code>ajusta</code> → <code>ok</code> → <code>faz</code>. You can stop after approving the cover and come back three days later — the <code>estado.json</code> pick up where you left off.</p></div>
+<div class="card"><h3>🔌 The engine is data, not code</h3><p>Pluggable provider using the adapter pattern + <code>models.json</code> declarative. Without a key, it appears <em>unavailable with the reason</em> — never runs over during generation. Switching is a flag.</p></div>
+</div>
+</div></section>
+<section id="fluxo"><div class="wrap">
+<span class="chip">How it works</span>
+<h2>Four phases, and only one of them costs money</h2>
+<p class="sub">Research is opt-in. The plan is free. Execution happens one part at a time, with the estimated cost shown before any call. Delivery is automatic when all three are ready.</p>
+<div class="flow">
+<span>research <em>(opt-in)</em></span><span class="arr">→</span>
+<span>plan</span><span class="arr">→</span>
+<span>ok</span><span class="arr">→</span>
+<span>does</span><span class="arr">→</span>
+<span>PACOTE.md</span>
+</div>
+<div class="grid g3" style="margin-top:28px">
+<div class="card"><h3>🔎 Phase 0 — research</h3><p>Only with <code>--pesquisa</code>. It goes to the web to find niche references and see whether the topic has traction; it becomes <code>pesquisa.md</code> and is included as context for the planner. <strong>Never</strong> overwrites what you requested.</p></div>
+<div class="card"><h3>📝 Phase 1 — plan</h3><p>Zero media API cost. It comes <code>plano.json</code> (the contract) and <code>PLANO.md</code> (for you to read). The lyrics can be yours: like <em>draft</em>, it finishes and shows the diff; like <em>final</em>, is law and not even the adjuster touches it.</p></div>
+<div class="card"><h3>🎛️ Phase 2 — execution</h3><p><code>faz</code> only runs what was approved. A provider failure doesn’t bring down the run: that part becomes <code>erro</code> with the message, and the others continue (exit 2).</p></div>
+</div>
+<div class="flow" style="margin-top:24px">
+<span>planned</span><span class="arr">→ OK →</span>
+<span>approved</span><span class="arr">→ does →</span>
+<span>generating</span><span class="arr">→</span>
+<span>ready</span><span class="arr">|</span>
+<span>error</span>
+</div>
+</div></section>
+<section id="pre"><div class="wrap">
+<span class="chip">Prerequisites</span>
+<h2>The distro's Python and ffmpeg. That's all.</h2>
+<p class="sub">Zero pip dependencies: everything uses the standard library. Keys are read at runtime from <code>.env</code> authorized and never copied into the repo.</p>
+<div class="grid g3">
+<div class="card"><h3>System</h3><p><code>python3</code> (3.10+) e <code>ffmpeg</code>, used to concatenate the clip's shots.</p><pre><span class="c"># Debian/Ubuntu</span>
+<span class="k">sudo apt install</span> ffmpeg</pre></div>
+<div class="card"><h3>Cover art and clip — free</h3><p><code>AGNES_API_KEY</code> provides images and video at zero cost. It’s the default for both parts and the reason it runs on any VPS.</p><pre><span class="c"># read at runtime from:</span>
+~/projetos/openpcbotv2/<span class="s">.env</span></pre></div>
+<div class="card"><h3>Music — the paid part</h3><p><code>KIE_API_KEY</code> (Suno v4.5), ~US$ 0,08 per generation — which already includes two tracks.</p><pre><span class="c"># read at runtime from:</span>
+~/projetos/wifi/<span class="s">.env</span></pre></div>
+</div>
+</div></section>
+<section id="guia"><div class="wrap">
+<span class="chip">User guide · step by step</span>
+<h2>From raw text to a ready-to-use package</h2>
+<p class="sub">Real commands. The normal path uses the approval gate; there's a shortcut without the gate at the end for when you trust the plan.</p>
+<div class="step"><div class="b">1</div><div>
+<h3>Install</h3>
+<p>Clone and go — no build or <code>pip install</code>.</p>
+<pre><span class="k">git clone</span> <span class="s">https://github.com/inematds/musicavideo.git</span> <span class="k">&amp;&amp; cd</span> musicavideo</pre>
+</div></div>
+<div class="step"><div class="b">2</div><div>
+<h3>Plan (costs nothing)</h3>
+<p>Free-form text request. The plan for all three parts is generated together, and the <code>PLANO.md</code> appears on screen.</p>
+<pre><span class="k">bash musicavideo.sh plano</span> <span class="s">"música de virada, rock feminino, sobre quem constrói em silêncio e agora cobra"</span></pre>
+</div></div>
+<div class="step"><div class="b">3</div><div>
+<h3>Read each part</h3>
+<p>With no argument, it shows the full plan. With a part specified, it shows only that section — style and lyrics, cover concept and prompt, or the shot-by-shot breakdown.</p>
+<pre><span class="k">bash musicavideo.sh ver</span> agora-eu-cobro           <span class="c"># the entire plan</span>
+<span class="k">bash musicavideo.sh ver</span> agora-eu-cobro clipe     <span class="c"># just the shot breakdown</span></pre>
+</div></div>
+<div class="step"><div class="b">4</div><div>
+<h3>Adjust what didn't turn out well</h3>
+<p>Replan <strong>just that part</strong> and prints a diff of what changed. As many times as you like — nothing has been generated yet.</p>
+<pre><span class="k">bash musicavideo.sh ajusta</span> agora-eu-cobro musica <span class="s">"mais lento, e o refrão sobe uma oitava"</span></pre>
+</div></div>
+<div class="step"><div class="b">5</div><div>
+<h3>Approve — the gate</h3>
+<p>Part without <code>ok</code> doesn’t generate. Approving one doesn’t approve the others.</p>
+<pre><span class="k">bash musicavideo.sh ok</span> agora-eu-cobro musica</pre>
+</div></div>
+<div class="step"><div class="b">6</div><div>
+<h3>Generate (this is where it costs)</h3>
+<p>Shows the estimated cost for each part and the total <strong>before</strong> before calling any API. Without that part, everything approved runs. <code>--sim</code> skips confirmation.</p>
+<pre><span class="k">bash musicavideo.sh faz</span> agora-eu-cobro musica
+<span class="c"># estimated cost:</span>
+<span class="c">#   music   US$ 0.0800  (kie:suno-v4.5)</span>
+<span class="c">#   total    US$ 0.0800</span>
+<span class="c"># confirm? [s/N]</span></pre>
+</div></div>
+<div class="step"><div class="b">7</div><div>
+<h3>Bring your own lyrics</h3>
+<p>As a draft, the planner finishes and shows the diff. With <code>--letra-final</code>, the lyrics are passed through verbatim and no one changes them — not even <code>ajusta</code>.</p>
+<pre><span class="k">bash musicavideo.sh plano</span> <span class="s">"sertanejo"</span> --letra rascunho.txt
+<span class="k">bash musicavideo.sh plano</span> <span class="s">"sertanejo"</span> --letra final.txt --letra-final</pre>
+</div></div>
+<div class="step"><div class="b">8</div><div>
+<h3>No approval gate, with spending lock</h3>
+<p>Plan, approve all three, and execute. The limit keeps you from overspending: whatever fits gets completed; the rest remains approved and resumes with <code>faz</code>.</p>
+<pre><span class="k">bash musicavideo.sh tudo</span> <span class="s">"balada pop sobre recomeço"</span> --teto 2 --sim</pre>
+</div></div>
+<div class="step"><div class="b">9</div><div>
+<h3>Switch engines</h3>
+<p>The engine lives in the plan, never in the code. The flag overrides it in <code>plano</code>, <code>ajusta</code> or <code>faz</code>.</p>
+<pre><span class="k">bash musicavideo.sh faz</span> agora-eu-cobro clipe --motor <span class="s">clipe=kling:kling-2.5</span></pre>
+</div></div>
+<div class="step"><div class="b">10</div><div>
+<h3>Browse the collection</h3>
+<p>Each slug becomes a row in the <code>index.jsonl</code>, rewritten with every state change. The collection grows with each use and feeds its own planner.</p>
+<pre><span class="k">bash musicavideo.sh lista</span> 10
+<span class="k">bash musicavideo.sh busca</span> <span class="s">"rock"</span>
+<span class="k">bash musicavideo.sh custo</span> agora-eu-cobro   <span class="c"># estimated vs. spent</span></pre>
+</div></div>
+</div></section>
+<section id="nuvem"><div class="wrap">
+<span class="chip">From disk to the web</span>
+<h2>The finished clip doesn't end on your machine</h2>
+<p class="sub">There are two panels, and that's intentional. The <strong>local dashboard</strong> is the workbench: where you listen, compare, send things to the trash—and where you <em>approves what comes out of the machine</em>. A <a href="https://musicavideo-pub.vercel.app" rel="noopener" target="_blank">showcase</a> is what the public sees. Uploading isn’t a consequence of being finished: production-ready work is working material.</p>
+<div class="grid g3">
+<div class="card"><h3>🎛️ The dashboard, always up</h3><p>A systemd service keeps the workbench running from boot on the local network. Going offline because you forgot to run the command is the bug, not the cost savings.</p><pre><span class="k">systemctl --user enable --now</span> musicavideo-painel</pre></div>
+<div class="card"><h3>☁️ Approve with one click, publish with one command</h3><p>O <code>publica-hf</code> uploads <strong>only what changed</strong>, it writes the manifesto to the showcase repo and commits — publishing ends with the push, not halfway through.</p><pre><span class="k">bash musicavideo.sh publica-hf</span>
+<span class="c"># 0 productions if nothing changed</span></pre></div>
+<div class="card"><h3>📺 Hosting that costs nothing</h3><p>The files live in a public dataset on Hugging Face, which serves <em>range request</em> — the video bar navigates directly, with no proxy or paid storage. The showcase only reads the manifest.</p><pre><span class="k">bash musicavideo.sh likes</span>   <span class="c"># the audience's ♥ comes back</span></pre></div>
+</div>
+</div></section>
+<section id="exemplos"><div class="wrap">
+<span class="chip">Engines</span>
+<h2>Free by default, paid by choice</h2>
+<p class="sub">The cover and clip defaults intentionally cost US$ 0 — that's what lets the project run on any VPS without an account anywhere.</p>
+<div class="grid g3">
+<div class="card"><h3>🎵 Music</h3><p><code>kie:suno-v4.5</code> — ~US$ 0,08 per generation, provides 2 tracks. The only paid part today.</p></div>
+<div class="card"><h3>🖼️ Cover</h3><p><code>agnes:agnes-image-2.1-flash</code> — <strong>US$ 0</strong>. Alternative: <code>inemaimg:flux2-klein</code>, local server on the DGX.</p></div>
+<div class="card"><h3>🎬 Clip</h3><p><code>agnes:agnes-video-v2.0</code> — <strong>US$ 0</strong>, shots concatenated with ffmpeg. Paid alternatives: <code>kling:kling-2.5</code> e <code>fal:kling-video-v2.5-turbo-pro</code>.</p></div>
+</div>
+<p class="sub" style="margin-top:24px">Adding a provider takes two files: <code>providers/&lt;nome&gt;.py</code> implementing <code>disponivel</code>/<code>estimar_custo</code>/<code>gerar</code>, e <code>providers/&lt;nome&gt;.models.json</code> declaring models, cost, and accepted params. Nothing else in the project changes.</p>
+<pre style="margin-top:18px"><span class="c"># output for one slug</span>
+~/projetos/output/musicavideo/&lt;slug&gt;/
+├── plano.json      <span class="c"># the contract</span>
+├── PLANO.md        <span class="c"># the same plan, for you to read and approve</span>
+├── estado.json     <span class="c"># source of truth: stages, cost, errors, history</span>
+├── faixa.mp3  capa.png  clipe.mp4
+├── PACOTE.md       <span class="c"># delivery (complete or partial, with what's missing)</span>
+└── raw/            <span class="c"># raw provider responses</span></pre>
+</div></section>
+<section id="roadmap"><div class="wrap">
+<span class="chip">Roadmap</span>
+<h2>Where it is and what's next</h2>
+<p class="sub">The core is complete and tested. What's missing is broader provider support and clip finishing.</p>
+<div class="phase"><div class="tag">ready</div><div class="d"><strong>Complete core</strong><span>Per-part approval gate, resumable state machine, fixed contract, cost estimate before spending, limit, searchable collection, and delivery in PACOTE.md.</span></div></div>
+<div class="phase"><div class="tag">ready</div><div class="d"><strong>Agnes and Kie tested</strong><span>Cover art and clip generated for free by Agnes; music by Suno via Kie.</span></div></div>
+<div class="phase"><div class="tag">to test</div><div class="d"><strong>Kling and fal</strong><span>Adapters are written and covered by contract tests, but have not yet been exercised against the real API.</span></div></div>
+<div class="phase"><div class="tag">after</div><div class="d"><strong>Clip post-production</strong><span>Today, the shots are concatenated without grading or mixing with the track. Matching the clip and music to the beat is the natural next step.</span></div></div>
+<div class="phase"><div class="tag">after</div><div class="d"><strong>Add as a skill</strong><span>O <code>plano.json</code> is a closed contract precisely so other projects can consume it without knowing how it was made.</span></div></div>
+</div></section>
+<footer>
+<div class="wrap">
+<div class="pill">python3 stdlib</div><div class="pill">bash</div><div class="pill">ffmpeg</div><div class="pill">pytest</div>
+<p style="margin-top:18px">musicavideo · planning is cheap, execution is expensive ·
+      <a href="https://github.com/inematds/musicavideo">inematds/musicavideo</a> ·
+      <a href="https://inema.club">INEMA.CLUB</a></p>
+</div>
+</footer>
+<script>
+  (function(){
+    var KEY='musicavideo-theme';
+    var b=document.body, t=document.getElementById('themeToggle');
+    if(localStorage.getItem(KEY)==='light'){ b.classList.add('light'); t.textContent='☀️'; }
+    t.addEventListener('click',function(){
+      var light=b.classList.toggle('light');
+      t.textContent=light?'☀️':'🌙';
+      localStorage.setItem(KEY, light?'light':'dark');
+    });
+  })();
+</script>
+</body>
+</html>

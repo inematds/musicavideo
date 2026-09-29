@@ -1,5 +1,7 @@
 # 🎬 musicavideo
 
+**🇧🇷 [Português](README.md) · 🇺🇸 [English](README.en.md) · 🇪🇸 [Español](README.es.md)**
+
 Você manda **uma frase**. Sai **música + capa + clipe** — em fases, aprovando
 cada parte, e sem gastar nada até você mandar gastar.
 
