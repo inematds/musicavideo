@@ -19,6 +19,7 @@ Melhorias pedidas e ainda não feitas: [`docs/MELHORIAS.md`](docs/MELHORIAS.md).
 | **As fases, passo a passo** | [docs/FASES.md](docs/FASES.md) |
 | **Refazer: mudar o que já foi feito** (todos os comandos e flags) | [docs/REFAZER.md](docs/REFAZER.md) |
 | **Como funciona por dentro** | [docs/COMO-FUNCIONA.md](docs/COMO-FUNCIONA.md) |
+| **Lip Sync com Kling (testes, como continuar)** | [docs/LIPSYNC-KLING.md](docs/LIPSYNC-KLING.md) |
 | **Interface pro bot / skill** | [SKILL.md](SKILL.md) |
 
 ---
