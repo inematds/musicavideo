@@ -172,7 +172,7 @@ bash $S publica-hf --manifesto   # solo el manifiesto, sin volver a enviar ning�
 |---|---|---|---|
 | música | `kie:suno-v4.5` | ~US$ 0,08 (incluye 2 pistas) | — |
 | portada | `agnes:agnes-image-2.1-flash` | **US$ 0** | `inemaimg:flux2-klein` (servidor local) |
-| videoclip | `agnes:agnes-video-v2.0` | **US$ 0** | `kling:kling-v2_5`, `fal:kling-v3-turbo` |
+| videoclip | `agnes:agnes-video-2.5-flash` | **US$ 0** | `kling:kling-v2_5`, `fal:kling-v3-turbo` |
 
 Los motores predeterminados de portada y videoclip no cuestan nada a propósito: **funcionan en cualquier VPS**, sin necesidad de una cuenta. Cambiarlos requiere un flag: `--motor clipe=kling:kling-v2_5`, porque el motor está en el plan, nunca en el código.
 

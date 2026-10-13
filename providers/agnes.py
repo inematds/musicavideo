@@ -1,6 +1,9 @@
 """Agnes AI — imagem E vídeo a custo ZERO (default de capa e clipe).
 
 Fatos que importam:
+- **2026-10-13: `agnes-video-v2.0` SAIU da API** (503 "No available channel", fora do
+  /v1/models). Default agora é `agnes-video-2.5-flash` (seconds 4..12, mode keyframe/text);
+  o executor reescala a decupagem para 4..12 s mantendo a soma;
 - prompt DEVE ser em inglês (a API filtra português legítimo com 400);
 - imagem: `size` sempre em PIXELS ("1024x1024"), nunca ratio;
 - vídeo: `num_frames` segue 8n+1 com teto POR RESOLUÇÃO (720p=481 → 20,0s
@@ -300,7 +303,7 @@ class Agnes(Provider):
         return Resultado(alvo, 0.0, {"size": corpo["size"]})
 
     def _um_shot(self, prompt: str, shot: dict, w: str, h: str, workdir: Path,
-                 sufixo: str = "", modelo: str = "agnes-video-v2.0") -> Path:
+                 sufixo: str = "", modelo: str = "agnes-video-2.5-flash") -> Path:
         """Gera UM shot. Levanta ProviderError se barrar ou falhar.
 
         `modelo` vem do plano/`--motor`: o corpo hardcodava `agnes-video-v2.0` e
@@ -411,7 +414,7 @@ class Agnes(Provider):
             time.sleep(10)
 
     def _gerar_video(self, params, workdir: Path,
-                     modelo: str = "agnes-video-v2.0") -> Resultado:
+                     modelo: str = "agnes-video-2.5-flash") -> Resultado:
         """Cascata por shot: prompt → prompt_alt → reescrita → vizinho da seção.
 
         A duração total é sagrada: é ela que mantém imagem e música alinhadas.

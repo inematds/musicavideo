@@ -65,6 +65,13 @@ def _params_de(plano: dict, parte: str) -> dict:
                   "prompt_negativo": plano["capa"]["prompt_negativo"]})
     elif parte == "clipe":
         p["decupagem"] = plano["clipe"]["decupagem"]
+        if "2.5" in str(plano["clipe"].get("motor", "")):
+            # agnes-video-2.5-flash só aceita 4..12 s inteiros (o v2.0 saiu da API em
+            # 2026-10-13). Reescala aqui, mantendo a soma: shot de 3 s virando 4 s no
+            # pedido, 40 vezes, empurra o clipe para longe da música.
+            from src.planner import retimar_decupagem_para
+            total = sum(float(s.get("duracao_s") or 0) for s in p["decupagem"])
+            p["decupagem"] = retimar_decupagem_para([dict(s) for s in p["decupagem"]], total)
         from src.planner import reescritor_de_prompt
         p["reescrever"] = reescritor_de_prompt()   # rede de segurança da cascata
     return p

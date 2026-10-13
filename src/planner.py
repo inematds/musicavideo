@@ -38,7 +38,7 @@ RITMO_PADRAO = "auto"
 COBERTURA_MINIMA = 0.9       # o clipe tem que cobrir ao menos 90% da faixa
 MOTORES_DEFAULT = {"musica": "kie:suno-v4.5",
                    "capa": "agnes:agnes-image-2.1-flash",
-                   "clipe": "agnes:agnes-video-v2.0"}
+                   "clipe": "agnes:agnes-video-2.5-flash"}   # v2.0 saiu da API em 2026-10-13 (503 no channel)
 
 
 def derivar_slug(solicitacao: str, outdir: Path) -> str:

@@ -241,7 +241,7 @@ ninguém saberia qual painel está certo.
 |---|---|---|---|
 | música | `kie:suno-v4.5` | ~US$ 0,08 (traz 2 faixas) | — |
 | capa | `agnes:agnes-image-2.1-flash` | **US$ 0** | `inemaimg:flux2-klein` (servidor local) |
-| clipe | `agnes:agnes-video-v2.0` | **US$ 0** | `kling:kling-v2_5`, `fal:kling-v3-turbo` |
+| clipe | `agnes:agnes-video-2.5-flash` | **US$ 0** | `kling:kling-v2_5`, `fal:kling-v3-turbo` |
 
 Os defaults de capa e clipe são de custo zero de propósito: **roda em qualquer
 VPS**, sem conta em lugar nenhum. Trocar é uma flag —

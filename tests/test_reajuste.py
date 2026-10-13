@@ -76,3 +76,24 @@ def test_retimar_nao_inventa_shot_nem_perde_campo():
     d = [{"n": 1, "duracao_s": 3, "prompt": "p", "secao": "intro"}]
     r = retimar_decupagem_para(d, 4)
     assert len(r) == 1 and r[0]["prompt"] == "p" and r[0]["duracao_s"] == 4
+
+
+def test_params_do_clipe_25_reescala_para_4_12_sem_mudar_a_soma(monkeypatch):
+    """2026-10-13: agnes-video-v2.0 saiu da API; o 2.5-flash só aceita 4..12 s."""
+    import src.executor as ex
+    import src.planner as pl
+    monkeypatch.setattr(pl, "reescritor_de_prompt", lambda: None)
+    decup = [{"n": i, "duracao_s": v, "prompt": "p"} for i, v in enumerate([3, 3, 3, 15, 6], 1)]
+    plano = {"clipe": {"motor": "agnes:agnes-video-2.5-flash", "decupagem": decup}}
+    durs = [s["duracao_s"] for s in ex._params_de(plano, "clipe")["decupagem"]]
+    assert sum(durs) == 30 and all(4 <= x <= 12 for x in durs)
+    assert [s["duracao_s"] for s in decup] == [3, 3, 3, 15, 6]   # o plano não é alterado
+
+
+def test_params_do_clipe_v20_nao_reescala(monkeypatch):
+    import src.executor as ex
+    import src.planner as pl
+    monkeypatch.setattr(pl, "reescritor_de_prompt", lambda: None)
+    decup = [{"n": 1, "duracao_s": 3}, {"n": 2, "duracao_s": 15}]
+    plano = {"clipe": {"motor": "agnes:agnes-video-v2.0", "decupagem": decup}}
+    assert [s["duracao_s"] for s in ex._params_de(plano, "clipe")["decupagem"]] == [3, 15]

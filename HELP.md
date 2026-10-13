@@ -44,7 +44,7 @@ Os valores que valem quando você não diz nada:
 | portão | **liga** em `plano`, `musica` e `capa-clipe` | campo `sem-portao` na hora, ou `pausa_apos` no `flow.json` |
 | motor da música | `kie:suno-v4.5` (~US$ 0,08, traz 2 faixas) | `--motor musica=...` |
 | motor da capa | `agnes:agnes-image-2.1-flash` (**US$ 0**) | `--motor capa=inemaimg:flux2-klein` |
-| motor do clipe | `agnes:agnes-video-v2.0` (**US$ 0**) | `--motor clipe=kling:kling-v2_5` ou `fal:kling-v3-turbo` |
+| motor do clipe | `agnes:agnes-video-2.5-flash` (**US$ 0**) | `--motor clipe=kling:kling-v2_5` ou `fal:kling-v3-turbo` |
 | ritmo do clipe | **auto** — o planejador decide pelo bpm/gênero e pelas referências medidas | `--ritmo calmo\|padrao\|variado\|dinamico` |
 | pesquisa prévia | **desligada** (opt-in) | `--pesquisa` |
 | letra | o planejador escreve | `--letra <arq>`, e `--letra-final` para ela virar lei |

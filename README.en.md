@@ -173,7 +173,7 @@ bash $S publica-hf --manifesto   # only the manifest, without re-uploading any f
 |---|---|---|---|
 | music | `kie:suno-v4.5` | ~US$ 0,08 (includes 2 tracks) | — |
 | cover art | `agnes:agnes-image-2.1-flash` | **US$ 0** | `inemaimg:flux2-klein` (local server) |
-| video | `agnes:agnes-video-v2.0` | **US$ 0** | `kling:kling-v2_5`, `fal:kling-v3-turbo` |
+| video | `agnes:agnes-video-2.5-flash` | **US$ 0** | `kling:kling-v2_5`, `fal:kling-v3-turbo` |
 
 The cover art and video defaults are intentionally free: **runs on any VPS**, with no account anywhere. Switching is a flag —
 `--motor clipe=kling:kling-v2_5` — because the engine lives in the plan, never in the code.

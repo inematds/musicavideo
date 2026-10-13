@@ -147,14 +147,16 @@ Marca a parte como `aprovado`. Sem isso, o `faz` recusa. Cada parte tem portão 
 1. `POST /v1/images/generations` com `size` em pixels e prompt em inglês.
 2. Baixa a URL, que é temporária.
 
-**Clipe — `agnes:agnes-video-v2.0`**
+**Clipe — `agnes:agnes-video-2.5-flash`** (o `agnes-video-v2.0` saiu da API em 2026-10-13: 503 "No available channel")
+
+Antes: a decupagem é reescalada para 4–12 s inteiros por shot, mantendo a soma (`retimar_decupagem_para`).
 
 Por shot:
 
 1. Já existe `raw/shot-NN.mp4`? reaproveita e segue.
-2. Espera 12 s (limite real de 5 req/min).
-3. `POST /v1/videos` com `num_frames` na regra 8n+1 (teto 441; 5 s = 121).
-4. Poll a cada 10 s até `completed`; baixa o shot.
+2. Espera 12 s (limite real de 6 req/min).
+3. `POST /v1/videos` com `mode:"text"`, `seconds` (string 4–12), `size:"720P"`, `aspect_ratio`.
+4. Poll em `GET /v1/videos/<id>` a cada 10 s até `completed`; baixa o shot (url em `metadata.url`).
 5. **Barrou no filtro?** cascata: `prompt_alt` → reescrita na hora pelo Fable → variação espelhada de um vizinho da mesma seção → buraco registrado. A duração total é preservada em todos os casos menos o último.
 
 No fim: falha se sobrarem menos de 80% dos shots; senão `ffmpeg concat -c copy` e `ffprobe` para medir o arquivo real (a resposta da API mente o tamanho).

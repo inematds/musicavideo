@@ -78,7 +78,7 @@ Solicitação em texto livre. Opcionais:
 |---|---|---|---|
 | música | `kie:suno-v4.5` | ~US$ 0,08 | — |
 | capa | `agnes:agnes-image-2.1-flash` | **US$ 0** | `inemaimg:flux2-klein` (local) |
-| clipe | `agnes:agnes-video-v2.0` | **US$ 0** | `kling:kling-v2_5`, `fal:kling-v3-turbo` |
+| clipe | `agnes:agnes-video-2.5-flash` | **US$ 0** | `kling:kling-v2_5`, `fal:kling-v3-turbo` |
 
 Trocar: `--motor clipe=fal:kling-v3-turbo` em `plano`, `ajusta` ou `faz`.
 

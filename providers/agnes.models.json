@@ -41,7 +41,8 @@
    },
    "prompt": {
     "idioma": "en"
-   }
+   },
+   "indisponivel": "2026-10-13: 503 No available channel (saiu do /v1/models)"
   },
   {
    "id": "agnes-video-2.5-flash",
@@ -56,7 +57,8 @@
     },
     "duracao_shot_s": {
      "default": 5,
-     "max": 20
+     "min": 4,
+     "max": 12
     }
    },
    "prompt": {

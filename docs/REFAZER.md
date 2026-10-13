@@ -173,7 +173,7 @@ O `publica-hf` cobre só a **vitrine**. Um vídeo já publicado no YouTube pelo
 |---|---|
 | música | `kie:suno-v4.5` |
 | capa | `agnes:agnes-image-2.1-flash` |
-| clipe | `agnes:agnes-video-v2.0` |
+| clipe | `agnes:agnes-video-2.5-flash` |
 
 Trocar exige autorização explícita, e o id é o exato do provedor
 (`providers/*.models.json`):
